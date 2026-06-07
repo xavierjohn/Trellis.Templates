@@ -55,7 +55,7 @@ jobs:
           dotnet new trellis-microservices -n SampleTracker
       - name: Build instantiation
         run: |
-          cd /tmp/instantiated
+          cd /tmp/instantiated/SampleTracker
           dotnet build SampleTracker.slnx -c Release
       - name: Upload pack as artifact
         uses: actions/upload-artifact@v6

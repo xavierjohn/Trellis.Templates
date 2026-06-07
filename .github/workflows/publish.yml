@@ -53,6 +53,7 @@ jobs:
           mkdir -p /tmp/published-smoke
           cd /tmp/published-smoke
           dotnet new trellis-microservices -n PublishedSmokeTest
+          cd PublishedSmokeTest
           dotnet build PublishedSmokeTest.slnx -c Release
 
       - name: List packages
