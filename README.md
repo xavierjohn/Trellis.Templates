@@ -34,7 +34,7 @@ You get a working **Project Tracker** topology — Aspire-orchestrated — that 
 |---|---|---|
 | `-n`, `--name` | `MyTracker` | Solution name. Becomes the root namespace and assembly-name prefix. Spaces are stripped. |
 | `--authorName` | `Your Name` | Author written into `Directory.Build.props`. |
-| `--gatewayIssuerUrl` | `https://gateway.internal` | Issuer/audience prefix the gateway mints internal JWTs against. |
+| `--gatewayIssuerUrl` | `http://localhost:5001` | Issuer/audience prefix the gateway mints internal JWTs against. Default works zero-config under the Aspire AppHost (gateway is pinned to port 5001). Override with your production gateway URL (e.g. `https://gateway.internal`) before deploying. |
 | `--skipRestore` | `false` | Skip post-creation `dotnet restore`. |
 
 > **Want a smaller starter?** To drop the Members service after instantiation:

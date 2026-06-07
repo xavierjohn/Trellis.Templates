@@ -42,8 +42,8 @@
     "gatewayIssuerUrl": {
       "type": "parameter",
       "datatype": "string",
-      "description": "Issuer / audience prefix the gateway mints internal JWTs against. Override only if you need a non-localhost dev URL.",
-      "defaultValue": "https://gateway.internal",
+      "description": "Issuer / audience prefix the gateway mints internal JWTs against. Defaults to the local Aspire-pinned gateway URL so the template runs zero-config. Override with your production gateway URL (e.g. https://gateway.internal) before deploying.",
+      "defaultValue": "http://localhost:5001",
       "replaces": "TEMPLATE_GATEWAY_ISSUER_URL"
     },
     "skipRestore": {
