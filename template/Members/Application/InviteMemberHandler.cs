@@ -30,13 +30,25 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
 
         var tenantId = actorMaybe.Value.Attributes["tenant_id"];
 
-        // Mint a new MemberId from the email's local-part. Production would use a
-        // GUID-backed id (RequiredGuid<MemberId>) and a UNIQUE constraint on email
-        // per tenant; the template keeps the id human-readable for the demo trace.
+        // Mint a TENANT-SCOPED MemberId from "{tenantId}-{localPart}". The tenant
+        // prefix prevents cross-tenant collisions by construction — without it, an
+        // attacker could invite carol@anything.example and silently overwrite a
+        // 'carol' member in a different tenant. Production would use a
+        // GUID-backed id (RequiredGuid<MemberId>) and a UNIQUE constraint on
+        // (TenantId, Email); the template keeps the id human-readable for the
+        // demo trace.
         var localPart = command.Email.Split('@')[0];
-        var idResult = MemberId.TryCreate(localPart);
+        var idResult = MemberId.TryCreate($"{tenantId}-{localPart}");
         if (!idResult.TryGetValue(out var memberId))
             return Result.Fail<MemberId>(Error.InvalidInput.ForRule("members.invalid_id", "Email local-part is not a valid MemberId."));
+
+        // Same-tenant duplicate check. Returning Conflict here does NOT leak
+        // cross-tenant existence because the id is tenant-scoped — only members
+        // in the actor's own tenant can produce a collision, and the actor
+        // already has visibility into their own tenant.
+        var existing = await _repository.FindByIdAsync(memberId, cancellationToken).ConfigureAwait(false);
+        if (existing.HasValue)
+            return Result.Fail<MemberId>(new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"));
 
         var member = new Member(memberId, tenantId, command.Email, command.Role);
         await _repository.AddAsync(member, cancellationToken).ConfigureAwait(false);

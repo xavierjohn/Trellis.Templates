@@ -28,9 +28,9 @@
     "rootNamespace": {
       "type": "derived",
       "valueSource": "name",
-      "valueTransform": "ValueWithoutSpaces",
+      "valueTransform": "SafeNamespace",
       "replaces": "ProjectTrackerTemplate",
-      "description": "Root namespace, derived from the -n parameter (spaces stripped). Replaces 'ProjectTrackerTemplate' everywhere."
+      "description": "Root namespace, derived from the -n parameter. Any characters that aren't valid C# identifier chars (letters, digits, underscore, dot) are replaced with underscores. Replaces 'ProjectTrackerTemplate' everywhere."
     },
     "authorName": {
       "type": "parameter",
@@ -54,10 +54,10 @@
     }
   },
   "forms": {
-    "ValueWithoutSpaces": {
+    "SafeNamespace": {
       "identifier": "replace",
-      "pattern": " ",
-      "replacement": ""
+      "pattern": "[^A-Za-z0-9_.]",
+      "replacement": "_"
     }
   },
   "sources": [

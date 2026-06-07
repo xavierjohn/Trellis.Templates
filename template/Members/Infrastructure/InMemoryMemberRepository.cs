@@ -14,10 +14,16 @@ public sealed class InMemoryMemberRepository : IMemberRepository
 
     public InMemoryMemberRepository()
     {
-        Seed(new Member(MakeId("alice"), tenantId: "acme",   email: "alice@acme.example",   role: "owner"));
-        Seed(new Member(MakeId("bob"),   tenantId: "acme",   email: "bob@acme.example",     role: "contributor"));
-        Seed(new Member(MakeId("carol"), tenantId: "globex", email: "carol@globex.example", role: "owner"));
-        Seed(new Member(MakeId("dave"),  tenantId: "globex", email: "dave@globex.example",  role: "contributor"));
+        // Seed: two tenants ("acme", "globex") with two members each. MemberIds are
+        // TENANT-SCOPED (format: "{tenant}-{localPart}") so cross-tenant collisions
+        // are impossible by construction — this is the canonical multi-tenant SaaS
+        // pattern. Without tenant-scoping, an actor with members:invite could derive
+        // a colliding MemberId by inviting someone with a known local-part and silently
+        // overwrite a member in a DIFFERENT tenant.
+        Seed(new Member(MakeId("acme-alice"),   tenantId: "acme",   email: "alice@acme.example",   role: "owner"));
+        Seed(new Member(MakeId("acme-bob"),     tenantId: "acme",   email: "bob@acme.example",     role: "contributor"));
+        Seed(new Member(MakeId("globex-carol"), tenantId: "globex", email: "carol@globex.example", role: "owner"));
+        Seed(new Member(MakeId("globex-dave"),  tenantId: "globex", email: "dave@globex.example",  role: "contributor"));
     }
 
     private static MemberId MakeId(string id) =>

@@ -16,7 +16,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 // Anyone failing either check gets 403. The handler then reads the SAME instance
 // via IAuthorizedResource<TCommand, Project> — no second repository roundtrip.
 public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Description)
-    : ICommand<Result<Mediator.Unit>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
+    : ICommand<Result<Trellis.Unit>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
     public IReadOnlyList<string> RequiredPermissions => ["projects:write"];
 

@@ -20,9 +20,12 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!-- Generated apps need a doc file for IDE0005 (unused usings) to detect violations.
          CS1591 (missing XML doc on public types) is suppressed below since this is
-         application code, not a library API. -->
+         application code, not a library API.
+         CA1707 (no underscores in identifiers) is suppressed because hyphenated solution
+         names (e.g. `dotnet new trellis-microservices -n Foo-Bar`) sanitize to underscored
+         namespaces/assembly names; the alternative (rejecting hyphenated names) is worse UX. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
   </PropertyGroup>
 
 </Project>

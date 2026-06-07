@@ -12,15 +12,15 @@ namespace ProjectTrackerTemplate.Projects.Application;
 // the instance from the accessor automatically updates the "stored" project
 // without a save call. A real EF service would call SaveChangesAsync (or rely
 // on TransactionalCommandBehavior from Trellis.EntityFrameworkCore).
-public sealed class UpdateProjectHandler : ICommandHandler<UpdateProjectCommand, Result<Mediator.Unit>>
+public sealed class UpdateProjectHandler : ICommandHandler<UpdateProjectCommand, Result<Trellis.Unit>>
 {
     private readonly IAuthorizedResource<UpdateProjectCommand, Project> _authorized;
 
     public UpdateProjectHandler(IAuthorizedResource<UpdateProjectCommand, Project> authorized) => _authorized = authorized;
 
-    public ValueTask<Result<Mediator.Unit>> Handle(UpdateProjectCommand command, CancellationToken cancellationToken)
+    public ValueTask<Result<Trellis.Unit>> Handle(UpdateProjectCommand command, CancellationToken cancellationToken)
     {
         _authorized.GetRequiredResource().Update(command.Title, command.Description);
-        return new(Result.Ok(Mediator.Unit.Value));
+        return new(Result.Ok());
     }
 }
