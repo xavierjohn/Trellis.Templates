@@ -1,0 +1,28 @@
+﻿using ProjectTrackerTemplate.Members.Domain;
+using Trellis;
+using Trellis.Authorization;
+
+namespace ProjectTrackerTemplate.Members.Infrastructure;
+
+// Loader for the resource-authorization pipeline. Bridges Maybe<Member> ->
+// Result<Member>, translating "not found" into Error.NotFound.
+//
+// The pipeline composes this with HideExistence<Member>() so cross-tenant
+// auth failures (Error.Forbidden) are projected to Error.NotFound at the
+// response-mapping stage — the caller cannot distinguish "I do not have
+// permission to see this Member" from "no such Member".
+public sealed class MemberResourceLoader : SharedResourceLoaderById<Member, MemberId>
+{
+    private readonly IMemberRepository _repository;
+
+    public MemberResourceLoader(IMemberRepository repository) => _repository = repository;
+
+    public override async Task<Result<Member>> GetByIdAsync(MemberId id, CancellationToken cancellationToken)
+    {
+        var maybe = await _repository.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
+
+        return maybe.HasValue
+            ? Result.Ok(maybe.Value)
+            : Result.Fail<Member>(new Error.NotFound(ResourceRef.For<Member>(id.Value)));
+    }
+}

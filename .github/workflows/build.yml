@@ -1,0 +1,64 @@
+name: Build Template
+
+# Builds the scaffolded template content (under template/) AND verifies the
+# template pack itself can be installed + instantiated + the generated solution
+# can be built end-to-end. This is what catches "template installs but produces
+# code that doesn't compile" regressions.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-template-content:
+    name: Build & test scaffolded content
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Restore template content
+        run: dotnet restore template/ProjectTrackerTemplate.slnx
+      - name: Build template content
+        run: dotnet build template/ProjectTrackerTemplate.slnx --no-restore --configuration Release
+      - name: Test template content
+        run: dotnet test template/ProjectTrackerTemplate.slnx --no-build --configuration Release
+
+  pack-and-instantiate:
+    name: Pack template + instantiate + build instantiation
+    runs-on: ubuntu-latest
+    needs: build-template-content
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Pack the template package
+        run: dotnet pack templatepack.csproj -c Release -o nupkg
+      - name: Install template from local pack
+        run: |
+          NUPKG=$(ls nupkg/Trellis.Microservices.Templates.*.nupkg | head -n1)
+          echo "Installing $NUPKG"
+          dotnet new install "$NUPKG"
+      - name: Instantiate template
+        run: |
+          mkdir -p /tmp/instantiated
+          cd /tmp/instantiated
+          dotnet new trellis-microservices -n SampleTracker
+      - name: Build instantiation
+        run: |
+          cd /tmp/instantiated
+          dotnet build SampleTracker.slnx -c Release
+      - name: Upload pack as artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: template-nupkg
+          path: nupkg/*.nupkg

@@ -1,0 +1,7 @@
+﻿<Solution>
+  <Project Path="Gateway/Gateway.csproj" />
+  <Project Path="Projects/Projects.csproj" />
+  <Project Path="Members/Members.csproj" />
+  <Project Path="AppHost/AppHost.csproj" />
+  <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
+</Solution>

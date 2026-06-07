@@ -1,0 +1,58 @@
+﻿<Project>
+
+  <!-- Must be set BEFORE Sdk import to prevent Directory.Build.props from being loaded -->
+  <PropertyGroup>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+    <ImportDirectoryPackagesProps>false</ImportDirectoryPackagesProps>
+  </PropertyGroup>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageId>Trellis.Microservices.Templates</PackageId>
+    <Title>Trellis Microservices Templates</Title>
+    <Description>A dotnet new template that scaffolds a multi-tenant microservices topology using Trellis: YARP gateway minting internal-network JWTs + two opinionated downstream services (Projects + Members) demonstrating tenant isolation, RBAC/ABAC, resource-based authorization, and the HideExistence pattern for HR-sensitive data. Includes Aspire AppHost, OpenTelemetry-instrumented ServiceDefaults, click-to-send .http scenarios, and the same code-style + analyzer gates as the upstream Trellis.Microservices packages.</Description>
+    <Authors>Xavier John</Authors>
+    <Copyright>Copyright © Xavier John 2026. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/xavierjohn/Trellis.Microservices.Template</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/xavierjohn/Trellis.Microservices.Template.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>dotnet-new;template;trellis;microservices;yarp;jwt;multi-tenant;ddd;rop;authorization;aspire</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <!-- Template packages don't produce assemblies -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <NoWarn>$(NoWarn);NU5128;CS2008</NoWarn>
+
+    <!-- Suppress build of any source files; this csproj only packs content -->
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <!-- Include all template content (everything under template/). Files keep their
+       relative path inside the package under content/. Build output directories,
+       VS metadata, OS junk, and per-user files are excluded. -->
+  <ItemGroup>
+    <Content Remove="**\*" />
+    <Compile Remove="**\*" />
+    <None Include="template\**\*"
+          Exclude="template\**\bin\**;template\**\obj\**;template\**\.vs\**;template\**\.git\**;template\**\TestResults\**;**\*.user;**\.DS_Store"
+          Pack="true"
+          PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.115" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>
