@@ -52,7 +52,7 @@ cd Trellis.Microservices.Template\template
 dotnet restore ProjectTrackerTemplate.slnx
 $root = (Resolve-Path .).Path
 foreach ($p in 'Projects\Projects.csproj','Members\Members.csproj','Gateway\Gateway.csproj') {
-    dotnet build $p /t:TrellisSyncApiReference -p:TrellisApiReferenceRoot=$root --no-restore -v:q -nologo
+    dotnet build $p /t:TrellisSyncApiReference -p:TrellisApiReferenceRoot="$root" --no-restore -v:q -nologo
 }
 ```
 
