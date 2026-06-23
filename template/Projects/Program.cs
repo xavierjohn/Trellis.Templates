@@ -146,5 +146,5 @@ internal sealed record UpdateProjectRequest(string Title, string Description);
 internal sealed record ProjectResponse(string Id, string OwnerId, string TenantId, string Title, string Description)
 {
     public static ProjectResponse From(Project p) =>
-        new(p.Id.Value, p.OwnerId, p.TenantId, p.Title, p.Description);
+        new(p.Id.Value, p.OwnerId, p.TenantId.Value, p.Title, p.Description);
 }

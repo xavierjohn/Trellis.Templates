@@ -30,7 +30,9 @@ public sealed class ListProjectsHandler : IQueryHandler<ListProjectsQuery, Resul
         if (!actorMaybe.HasValue)
             return Result.Fail<IReadOnlyList<Project>>(new Error.AuthenticationRequired());
 
-        var tenantId = actorMaybe.Value.Attributes["tenant_id"];
+        if (!actorMaybe.Value.GetRequiredAttribute<TenantId>("tenant_id").TryGetValue(out var tenantId))
+            return Result.Fail<IReadOnlyList<Project>>(new Error.AuthenticationRequired());
+
         var projects = await _repository.ListByTenantAsync(tenantId, cancellationToken).ConfigureAwait(false);
         return Result.Ok(projects);
     }

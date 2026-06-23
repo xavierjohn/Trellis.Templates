@@ -12,7 +12,7 @@
 // loaded, mutates it, and the change persists in the in-memory store.
 public sealed class Project
 {
-    public Project(ProjectId id, string ownerId, string tenantId, string title, string description)
+    public Project(ProjectId id, string ownerId, TenantId tenantId, string title, string description)
     {
         Id = id;
         OwnerId = ownerId;
@@ -31,7 +31,7 @@ public sealed class Project
     // at the resource-auth boundary in BOTH Get and Update handlers — projects
     // tell the caller their request is forbidden (403), unlike Members which
     // hide existence (404).
-    public string TenantId { get; }
+    public TenantId TenantId { get; }
 
     public string Title { get; private set; }
 

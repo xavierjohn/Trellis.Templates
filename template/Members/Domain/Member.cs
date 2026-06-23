@@ -11,7 +11,7 @@
 // member IDs to discover the existence of employees across tenants.
 public sealed class Member
 {
-    public Member(MemberId id, string tenantId, string email, string role)
+    public Member(MemberId id, TenantId tenantId, string email, string role)
     {
         Id = id;
         TenantId = tenantId;
@@ -23,7 +23,7 @@ public sealed class Member
 
     // The tenant this member belongs to. The resource-auth pipeline +
     // HideExistence<Member>() collapses cross-tenant access into 404.
-    public string TenantId { get; }
+    public TenantId TenantId { get; }
 
     // PII. Production would project this through a value object that
     // applies redaction in toString/log output and uses a value-object-based

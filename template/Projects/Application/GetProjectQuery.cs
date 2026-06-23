@@ -28,8 +28,8 @@ public sealed record GetProjectQuery(ProjectId Id)
     public ProjectId GetResourceId() => Id;
 
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
-        actor.Attributes.TryGetValue("tenant_id", out var tenantId)
-        && string.Equals(tenantId, resource.TenantId, StringComparison.Ordinal)
+        actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId)
+        && tenantId == resource.TenantId
             ? Result.Ok()
             : Result.Fail(new Error.Forbidden("projects.cross_tenant")
             {

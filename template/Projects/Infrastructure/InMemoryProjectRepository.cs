@@ -35,14 +35,17 @@ public sealed partial class InMemoryProjectRepository : IProjectRepository
         //   - alice (tenant=acme) updates bob's project in acme (403, not owner)
         //   - alice (tenant=acme) reads a globex project (403, cross-tenant)
         //   - alice without orders:write permission (403, missing permission)
-        Seed(new Project(MakeId("acme-p1"),   ownerId: "alice", tenantId: "acme",   title: "Q1 launch",        description: "Coordinate Q1 marketing launch."));
-        Seed(new Project(MakeId("acme-p2"),   ownerId: "bob",   tenantId: "acme",   title: "Onboarding",       description: "Refactor onboarding funnel."));
-        Seed(new Project(MakeId("globex-p1"), ownerId: "carol", tenantId: "globex", title: "Beta rollout",     description: "Phase-3 beta to enterprise."));
-        Seed(new Project(MakeId("globex-p2"), ownerId: "dave",  tenantId: "globex", title: "Annual audit",     description: "Compliance audit prep."));
+        Seed(new Project(MakeId("acme-p1"),   ownerId: "alice", tenantId: MakeTenant("acme"),   title: "Q1 launch",        description: "Coordinate Q1 marketing launch."));
+        Seed(new Project(MakeId("acme-p2"),   ownerId: "bob",   tenantId: MakeTenant("acme"),   title: "Onboarding",       description: "Refactor onboarding funnel."));
+        Seed(new Project(MakeId("globex-p1"), ownerId: "carol", tenantId: MakeTenant("globex"), title: "Beta rollout",     description: "Phase-3 beta to enterprise."));
+        Seed(new Project(MakeId("globex-p2"), ownerId: "dave",  tenantId: MakeTenant("globex"), title: "Annual audit",     description: "Compliance audit prep."));
     }
 
     private static ProjectId MakeId(string id) =>
         ProjectId.TryCreate(id).GetValueOrThrow($"seed ProjectId('{id}') must be valid");
+
+    private static TenantId MakeTenant(string tenant) =>
+        TenantId.TryCreate(tenant).GetValueOrThrow($"seed TenantId('{tenant}') must be valid");
 
     private void Seed(Project project) => _projects[project.Id.Value] = project;
 
@@ -59,10 +62,10 @@ public sealed partial class InMemoryProjectRepository : IProjectRepository
             : Maybe<Project>.None);
     }
 
-    public ValueTask<IReadOnlyList<Project>> ListByTenantAsync(string tenantId, CancellationToken cancellationToken) =>
+    public ValueTask<IReadOnlyList<Project>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken) =>
         ValueTask.FromResult<IReadOnlyList<Project>>(
             _projects.Values
-                .Where(p => string.Equals(p.TenantId, tenantId, StringComparison.Ordinal))
+                .Where(p => p.TenantId == tenantId)
                 .OrderBy(p => p.Id.Value, StringComparer.Ordinal)
                 .ToArray());
 
