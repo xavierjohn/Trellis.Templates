@@ -8,7 +8,7 @@
        TrellisVersion              -> xavierjohn/Trellis (framework)
        TrellisMicroservicesVersion -> xavierjohn/Trellis.Microservices -->
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.397</TrellisVersion>
+    <TrellisVersion>3.0.0-alpha.418</TrellisVersion>
     <TrellisMicroservicesVersion>0.1.0-alpha.36</TrellisMicroservicesVersion>
   </PropertyGroup>
 
