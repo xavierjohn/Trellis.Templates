@@ -20,8 +20,8 @@ public sealed record GetMemberQuery(MemberId Id)
     public MemberId GetResourceId() => Id;
 
     public Trellis.IResult Authorize(Actor actor, Member resource) =>
-        actor.Attributes.TryGetValue("tenant_id", out var tenantId)
-        && string.Equals(tenantId, resource.TenantId, StringComparison.Ordinal)
+        actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId)
+        && tenantId == resource.TenantId
             ? Result.Ok()
             : Result.Fail(new Error.Forbidden("members.cross_tenant")
             {

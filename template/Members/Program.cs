@@ -115,5 +115,5 @@ internal sealed record InviteMemberRequest(string Email, string Role);
 
 internal sealed record MemberResponse(string Id, string TenantId, string Email, string Role)
 {
-    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId, m.Email, m.Role);
+    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId.Value, m.Email, m.Role);
 }

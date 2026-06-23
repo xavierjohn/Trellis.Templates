@@ -10,7 +10,7 @@ public interface IMemberRepository
 {
     ValueTask<Maybe<Member>> FindByIdAsync(MemberId id, CancellationToken cancellationToken);
 
-    ValueTask<IReadOnlyList<Member>> ListByTenantAsync(string tenantId, CancellationToken cancellationToken);
+    ValueTask<IReadOnlyList<Member>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken);
 
     ValueTask AddAsync(Member member, CancellationToken cancellationToken);
 }

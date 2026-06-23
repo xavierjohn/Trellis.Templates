@@ -24,8 +24,8 @@ public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Des
 
     public Trellis.IResult Authorize(Actor actor, Project resource)
     {
-        if (!actor.Attributes.TryGetValue("tenant_id", out var tenantId)
-            || !string.Equals(tenantId, resource.TenantId, StringComparison.Ordinal))
+        if (!actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId)
+            || tenantId != resource.TenantId)
         {
             return Result.Fail(new Error.Forbidden("projects.cross_tenant")
             {

@@ -9,5 +9,5 @@ public interface IProjectRepository
 {
     ValueTask<Maybe<Project>> FindByIdAsync(ProjectId id, CancellationToken cancellationToken);
 
-    ValueTask<IReadOnlyList<Project>> ListByTenantAsync(string tenantId, CancellationToken cancellationToken);
+    ValueTask<IReadOnlyList<Project>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken);
 }

@@ -28,7 +28,8 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         if (!actorMaybe.HasValue)
             return Result.Fail<MemberId>(new Error.AuthenticationRequired());
 
-        var tenantId = actorMaybe.Value.Attributes["tenant_id"];
+        if (!actorMaybe.Value.GetRequiredAttribute<TenantId>("tenant_id").TryGetValue(out var tenantId))
+            return Result.Fail<MemberId>(new Error.AuthenticationRequired());
 
         // Mint a TENANT-SCOPED MemberId from "{tenantId}-{localPart}". The tenant
         // prefix prevents cross-tenant collisions by construction — without it, an
@@ -38,7 +39,7 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         // (TenantId, Email); the template keeps the id human-readable for the
         // demo trace.
         var localPart = command.Email.Split('@')[0];
-        var idResult = MemberId.TryCreate($"{tenantId}-{localPart}");
+        var idResult = MemberId.TryCreate($"{tenantId.Value}-{localPart}");
         if (!idResult.TryGetValue(out var memberId))
             return Result.Fail<MemberId>(Error.InvalidInput.ForRule("members.invalid_id", "Email local-part is not a valid MemberId."));
 
