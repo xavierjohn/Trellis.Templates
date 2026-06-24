@@ -1,0 +1,77 @@
+﻿<Project>
+  <!--
+    Central package management. Versions are pinned here; project .csproj files
+    add <PackageReference Include="..." /> without a Version attribute.
+  -->
+
+  <!-- Trellis package versions. Bump in lock-step with upstream releases:
+       TrellisVersion              -> xavierjohn/Trellis (framework)
+       TrellisMicroservicesVersion -> xavierjohn/Trellis.Microservices -->
+  <PropertyGroup>
+    <TrellisVersion>3.0.0-alpha.418</TrellisVersion>
+    <TrellisMicroservicesVersion>0.1.0-alpha.36</TrellisMicroservicesVersion>
+    <TrellisSliVersion>10.0.0-preview.25</TrellisSliVersion>
+  </PropertyGroup>
+
+  <!-- Runtime -->
+  <ItemGroup>
+    <PackageVersion Include="Asp.Versioning.Http" Version="10.0.0" />
+    <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.0.0-rc.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.19.1" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.1" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.3" />
+    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.16.3" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+  <!-- Aspire AppHost + OpenTelemetry -->
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.5" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+  </ItemGroup>
+
+  <!-- Upstream Trellis (xavierjohn/Trellis on nuget.org) -->
+  <ItemGroup>
+    <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
+  </ItemGroup>
+
+  <!-- Service Level Indicators (xavierjohn/ServiceLevelIndicators on nuget.org) -->
+  <ItemGroup>
+    <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
+    <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
+    <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" Version="$(TrellisSliVersion)" />
+  </ItemGroup>
+
+  <!-- Trellis.Microservices (xavierjohn/Trellis.Microservices on nuget.org) -->
+  <ItemGroup>
+    <PackageVersion Include="Trellis.Microservices.Abstractions" Version="$(TrellisMicroservicesVersion)" />
+    <PackageVersion Include="Trellis.Microservices.AspNetCore" Version="$(TrellisMicroservicesVersion)" />
+    <PackageVersion Include="Trellis.Yarp" Version="$(TrellisMicroservicesVersion)" />
+  </ItemGroup>
+
+  <!-- Mediator (Martin Othamar) — source-gen Mediator used by the services -->
+  <ItemGroup>
+    <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
+    <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,93 @@
+﻿{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Xavier John",
+  "classifications": [
+    "Web",
+    "API",
+    "Trellis",
+    "DDD",
+    "ROP",
+    "Microservices",
+    "Multi-tenant",
+    "Authorization",
+    "YARP",
+    "Aspire"
+  ],
+  "identity": "Trellis.Microservices.Template",
+  "name": "Trellis Microservices (Project Tracker)",
+  "shortName": "trellis-microservices",
+  "description": "Multi-tenant microservices topology using Trellis: YARP gateway minting internal-network JWTs + Projects (operational, 403 cross-tenant) + Members (HR-sensitive, HideExistence -> 404). Aspire-orchestrated. Demonstrates tenant_id ABAC isolation, resource-based authorization, the v4 typed accessor (IAuthorizedResource), and the deny-overrides-allow JWT contract.",
+  "sourceName": "ProjectTrackerTemplate",
+  "preferNameDirectory": true,
+  "defaultName": "MyTracker",
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "symbols": {
+    "rootNamespace": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "SafeNamespace",
+      "replaces": "ProjectTrackerTemplate",
+      "description": "Root namespace, derived from the -n parameter. Any characters that aren't valid C# identifier chars (letters, digits, underscore, dot) are replaced with underscores. Replaces 'ProjectTrackerTemplate' everywhere."
+    },
+    "authorName": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "Author name written into Directory.Build.props <Authors>.",
+      "defaultValue": "Your Name",
+      "replaces": "TEMPLATE_AUTHOR_NAME"
+    },
+    "gatewayIssuerUrl": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "Issuer / audience prefix the gateway mints internal JWTs against. Defaults to the local Aspire-pinned gateway URL so the template runs zero-config. Override with your production gateway URL (e.g. https://gateway.internal) before deploying.",
+      "defaultValue": "http://localhost:5001",
+      "replaces": "TEMPLATE_GATEWAY_ISSUER_URL"
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "Skip the post-creation NuGet restore.",
+      "defaultValue": "false"
+    }
+  },
+  "forms": {
+    "SafeNamespace": {
+      "identifier": "replace",
+      "pattern": "[^A-Za-z0-9_.]",
+      "replacement": "_"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            "**/bin/**",
+            "**/obj/**",
+            "**/.vs/**",
+            "**/.git/**",
+            "**/TestResults/**",
+            ".template.config/**"
+          ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    { "path": "ProjectTrackerTemplate.slnx" }
+  ],
+  "postActions": [
+    {
+      "condition": "(!skipRestore)",
+      "description": "Restore NuGet packages",
+      "manualInstructions": [
+        { "text": "Run 'dotnet restore'" }
+      ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

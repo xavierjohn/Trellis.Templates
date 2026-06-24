@@ -1,0 +1,78 @@
+name: Publish Template
+
+# Publishes the Trellis.Microservices.Templates NuGet template pack to nuget.org
+# on manual dispatch with an explicit dry-run option. Requires the NUGET_API_KEY
+# repository secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not publish)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # needed for nbgv
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Setup versioning
+        run: |
+          dotnet tool install --global nbgv
+          nbgv cloud
+
+      - name: Build template content (gate)
+        run: |
+          dotnet restore template/ProjectTrackerTemplate.slnx
+          dotnet build template/ProjectTrackerTemplate.slnx --no-restore --configuration Release
+          dotnet test  template/ProjectTrackerTemplate.slnx --no-build  --configuration Release
+
+      - name: Pack template package
+        run: dotnet pack templatepack.csproj -c Release -o nupkgs -p:PublicRelease=true
+
+      - name: Install template from pack + instantiate + build (gate)
+        run: |
+          NUPKG=$(ls nupkgs/Trellis.Microservices.Templates.*.nupkg | head -n1)
+          echo "Installing $NUPKG"
+          dotnet new install "$NUPKG"
+          mkdir -p /tmp/published-smoke
+          cd /tmp/published-smoke
+          dotnet new trellis-microservices -n PublishedSmokeTest
+          cd PublishedSmokeTest
+          dotnet build PublishedSmokeTest.slnx -c Release
+
+      - name: List packages
+        run: |
+          echo "Packages to be published:"
+          ls -lh nupkgs/*.nupkg
+
+      - name: Publish to NuGet
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          dotnet nuget push nupkgs/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run == 'true' }}
+        run: |
+          echo "DRY RUN - Packages NOT published:"
+          ls -lh nupkgs/*.nupkg
+          echo ""
+          echo "To publish for real, re-run with dry_run = false"

@@ -1,0 +1,162 @@
+﻿using System.Diagnostics;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using ProjectTrackerTemplate.Members.Domain;
+using ProjectTrackerTemplate.Members.Endpoints;
+using ProjectTrackerTemplate.Members.Infrastructure;
+using Scalar.AspNetCore;
+using Trellis.Asp;
+using Trellis.Asp.Idempotency;
+using Trellis.Mediator;
+using Trellis.Microservices.AspNetCore;
+using Trellis.ServiceLevelIndicators;
+
+// Members microservice — HR-sensitive cluster (CRUD on Member aggregate).
+//
+// Audience: "members" (matches the YARP cluster name → AudiencePerCluster).
+// Path:     /api/members (list), /api/members/{id} (get), /api/members (post)
+//
+// HOW THIS DIFFERS FROM PROJECTS:
+//
+// Members uses HideExistence<Member>() (see ConfigureResourceAuthorization below).
+// That single line is what collapses a cross-tenant Error.Forbidden into an
+// Error.NotFound at the response-mapping stage — so a caller probing for the
+// existence of an employee in another tenant gets the same 404 they'd get for
+// a non-existent MemberId. Without that single line, the response would be 403
+// and the caller would learn the id corresponds to a real member.
+//
+// Use HideExistence whenever the resource identifier itself is sensitive. Use
+// the standard (403) behaviour when "this resource exists but is forbidden" is
+// itself an OK signal — typical for operational resources like Projects.
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+// === API surface =========================================================
+//
+// Date-based API versioning (clients pass ?api-version=2026-03-26), OpenAPI + Scalar, RFC 9457
+// ProblemDetails, scalar value-object validation, idempotency, and Service Level Indicators. The
+// endpoints themselves — versioned route groups — live in Endpoints/MemberEndpoints.cs.
+
+builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
+    .AddApiExplorer()
+    .AddOpenApi(options => options.Document.AddScalarTransformers());
+
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
+{
+    // Always surface the active trace id so clients can correlate the error with server spans.
+    ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
+
+    // Never leak raw exception detail on a 500.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status500InternalServerError)
+        ctx.ProblemDetails.Detail = "An error occurred. Please share the trace id with support.";
+
+    // RFC 9110 §15.5.6: surface the supported methods from the Allow header as a structured array.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status405MethodNotAllowed &&
+        ctx.HttpContext.Response.Headers.TryGetValue("Allow", out var allow))
+    {
+        ctx.ProblemDetails.Extensions["allow"] = allow.ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+});
+
+// Trellis ASP integration + scalar value-object validation. The UseScalarValueValidation
+// middleware (below) rewrites a failed value-object bind — e.g. a malformed {id} route value —
+// into a 422 ProblemDetails before the handler runs. Add .WithScalarValueValidation() to an
+// endpoint only when its request BODY carries value objects (none here yet).
+builder.Services.AddTrellisAspWithScalarValidation();
+builder.Services.AddTrellisIdempotency();
+builder.Services.AddInMemoryIdempotencyStore();
+
+builder.Services.AddServiceLevelIndicator(options =>
+        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+    .AddApiVersion();
+
+// === Trust-boundary layer =================================================
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        var isDev = builder.Environment.IsDevelopment();
+
+        o.Authority = "TEMPLATE_GATEWAY_ISSUER_URL";
+        o.Audience = "members";
+        o.RequireHttpsMetadata = !isDev;
+        o.IncludeErrorDetails = isDev;
+        o.MapInboundClaims = false;
+        o.SaveToken = false;
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = "TEMPLATE_GATEWAY_ISSUER_URL",
+            ValidateAudience = true,
+            ValidAudience = "members",
+            ValidateLifetime = true,
+            RequireExpirationTime = true,
+            RequireSignedTokens = true,
+            ValidateIssuerSigningKey = true,
+            ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
+            ClockSkew = TimeSpan.FromSeconds(30),
+            TryAllIssuerSigningKeys = false,
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddTrellisInternalJwtActorProvider(o =>
+{
+    o.ExpectedIssuer = "TEMPLATE_GATEWAY_ISSUER_URL";
+    o.ExpectedAudience = "members";
+    o.AttributeClaimMap["tenant_id"] = "tenant_id";
+    o.RequiredAttributes = ["tenant_id"];
+});
+
+// === Domain + infrastructure ============================================
+
+builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
+
+// === Mediator + resource-based authorization layer ======================
+
+builder.Services.AddMediator(o => o.ServiceLifetime = ServiceLifetime.Scoped);
+builder.Services.AddTrellisBehaviors();
+builder.Services.AddResourceAuthorization(typeof(Member).Assembly);
+
+// The single line that makes Members "HR-sensitive": cross-tenant access
+// failures are projected to 404, NOT 403. The behaviour is keyed on the
+// RESOURCE type, not the message type — so every command/query whose
+// IIdentifyResource binds to Member inherits the policy.
+builder.Services.AddResourceAuthorization(o => o.HideExistence<Member>());
+
+var app = builder.Build();
+
+// === HTTP pipeline =======================================================
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi().WithDocumentPerVersion();
+    app.MapScalarApiReference(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        for (var i = 0; i < descriptions.Count; i++)
+        {
+            var description = descriptions[i];
+            options.AddDocument(description.GroupName, description.GroupName, isDefault: i == descriptions.Count - 1);
+        }
+    });
+}
+
+// Render any 4xx/5xx (including pipeline short-circuits) as RFC 9457 ProblemDetails.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseTrellisIdempotency();
+app.UseScalarValueValidation();
+app.UseServiceLevelIndicator();
+
+app.MapMemberEndpoints();
+app.MapDefaultEndpoints();
+
+app.Run();

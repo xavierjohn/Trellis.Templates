@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <RootNamespace>ProjectTrackerTemplate.Projects</RootNamespace>
+    <AssemblyName>ProjectTrackerTemplate.Projects</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ServiceDefaults\ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" />
+    <!-- Mediator (Martin Othamar) — source-generator + abstractions. -->
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Mediator.SourceGenerator" PrivateAssets="all" OutputItemType="Analyzer" />
+    <!-- API surface: date-based versioning, OpenAPI + Scalar. -->
+    <PackageReference Include="Asp.Versioning.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
+    <!-- Trellis runtime + actor + mediator pipeline. -->
+    <PackageReference Include="Trellis.Asp" />
+    <PackageReference Include="Trellis.Asp.ApiVersioning" />
+    <PackageReference Include="Trellis.Authorization" />
+    <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.Mediator" />
+    <PackageReference Include="Trellis.Primitives" />
+    <!-- Service Level Indicators (with API-version dimension). -->
+    <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
+    <!-- Consumer-side actor provider for the gateway-minted internal JWT. -->
+    <PackageReference Include="Trellis.Microservices.AspNetCore" />
+  </ItemGroup>
+
+</Project>

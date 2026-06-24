@@ -1,0 +1,151 @@
+### Project Tracker — outcome matrix
+### Click any "Send Request" link above a row. Each row exercises one auth path.
+###
+### Seed actors used below:
+###   alice   tenant=acme   role=owner       perms=projects:read,projects:write,members:read,members:invite
+###   bob     tenant=acme   role=contributor perms=projects:read,projects:write,members:read
+###   carol   tenant=globex role=owner       perms=projects:read,projects:write,members:read,members:invite
+###   no-perm tenant=acme   (no permissions) — used to prove the static-auth gate
+###
+### Seed projects (id = string slug; OwnerId = bare actor name):
+###   acme-p1   owner=alice tenant=acme
+###   acme-p2   owner=bob   tenant=acme
+###   globex-p1 owner=carol tenant=globex
+###
+### Seed members (id = "{tenant}-{name}" — TENANT-SCOPED to prevent cross-tenant
+### collisions when InviteMember derives a new MemberId from an email's local-part):
+###   acme-alice    tenant=acme
+###   acme-bob      tenant=acme
+###   globex-carol  tenant=globex
+###   globex-dave   tenant=globex
+###
+### X-Test-Actor format: a JSON envelope (parsed by DevelopmentActorProvider).
+### The gateway re-mints these claims as a real internal JWT before forwarding.
+
+@gateway = http://localhost:5001
+
+###
+### ============================================================================
+### PROJECTS cluster — operational, returns 403 on cross-tenant
+### ============================================================================
+###
+
+### 1. alice reads her own project — 200 OK
+GET {{gateway}}/api/projects/acme-p1
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
+
+### 2. alice reads bob's project (same tenant) — 200 OK (read-all in tenant)
+GET {{gateway}}/api/projects/acme-p2
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
+
+### 3. alice reads a globex project — 403 cross_tenant
+GET {{gateway}}/api/projects/globex-p1
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
+
+### 4. alice updates her own project — 204 No Content
+PUT {{gateway}}/api/projects/acme-p1
+Content-Type: application/json
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "title": "Q1 launch (updated by alice)",
+  "description": "Updated description."
+}
+
+### 5. alice updates bob's project (same tenant, not owner) — 403 not_owner
+PUT {{gateway}}/api/projects/acme-p2
+Content-Type: application/json
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "title": "alice tried to edit bob's project",
+  "description": "should fail"
+}
+
+### 6. no-perm tries to read — 403 (missing projects:read static permission)
+GET {{gateway}}/api/projects/acme-p1
+X-Test-Actor: {"Id":"no-perm","Permissions":[],"Attributes":{"tenant_id":"acme"}}
+
+### 7. alice lists her tenant's projects — 200 OK (acme-p1 + acme-p2 only)
+GET {{gateway}}/api/projects
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read"],"Attributes":{"tenant_id":"acme"}}
+
+###
+### ============================================================================
+### MEMBERS cluster — HR-sensitive, HideExistence collapses 403 -> 404
+### ============================================================================
+###
+
+### 8. alice reads herself (member id is tenant-scoped: "acme-alice") — 200 OK
+GET {{gateway}}/api/members/acme-alice
+X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
+
+### 9. alice reads bob (same tenant) — 200 OK
+GET {{gateway}}/api/members/acme-bob
+X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
+
+### 10. alice reads carol — 404 (HideExistence hides the cross-tenant 403!)
+###     Without HideExistence this would return 403 and leak the existence of carol.
+GET {{gateway}}/api/members/globex-carol
+X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
+
+### 11. alice reads a member that doesn't exist anywhere — 404 (same shape as #10)
+###     A cross-tenant attacker cannot distinguish #10 from #11.
+GET {{gateway}}/api/members/acme-no-such-member
+X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
+
+### 12. alice invites a new member to her tenant — 200 OK { "id": "acme-newperson" }
+POST {{gateway}}/api/members
+Content-Type: application/json
+X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "email": "newperson@acme.example",
+  "role": "contributor"
+}
+
+### 13. bob (no members:invite permission) tries to invite — 403 missing permission
+POST {{gateway}}/api/members
+Content-Type: application/json
+X-Test-Actor: {"Id":"bob","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "email": "intruder@acme.example",
+  "role": "owner"
+}
+
+### 14. alice re-invites bob (same-tenant duplicate) — 409 Conflict
+###     Same-tenant Conflict is safe to surface (no cross-tenant leak).
+POST {{gateway}}/api/members
+Content-Type: application/json
+X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "email": "bob@acme.example",
+  "role": "owner"
+}
+
+### 15. alice "invites" someone whose local-part matches an existing GLOBEX member.
+###     With tenant-scoped MemberIds this becomes 'acme-carol' — a brand-new member,
+###     200 OK. The globex 'globex-carol' is untouched. (Without tenant-scoping this
+###     invite would silently overwrite globex's carol — a real cross-tenant bug.)
+POST {{gateway}}/api/members
+Content-Type: application/json
+X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
+
+{
+  "email": "carol@acme.example",
+  "role": "contributor"
+}
+
+###
+### ============================================================================
+### JWT contract integrity
+### ============================================================================
+###
+
+### 16. Inspect JWKS — proves the gateway-published key rotation surface
+GET {{gateway}}/.well-known/jwks.json
+
+### 17. Inspect OIDC discovery — what AddJwtBearer(o.Authority = ...) fetches
+GET {{gateway}}/.well-known/openid-configuration
