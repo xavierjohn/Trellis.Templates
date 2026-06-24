@@ -1,0 +1,66 @@
+# Manual publish of a template package to this account's GitHub Packages NuGet feed (alpha channel).
+#
+# Uses the built-in GITHUB_TOKEN (no stored secret). The version is the Nerdbank.GitVersioning stamp
+# (a prerelease, unique per commit). This is the internal/alpha channel; for the public, stable
+# nuget.org release use publish-templates.yml (Trusted Publishing).
+name: Publish to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Template to publish'
+        required: true
+        type: choice
+        options: [ asp, microservices ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: github-packages ${{ inputs.template }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.template }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history for Nerdbank.GitVersioning
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve template
+        id: t
+        run: |
+          if [ "${{ inputs.template }}" = "asp" ]; then
+            echo "slnx=TrellisAspTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "test=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "slnx=ProjectTrackerTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "test=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (gate)
+        run: dotnet build template/${{ steps.t.outputs.slnx }} -c Release
+
+      - name: Test (gate)
+        if: ${{ steps.t.outputs.test == 'true' }}
+        working-directory: ${{ inputs.template }}/template
+        run: dotnet test --solution ${{ steps.t.outputs.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+
+      - name: Pack
+        run: dotnet pack templatepack.csproj -c Release -o nupkg
+
+      - name: Push to GitHub Packages
+        run: >
+          dotnet nuget push nupkg/*.nupkg
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          --skip-duplicate
