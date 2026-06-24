@@ -6,7 +6,7 @@ the portal, and unambiguous across environments; an inconsistent one becomes a t
 
 This repository defines a **hyperscale-grade resource-naming convention** that the templates adopt.
 
-> **Status: planned.** The convention is specified and reviewed; the seam that bakes it into the templates
+> **Status: planned.** The convention is documented in full; the seam that bakes it into the templates
 > (an `IResourceNamer` abstraction plus an opinionated Azure implementation) is on the roadmap. The
 > [capability-parity contract](capability-parity.md) already tracks it as a `planned` capability, so it
 > surfaces in the matrix without failing the build yet.

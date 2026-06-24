@@ -1,4 +1,4 @@
-# Infrastructure Resource Naming Convention — v3 (GPT-5.5 reviewed + CAF-aligned)
+# Infrastructure Resource Naming Convention (CAF-aligned)
 
 ## The bar
 Massive systems (Microsoft / Amazon scale): many subscriptions, regions, scale-units/stamps/cells,
@@ -58,7 +58,7 @@ Tags carry the FULL taxonomy regardless of name:
 ## Length & charset — FAIL, don't truncate
 - Every token has a fixed max-length budget. The resolver **validates and throws** if a required
   token would overflow; it NEVER silently drops or truncates a disambiguating dimension (that would
-  collide two distinct resources onto one name — the v1 footgun).
+  collide two distinct resources onto one name).
 - Author fixes overflow by shortening the 2–6 char system/service/purpose CODES (they exist for
   exactly this) — not by mutating the algorithm.
 - In Shared scope, length-capped DNS types reserve room for `{u5}` up front.
@@ -119,10 +119,9 @@ A single resource TYPE can be BOTH scopes at once, distinguished by `purpose` �
 | Shared blob storage | cloud-singleton (no region) | `ptkmbrstblobprod` |
 | Event Hub checkpoint store | regional, one per region | `ptkmbrstehcpprodweu` |
 
-Without `purpose` both collapse to `ptkmbrst{env}` and **collide**. The baseline's
-`GetStorageNameShared` emits only the first; supporting Event Hubs needs a `GetStorageNameRegional`
-sibling **and** the `purpose` token — GPT-5.5's "multiple same-type resources per slice" blocker made
-concrete by a real scenario.
+Without `purpose` both collapse to `ptkmbrst{env}` and **collide**. A shared-storage helper that emits
+only the shared blob name is insufficient; supporting Event Hubs needs a regional sibling **and** the
+`purpose` token so multiple same-type resources in one slice stay distinct.
 
 ### Geo-DR paired Service Bus / Event Hubs (the alias case)
 SB Premium / Event Hubs geo-DR pairs **exactly two** regions (primary + secondary) behind a stable
@@ -210,6 +209,6 @@ provisions with the exact names each service consumes. Mirrors the ASP template'
 + per-type extension methods, extended with: CloudScope (Isolated/Shared), `purpose`/`instance`,
 fail-on-overflow validation, and Azure-Policy tag enforcement.
 
-## Strengths kept (per review)
+## Key design choices
 RG system-first + resource type-first; tags as the full taxonomy; per-resource adapters (Azure rules
 are too inconsistent for one generic formatter); region-as-container for independent regional stacks.
