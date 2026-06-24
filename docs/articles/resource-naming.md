@@ -17,7 +17,7 @@ Names are **workload-first** so that everything for one microservice groups toge
 in the Azure portal:
 
 ```
-{system}-{service}-{type}-{purpose}-{env}-{region}-{stamp}-{instance}
+{system}-{service}-{type}-{env}-{region}-{stamp}-{instance}
 ```
 
 - **`{system}-{service}`** — an immutable platform profile that identifies the workload.
@@ -33,8 +33,12 @@ in the Azure portal:
   rather than silently truncating into a collision.
 - **Stable connect names over physical names.** For paired / geo-DR resources (Service Bus, Event Hubs, SQL
   failover groups), services connect through a stable logical alias, never a region-pinned physical name.
-- **Tags carry the rest.** Cloud, environment, and ownership live in **tags** (enforced by Azure Policy), so
-  the name stays short and the metadata stays queryable.
+- **Tags carry the rest.** Cloud, environment, ownership, and a resource's **role/purpose** live in **tags**
+  (enforced by Azure Policy), so the name stays short and the metadata stays queryable.
+- **One disambiguator, not two.** When a slice has more than one resource of the same type, they're told
+  apart by an `{instance}` ordinal — not by a role token in the name. This keeps a single rule across every
+  resource type, including ones with tiny name budgets like Storage (24 chars), where a role token often
+  won't fit at all.
 
 ## The full specification
 

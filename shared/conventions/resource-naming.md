@@ -31,11 +31,11 @@ own control plane, fully isolated (no cross-cloud data sharing). Within a cloud 
 ```
 system,    // product short code        2–6   "ptk"
 service?,  // bounded context           2–6   "mbr","prj"  (omit => system-shared)
-purpose?,  // role of THIS resource     2–6   "data","diag","audit","app","wkr","cert"
+role?,     // role of THIS resource -> the 'purpose' TAG, NEVER a name token   "blob","ehcheckpoint","app"
 env,       // CAF word: local|test|stage|prod (auto 1-char l/t/s/p fallback on overflow)
 region?,   // physical region within a cloud  "wus","cus","weu"  (in name for REGIONAL resources only)
 stamp?,    // IMMUTABLE cell/scale-unit ordinal  "001"
-instance?, // disambiguator for multiple same-purpose  "001"
+instance?, // disambiguates multiple same-TYPE resources in a slice (role differs -> tag)  "001"
 cloud,     // sovereign cloud US|EU|SG (CloudType) -> endpoint suffix + tag, NOT a name token
 scope      // Isolated | Shared
 ```
@@ -44,13 +44,13 @@ Tags carry the FULL taxonomy regardless of name:
 
 ## Pattern (workload FIRST — so the portal's name sort groups by service)
 ```
-{system}[-{service}]-{type}[-{purpose}]-{env}[-{region}][-{stamp}][-{instance}][-{u5 if Shared & DNS-named}]
+{system}[-{service}]-{type}-{env}[-{region}][-{stamp}][-{instance}][-{u5 if Shared & DNS-named}]
 ```
 - **Lead with `{system}-{service}`** — a **fixed platform profile, not per-deployment** — so a name
   sort groups all of a service's resources together (`ptk-mbr-*`). Type is the 3rd token; the Azure
   portal already facets by Type, so the name doesn't need to.
-- After the workload+type prefix, the rest is **stable → volatile** (purpose → env → region → stamp
-  → instance → suffix).
+- After the workload+type prefix, the rest is **stable → volatile** (env → region → stamp → instance
+  → suffix).
 - Charset-restricted types (**Storage, ACR** — truly dashless) use the condensed (no-dash, lowercased)
   form. Cosmos/Key Vault/SB/EH/SQL/App **allow hyphens — keep them dashed** so they sort with the
   service block (dashless types form a second, also service-ordered, block).
@@ -59,7 +59,7 @@ Tags carry the FULL taxonomy regardless of name:
 - Every token has a fixed max-length budget. The resolver **validates and throws** if a required
   token would overflow; it NEVER silently drops or truncates a disambiguating dimension (that would
   collide two distinct resources onto one name).
-- Author fixes overflow by shortening the 2–6 char system/service/purpose CODES (they exist for
+- Author fixes overflow by shortening the 2–6 char system/service CODES (they exist for
   exactly this) — not by mutating the algorithm.
 - In Shared scope, length-capped DNS types reserve room for `{u5}` up front.
 
@@ -89,7 +89,7 @@ Whether a type is *regional* vs *cloud-singleton* is the team's per-resource cal
 | Service Bus namespace (alias) | `ptk-sbns-prod` |
 | SQL logical server | `ptk-sql-prod` |
 | SQL database | `ptk-mbr-sqldb-prod` |
-| Storage — shared blob (condensed) | `ptkmbrstblobprod` |
+| Storage — shared blob (condensed; role=blob in tag) | `ptkmbrstprod` |
 | Container Registry | `ptkcrprod` |
 | Log Analytics | `ptk-log-prod` |
 
@@ -97,31 +97,46 @@ Whether a type is *regional* vs *cloud-singleton* is the team's per-resource cal
 | Resource | Name |
 |---|---|
 | Resource group (service slice) | `rg-ptk-mbr-prod-weu-001` |
-| Key Vault — app secrets | `ptk-mbr-kv-app-prod-weu` |
-| Key Vault — certs | `ptk-mbr-kv-cert-prod-weu` |
+| Key Vault | `ptk-mbr-kv-prod-weu` |
 | App Service | `ptk-mbr-app-prod-weu` |
-| Managed identity — app / deploy | `ptk-mbr-id-app-prod-weu` / `ptk-mbr-id-deploy-prod-weu` |
+| Managed identity — app / deploy (roles in tags) | `ptk-mbr-id-prod-weu-001` / `ptk-mbr-id-prod-weu-002` |
 
 A name sort now clusters every `ptk-mbr-*` resource together. The same service in the **US cloud**,
 Central US (`cus`), is identical but `…-cus`, in a physically separate cloud — names may even
 **repeat across clouds** (separate DNS namespaces).
 
 **Shared** scope (commercial Azure — the template's other users) adds `{u5}` to the Global-scope
-types: `ptk-sbns-prod-k7x2q`, `ptkmbrstblobprodk7x2q`, `ptk-mbr-kv-app-prod-weu-k7x2q`. **Length
+types: `ptk-sbns-prod-k7x2q`, `ptkmbrstprodk7x2q`, `ptk-mbr-kv-prod-weu-k7x2q`. **Length
 fallback:** if a name overflows (Storage at 24), env drops to `p`; if still over, shorten the
-system/service/purpose codes — never truncate.
+system/service codes — never truncate.
 
-### Same type, two scopes — the Storage + Event Hubs case
-A single resource TYPE can be BOTH scopes at once, distinguished by `purpose` — which is exactly why
-`purpose` is required:
-| Use | Scope | Name |
+### Same type, two roles — the Storage + Event Hubs case
+A single resource TYPE can serve two roles in one slice — e.g. a shared blob store **and** a per-region
+Event Hub checkpoint store. The role is **not** a name token (Storage has no room for one — see the
+budget below); it lives in the `purpose` **tag**. The names stay distinct because the two roles differ
+in **scope**, and any same-scope duplicates use `{instance}`:
+| Role (→ `purpose` tag) | Scope | Name |
 |---|---|---|
-| Shared blob storage | cloud-singleton (no region) | `ptkmbrstblobprod` |
-| Event Hub checkpoint store | regional, one per region | `ptkmbrstehcpprodweu` |
+| `blob` (shared) | cloud-singleton (no region) | `ptkmbrstprod` |
+| `ehcheckpoint` | regional, one per region | `ptkmbrstprodweu`, `ptkmbrstprodneu`, … |
 
-Without `purpose` both collapse to `ptkmbrst{env}` and **collide**. A shared-storage helper that emits
-only the shared blob name is insufficient; supporting Event Hubs needs a regional sibling **and** the
-`purpose` token so multiple same-type resources in one slice stay distinct.
+The checkpoint stores differ by region; the blob store carries no region token — so they never collide
+without a role token. Two stores that *share* a scope are disambiguated by `{instance}`
+(`ptkmbrstprod01`, `ptkmbrstprod02`), role in the tag. A shared-storage helper therefore needs a
+regional sibling (one name per region) — not a role token.
+
+### Storage budget — why role can't be a name token
+Storage is the tightest namespace: **3–24 chars, lowercase alphanumeric, no dashes, globally unique**
+(Shared scope). The budget is too tight to *rely* on a role token fitting, so role is never a Storage
+name token:
+```
+ptk + mbr + st + prod + weu + 001 + 001    = 21   system+service+type+env+region+stamp+instance — fits
+                              + role "blob"  = 25   — OVER 24
+Shared scope: + {u5} hash (5)               = 26   — OVER even without a role token
+```
+Because you can't count on the room, role is a tag **everywhere** (one rule), and Storage disambiguates
+same-scope duplicates with `{instance}`. Fitting names: `ptkmbrstprod` (Isolated),
+`ptkmbrstpweuk7x2q` (Shared — env→`p`, `{u5}` hash).
 
 ### Geo-DR paired Service Bus / Event Hubs (the alias case)
 SB Premium / Event Hubs geo-DR pairs **exactly two** regions (primary + secondary) behind a stable
@@ -149,16 +164,18 @@ same DNS identity, turning "pair it later" into a replace/migrate.
   configuration, not separate accounts.
 
 ### Managed Identity — regional + user-assigned
-MI is a **regional** resource: one **User-Assigned Managed Identity (UAMI)** per region (and per
-purpose — app vs deploy), e.g. `ptk-mbr-id-app-prod-weu`. Resources reference the regional UAMI (never
+MI is a **regional** resource: one **User-Assigned Managed Identity (UAMI)** per region per role (e.g.
+app vs deploy). Multiple UAMIs in a region are disambiguated by `{instance}`, role in a tag —
+`ptk-mbr-id-prod-weu-001`, `ptk-mbr-id-prod-weu-002`. Resources reference the regional UAMI (never
 System-Assigned), so identities are pre-created and granted ahead of deployment and decoupled from
 resource lifecycle. Each region's resources bind to that region's UAMI.
 
 > **Cardinality is cataloged, not inferred from type.** Whether a resource is cloud-singleton vs
-> regional, and whether it needs `purpose`/`stamp`/`instance`, is declared per resource — not guessed
-> from the type. `purpose` is **required** for any type that can have >1 instance in a slice; only
-> cataloged true singletons omit it. (Some "singletons" — Log Analytics, SQL server, App Service Plan
-> — are physically regional; omit region only when there is exactly one logical instance per cloud.)
+> regional, and whether it needs `stamp`/`instance`, is declared per resource — not guessed from the
+> type. `{instance}` is the same-type disambiguator: include it for any type that can have >1 of itself
+> sharing a scope in a slice (role in the `purpose` tag); cataloged true singletons omit it. (Some
+> "singletons" — Log Analytics, SQL server, App Service Plan — are physically regional; omit region
+> only when there is exactly one logical instance per cloud.)
 
 ## Per-resource adapters (abbrev + rules pinned to CAF; "DNS-global" = CAF "Global" name scope)
 | Type | Abbr | Charset | Len | Sep | DNS-global |
@@ -206,7 +223,7 @@ Abbreviations + length/charset rules are pinned to the CAF official sources — 
 ## Where it lives
 A small shared library referenced by **every service and the Aspire AppHost**, so the AppHost
 provisions with the exact names each service consumes. Mirrors the ASP template's `EnvironmentOptions`
-+ per-type extension methods, extended with: CloudScope (Isolated/Shared), `purpose`/`instance`,
++ per-type extension methods, extended with: CloudScope (Isolated/Shared), `{instance}` disambiguation,
 fail-on-overflow validation, and Azure-Policy tag enforcement.
 
 ## Key design choices
