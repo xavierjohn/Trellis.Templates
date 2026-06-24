@@ -60,7 +60,8 @@ jobs:
 
       - name: Test (gate)
         if: ${{ steps.t.outputs.test == 'true' }}
-        run: dotnet test --solution template/${{ steps.t.outputs.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+        working-directory: ${{ inputs.template }}/template
+        run: dotnet test --solution ${{ steps.t.outputs.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
 
       - name: Pack
         run: dotnet pack templatepack.csproj -c Release -o nupkg
