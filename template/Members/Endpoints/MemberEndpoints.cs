@@ -26,14 +26,16 @@ public static class MemberEndpoints
             .ReportApiVersions()
             .Build();
 
-        // Conventions shared by EVERY endpoint in the group are declared once here — the whole API
-        // requires authorization and maps to the single supported version. Each endpoint below adds
-        // only what is genuinely its own (its SLI operation name; idempotency on the create).
+        // Conventions shared by EVERY endpoint in the group are declared once here — authorization,
+        // the supported version, and SLI emission (the operation name is derived per-route by the
+        // middleware, e.g. "GET /api/members/{id}"). The only thing an endpoint adds for itself below
+        // is idempotency on the create.
         var members = app.MapGroup("/api/members")
             .WithApiVersionSet(versionSet)
             .WithTags("Members")
             .MapToApiVersion(V20260326)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .AddServiceLevelIndicator();
 
         // GET /api/members/{id}: the MemberId route value is bound as a Trellis value object and
         // validated by UseScalarValueValidation (an invalid id is a 422 before the handler runs).
@@ -41,8 +43,7 @@ public static class MemberEndpoints
             {
                 var result = await mediator.Send(new GetMemberQuery(id), ct);
                 return result.ToHttpResponse(MemberResponse.From);
-            })
-            .AddServiceLevelIndicator("get_member");
+            });
 
         // POST /api/members: invite a new member into the actor's tenant. [Idempotent] lets a caller
         // safely retry with an Idempotency-Key; the SLI measures the operation latency.
@@ -51,8 +52,7 @@ public static class MemberEndpoints
                 var result = await mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct);
                 return result.ToHttpResponse(id => new { id = id.Value });
             })
-            .WithMetadata(new IdempotentAttribute())
-            .AddServiceLevelIndicator("invite_member");
+            .WithMetadata(new IdempotentAttribute());
 
         return app;
     }

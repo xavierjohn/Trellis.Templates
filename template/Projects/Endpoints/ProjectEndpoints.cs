@@ -21,35 +21,33 @@ public static class ProjectEndpoints
             .ReportApiVersions()
             .Build();
 
-        // Conventions shared by EVERY endpoint in the group are declared once here — the whole API
-        // requires authorization and maps to the single supported version. Each endpoint below adds
-        // only its own SLI operation name.
+        // Conventions shared by EVERY endpoint in the group are declared once here — authorization,
+        // the supported version, and SLI emission (the operation name is derived per-route by the
+        // middleware, e.g. "GET /api/projects/{id}"). Endpoints below add nothing of their own.
         var projects = app.MapGroup("/api/projects")
             .WithApiVersionSet(versionSet)
             .WithTags("Projects")
             .MapToApiVersion(V20260326)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .AddServiceLevelIndicator();
 
         projects.MapGet("/", async (IMediator mediator, CancellationToken ct) =>
             {
                 var result = await mediator.Send(new ListProjectsQuery(), ct);
                 return result.ToHttpResponse(items => items.Select(ProjectResponse.From).ToArray());
-            })
-            .AddServiceLevelIndicator("list_projects");
+            });
 
         projects.MapGet("/{id}", async (ProjectId id, IMediator mediator, CancellationToken ct) =>
             {
                 var result = await mediator.Send(new GetProjectQuery(id), ct);
                 return result.ToHttpResponse(ProjectResponse.From);
-            })
-            .AddServiceLevelIndicator("get_project");
+            });
 
         projects.MapPut("/{id}", async (ProjectId id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
             {
                 var result = await mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description), ct);
                 return result.ToHttpResponse();
-            })
-            .AddServiceLevelIndicator("update_project");
+            });
 
         return app;
     }
