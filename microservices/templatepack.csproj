@@ -17,8 +17,8 @@
     <Authors>Xavier John</Authors>
     <Copyright>Copyright © Xavier John 2026. All rights reserved.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/xavierjohn/Trellis.Microservices.Template</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/xavierjohn/Trellis.Microservices.Template.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/xavierjohn/Trellis.Templates</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/xavierjohn/Trellis.Templates.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>dotnet-new;template;trellis;microservices;yarp;jwt;multi-tenant;ddd;rop;authorization;aspire</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
