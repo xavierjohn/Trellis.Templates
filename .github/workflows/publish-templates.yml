@@ -1,9 +1,13 @@
 # Manual publish of a template package to nuget.org.
 #
 # Pick a template and run. Defaults to a dry run (packs but does not push). Set dry_run = false to
-# publish for real — requires the NUGET_API_KEY repository secret. The package version is stamped by
-# Nerdbank.GitVersioning from git history (publicReleaseRefSpec makes main builds clean prerelease
-# versions); confirm the version in the dry-run output before publishing.
+# publish for real. Publishing uses NuGet Trusted Publishing (OIDC) — no stored API key. It requires:
+#   1. A Trusted Publishing policy on nuget.org (sign in -> your username -> Trusted Publishing) for
+#      repository owner "xavierjohn", repository "Trellis.Templates", workflow file
+#      "publish-templates.yml" (file name only), environment left empty.
+#   2. A NUGET_USER secret holding your nuget.org profile name (not your email).
+# The package version is stamped by Nerdbank.GitVersioning from git history (publicReleaseRefSpec makes
+# main builds clean prerelease versions); confirm the version in the dry-run output before publishing.
 name: Publish template
 
 on:
@@ -28,6 +32,9 @@ jobs:
   publish:
     name: publish ${{ inputs.template }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # OIDC token for NuGet Trusted Publishing
     defaults:
       run:
         working-directory: ${{ inputs.template }}
@@ -81,11 +88,18 @@ jobs:
       - name: List packages
         run: ls -lh nupkg/*.nupkg
 
+      - name: NuGet login (OIDC trusted publishing)
+        id: login
+        if: ${{ inputs.dry_run == 'false' }}
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish to NuGet
         if: ${{ inputs.dry_run == 'false' }}
         run: >
           dotnet nuget push nupkg/*.nupkg
-          --api-key ${{ secrets.NUGET_API_KEY }}
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
