@@ -5,7 +5,7 @@ Read this before editing.
 
 ## Layout
 
-- `asp/` — the `Trellis.Templates` ASP.NET single-app template (packed as `dotnet new trellis-asp`).
+- `asp/` — the `Trellis.AspTemplate` ASP.NET single-app template (`dotnet new trellis-asp`).
 - `microservices/` — the `Trellis.Microservices.Templates` Aspire multi-service template (`dotnet new trellis-microservices`).
 - `shared/capability-parity-manifest.yaml` — the single source of truth for required cross-cutting capabilities.
 - `shared/contract-tests/` — the runner that asserts each template implements the manifest.

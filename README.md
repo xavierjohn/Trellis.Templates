@@ -7,11 +7,11 @@ repository with a **shared capability-parity contract** so the templates never s
 
 | Template | `dotnet new` id | NuGet package | Folder |
 | --- | --- | --- | --- |
-| ASP.NET service (single app) | `trellis-asp` | `Trellis.Templates` | [`asp/`](asp/) |
+| ASP.NET service (single app) | `trellis-asp` | `Trellis.AspTemplate` | [`asp/`](asp/) |
 | Microservices (Aspire, multi-service) | `trellis-microservices` | `Trellis.Microservices.Templates` | [`microservices/`](microservices/) |
 
 ```bash
-dotnet new install Trellis.Templates
+dotnet new install Trellis.AspTemplate
 dotnet new install Trellis.Microservices.Templates
 
 dotnet new trellis-asp -n MyService
@@ -28,7 +28,7 @@ lets a single, executable contract enforce that parity.
 ## Layout
 
 ```
-asp/            # Trellis.Templates       — ASP.NET single-app template (full git history preserved)
+asp/            # Trellis.AspTemplate     — ASP.NET single-app template (full git history preserved)
 microservices/  # Trellis.Microservices.Templates — Aspire multi-service template (history preserved)
 shared/
   capability-parity-manifest.yaml   # the single source of truth for required capabilities
