@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.Primitives" />
+    <PackageReference Include="Trellis.StateMachine" />
+    <!--
+      Analyzer-only reference to pull the MaybePartialPropertyGenerator
+      (bundled in Trellis.EntityFrameworkCore under analyzers/dotnet/cs).
+      ReferenceOutputAssembly=false keeps EF Core runtime out of the Domain layer.
+    -->
+    <PackageReference Include="Trellis.EntityFrameworkCore" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

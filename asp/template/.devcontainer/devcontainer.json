@@ -1,0 +1,57 @@
+{
+  "name": "Trellis ASP Template",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-azuretools.vscode-docker",
+        "humao.rest-client",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "dotnet.defaultSolution": "TrellisAspTemplate.slnx"
+      }
+    }
+  },
+
+  "forwardPorts": [
+    5122,
+    7011,
+    9090,
+    9411
+  ],
+
+  "portsAttributes": {
+    "5122": {
+      "label": "API (HTTP)",
+      "onAutoForward": "openPreview"
+    },
+    "7011": {
+      "label": "API (HTTPS)",
+      "onAutoForward": "silent"
+    },
+    "9090": {
+      "label": "Prometheus",
+      "onAutoForward": "silent"
+    },
+    "9411": {
+      "label": "Zipkin",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postCreateCommand": "dotnet restore",
+
+  "remoteUser": "vscode"
+}

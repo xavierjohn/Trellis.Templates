@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.OpenApi" />
+    <PackageReference Include="Trellis.Asp" />
+    <PackageReference Include="Trellis.Asp.ApiVersioning" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
+    <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Acl\src\AntiCorruptionLayer.csproj" />
+    <ProjectReference Include="..\..\Application\src\Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,59 @@
+<Project>
+  <PropertyGroup>
+    <TrellisVersion>3.0.0-alpha.418</TrellisVersion>
+    <TrellisSliVersion>10.0.0-preview.24</TrellisSliVersion>
+  </PropertyGroup>
+  <!-- Runtime -->
+  <ItemGroup>
+    <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.0.0-rc.1" />
+    <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.2" />
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="MartinCostello.Logging.XUnit.v3" Version="0.7.1" />
+    <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
+    <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <!-- Override the transitive native SQLite lib to the patched 3.50.3 (GHSA-2m69-gcr7-jv3q / NU1903);
+         EF Core Sqlite 10.x still pins the vulnerable 2.1.11. SQLitePCLRaw pairs the native lib
+         independently of core, so 3.50.3 + core 2.1.x is supported. Remove once EF's bump lands. -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="3.5.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.3" />
+    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.16.3" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.5" />
+    <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.EntityFrameworkCore" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Http.Abstractions" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Mediator.FluentValidation" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.ServiceDefaults" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
+    <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
+    <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" Version="$(TrellisSliVersion)" />
+    <PackageVersion Include="Trellis.StateMachine" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Testing" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Testing.AspNetCore" Version="$(TrellisVersion)" />
+  </ItemGroup>
+  <!-- Test -->
+  <ItemGroup>
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.6" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="Xunit.DependencyInjection" Version="11.2.1" />
+  </ItemGroup>
+</Project>

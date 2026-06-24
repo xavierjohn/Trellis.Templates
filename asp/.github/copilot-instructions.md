@@ -1,0 +1,108 @@
+﻿# Copilot Instructions — Trellis Template Repository
+
+This repository contains the **Trellis ASP.NET template** (`dotnet new`). There are two sets of copilot instructions:
+
+1. **`.github/copilot-instructions.md`** (this file) — Instructions for working on the template repository itself.
+2. **`template/.github/copilot-instructions.md`** — Instructions shipped with the template. When a user installs the template, this file guides AI in building their service. Edit this file when updating Trellis conventions, patterns, or architectural guidance.
+
+---
+
+## Repository Structure
+
+```
+Trellis.AspTemplate/
+├── templatepack.csproj            ← NuGet template pack project
+├── version.json                   ← Nerdbank.GitVersioning
+├── template/                      ← The actual template content (installed by `dotnet new`)
+│   ├── .github/
+│   │   ├── copilot-instructions.md   ← AI instructions for template users
+│   │   ├── trellis-api-results.md    ← Result, Maybe, Error types
+│   │   ├── trellis-api-asp.md        ← Response mappers, ETag helpers
+│   │   ├── trellis-api-ddd.md        ← Aggregates, entities, value objects
+│   │   ├── trellis-api-primitives.md ← Built-in value objects
+│   │   ├── trellis-api-efcore.md     ← EF Core conventions
+│   │   ├── trellis-api-mediator.md   ← Pipeline behaviors
+│   │   ├── trellis-api-authorization.md ← Actor, permissions
+│   │   ├── trellis-api-http.md       ← HttpClient → Result extensions
+│   │   ├── trellis-api-stateless.md  ← State machine integration
+│   │   ├── trellis-api-fluentvalidation.md ← FluentValidation bridge
+│   │   ├── trellis-api-analyzers.md  ← TRLS/TRLSGEN diagnostics
+│   │   ├── trellis-api-patterns.md   ← Usage patterns, workarounds
+│   │   └── trellis-api-testing-reference.md ← Testing API surface
+│   ├── Directory.Build.props
+│   ├── Directory.Packages.props      ← Trellis + dependency versions
+│   ├── Domain/
+│   ├── Application/
+│   ├── Acl/
+│   ├── Api/
+│   └── build/
+└── .github/
+    └── copilot-instructions.md       ← THIS FILE (template repo instructions)
+```
+
+## Key Files
+
+- **`template/.github/copilot-instructions.md`** — The most important file for Trellis conventions. This is what AI agents see when building services from the template. Keep it focused on architectural rules and conventions; defer API details to the template API reference.
+- **`template/.github/trellis-api-*.md`** — Per-library Trellis API references shipped with the template for downstream AI use. Key files: `trellis-api-results.md`, `trellis-api-asp.md`, `trellis-api-efcore.md`, `trellis-api-primitives.md`, `trellis-api-ddd.md`.
+- **`template/Directory.Packages.props`** — Central package version management. The `TrellisVersion` property controls all Trellis package versions.
+
+## Working on the Template
+
+- Template content lives entirely under `template/`. Files added there are included when a user runs `dotnet new`.
+- Do NOT modify `Directory.Build.props`, `global.json`, or `build/test.props` — these are pre-configured for template users. Exception: updating the placeholder service name (e.g., `TodoSample`) in `Directory.Build.props` is allowed when changing the template's sample identity.
+- Add new NuGet packages to `template/Directory.Packages.props` (version) and the relevant `.csproj` (reference without version).
+- The template uses `TodoSample` as a placeholder service name.
+
+## Building & Testing the Template Pack
+
+```powershell
+# Build the template NuGet package
+dotnet pack templatepack.csproj
+
+# Install locally for testing
+dotnet new install ./nupkg/Trellis.AspTemplate.*.nupkg
+
+# Create a new project from the template
+dotnet new trellis-asp -n MyService
+
+# Uninstall
+dotnet new uninstall Trellis.AspTemplate
+```
+
+## Upgrading Trellis Packages
+
+After upgrading `TrellisVersion` in `template/Directory.Packages.props`, sync the API reference files.
+
+**IMPORTANT:** the `TrellisSyncApiReference` target only emits markdown for packages in the **selected project's transitive package graph**. Running it against a single project (e.g. `Domain.csproj`) will silently miss docs for packages that project doesn't reference (e.g. `Trellis.Asp`, `Trellis.Asp.ApiVersioning`, `Trellis.FluentValidation`, `Trellis.Http.Abstractions`, `Trellis.Testing*`). Always run it against **every** Trellis-referencing project in the template:
+
+```powershell
+$projects = @(
+    'template\Domain\src\Domain.csproj',
+    'template\Application\src\Application.csproj',
+    'template\Acl\src\AntiCorruptionLayer.csproj',
+    'template\Api\src\Api.csproj',
+    'template\Application\tests\Application.Tests.csproj',
+    'template\Api\tests\Api.Tests.csproj'
+)
+foreach ($p in $projects) {
+    dotnet build $p /t:TrellisSyncApiReference -v:q -nologo
+}
+```
+
+The sync target writes updated `trellis-api-*.md` files to **`.github/`** at the repo root (it is designed for template consumers whose service repo root IS the `.github/` parent). For this template repo, those files must then be **moved into `template/.github/`** so they ship with the template:
+
+```powershell
+Get-ChildItem .github\trellis-api-*.md | ForEach-Object {
+    Move-Item -Force $_.FullName "template\.github\$($_.Name)"
+}
+```
+
+Only files whose content changed in the new package version are emitted. Verify the diff in `template/.github/` and commit the updated reference files alongside the version bump.
+
+## Updating Trellis Conventions
+
+When updating how AI should build services with Trellis:
+
+1. Edit `template/.github/copilot-instructions.md` for architectural rules and conventions.
+2. Edit the relevant `template/.github/trellis-api-*.md` file for API surface changes that should ship with the template.
+3. Keep instructions DRY — the copilot instructions should reference the template API reference by section number (e.g., "See §12") rather than duplicating API details.
