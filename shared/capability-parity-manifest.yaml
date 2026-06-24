@@ -116,7 +116,7 @@ capabilities:
     title: Convention-based Azure resource naming
     requiredFor: [asp, microservices]
     status: planned   # lands with the Trellis.ResourceNaming.Azure package
-    docs: conventions/azure-resource-naming.md
+    docs: conventions/resource-naming.md
     checks:
       - { kind: package-referenced, package: "Trellis.ResourceNaming.Azure" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IResourceNamer" }

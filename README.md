@@ -1,5 +1,11 @@
 # Trellis.Templates
 
+[![Build templates](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml)
+[![Capability parity](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/contract-parity.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/contract-parity.yml)
+[![Docs](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/docs.yml/badge.svg)](https://xavierjohn.github.io/Trellis.Templates/)
+[![Trellis.AspTemplate](https://img.shields.io/nuget/vpre/Trellis.AspTemplate?label=Trellis.AspTemplate)](https://www.nuget.org/packages/Trellis.AspTemplate)
+[![Trellis.Microservices.Templates](https://img.shields.io/nuget/vpre/Trellis.Microservices.Templates?label=Trellis.Microservices.Templates)](https://www.nuget.org/packages/Trellis.Microservices.Templates)
+
 The official [Trellis](https://github.com/xavierjohn) project templates, consolidated into a single
 repository with a **shared capability-parity contract** so the templates never silently drift apart.
 
