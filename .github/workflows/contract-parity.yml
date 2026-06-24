@@ -1,0 +1,44 @@
+# Capability-parity gate.
+#
+# For each template, runs the shared contract test against <template>/template and fails the
+# build if any required capability is missing or regressed. This is the guardrail that keeps the
+# two templates from silently drifting apart. The check is instantiation-free: it asserts the
+# capability is wired in the template source (deterministic, fast). Deeper boot/build checks can
+# be added later.
+#
+# Adding a template to the contract = adding its folder name to the matrix below.
+name: Capability parity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: contract (${{ matrix.template }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [ asp, microservices ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run capability-parity contract
+        run: >
+          dotnet run --project shared/contract-tests/runner.csproj -c Release --
+          shared/capability-parity-manifest.yaml
+          ${{ matrix.template }}
+          ${{ matrix.template }}/template
