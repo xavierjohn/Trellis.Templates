@@ -1,0 +1,21 @@
+- name: Get started
+  href: getting-started.md
+
+- name: The templates
+  items:
+    - name: ASP.NET service
+      href: asp-template.md
+    - name: Microservices
+      href: microservices-template.md
+
+- name: Capabilities
+  href: capabilities.md
+- name: Capability parity
+  href: capability-parity.md
+- name: Azure resource naming
+  href: resource-naming.md
+
+- name: Publishing
+  href: publishing.md
+- name: Contributing
+  href: contributing.md

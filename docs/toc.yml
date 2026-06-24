@@ -1,0 +1,6 @@
+- name: Home
+  href: index.md
+- name: Get started
+  href: articles/getting-started.md
+- name: Documentation
+  href: articles/
