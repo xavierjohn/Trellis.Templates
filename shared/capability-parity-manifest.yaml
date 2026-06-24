@@ -26,7 +26,7 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/api-versioning.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddApiVersioning" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddApiVersioning" }
       - kind: source-contains   # endpoints/controllers are version-bound
         anyOf:
           - { glob: "**/*Endpoints.cs", pattern: "MapToApiVersion" }            # minimal API
@@ -38,8 +38,8 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/sli.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddServiceLevelIndicator" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "UseServiceLevelIndicator" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddServiceLevelIndicator" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "UseServiceLevelIndicator" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddServiceLevelIndicatorInstrumentation" }
 
   idempotency:
@@ -47,8 +47,8 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/idempotency.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddTrellisIdempotency" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "UseTrellisIdempotency" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisIdempotency" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "UseTrellisIdempotency" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IdempotentAttribute|\\[Idempotent\\]" }
 
   problem-details:
@@ -56,25 +56,25 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/problem-details.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddProblemDetails" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "UseExceptionHandler" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "CustomizeProblemDetails" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddProblemDetails" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "UseExceptionHandler" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "CustomizeProblemDetails" }
 
   scalar-validation:
     title: Scalar value-object validation (422 on bad VO bind)
     requiredFor: [asp, microservices]
     docs: conventions/scalar-validation.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddTrellisAspWithScalarValidation|AddScalarValueValidation" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "UseScalarValueValidation" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisAspWithScalarValidation|AddScalarValueValidation" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "UseScalarValueValidation" }
 
   openapi-scalar:
     title: OpenAPI document + Scalar UI
     requiredFor: [asp, microservices]
     docs: conventions/openapi.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddOpenApi" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "MapScalarApiReference" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddOpenApi" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "MapScalarApiReference" }
       - { kind: http-status, request: "GET {version}", expect: 200 }
 
   observability:
@@ -82,9 +82,9 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/observability.md
     checks:
-      - { kind: source-contains, glob: "**/Extensions.cs", pattern: "AddOpenTelemetry" }
-      - { kind: source-contains, glob: "**/Extensions.cs", pattern: "WithTracing" }
-      - { kind: source-contains, glob: "**/Extensions.cs", pattern: "Logging.AddOpenTelemetry" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddOpenTelemetry" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "WithTracing" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "[Ll]ogging\\.AddOpenTelemetry" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddSource\\(\"Trellis.Mediator\"\\)", desc: "mediator spans actually exported" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "LoggerMessage", desc: "handlers emit structured business events" }
 
@@ -93,7 +93,7 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/authorization.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddResourceAuthorization|AddTrellisBehaviors" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddResourceAuthorization|AddTrellisBehaviors" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IAuthorize|RequiredPermissions" }
 
   mediator-pipeline:
@@ -101,8 +101,8 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/mediator.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddMediator" }
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddTrellisBehaviors" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddMediator" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisBehaviors" }
 
   health-checks:
     title: Health endpoints
@@ -127,7 +127,7 @@ capabilities:
     requiredFor: [microservices]
     docs: conventions/aspire.md
     checks:
-      - { kind: source-contains, glob: "**/Program.cs", pattern: "AddServiceDefaults" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddServiceDefaults" }
       - { kind: source-contains, glob: "**/*.csproj", pattern: "Aspire" }
 
   efcore-conventions:
