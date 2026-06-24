@@ -21,15 +21,17 @@ public sealed record InviteMemberCommand(string Email, string Role)
 // Member lands in the actor's tenant (taken from the JWT-projected
 // actor.Attributes["tenant_id"]), NEVER in a tenant the caller could spoof
 // by editing the request body.
-public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<MemberId>>
+public sealed partial class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<MemberId>>
 {
     private readonly IMemberRepository _repository;
     private readonly IActorProvider _actorProvider;
+    private readonly ILogger<InviteMemberHandler> _logger;
 
-    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider)
+    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider, ILogger<InviteMemberHandler> logger)
     {
         _repository = repository;
         _actorProvider = actorProvider;
+        _logger = logger;
     }
 
     public async ValueTask<Result<MemberId>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
@@ -64,6 +66,13 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         var member = new Member(memberId, tenantId, command.Email, command.Role);
         await _repository.AddAsync(member, cancellationToken).ConfigureAwait(false);
 
+        // Business event for live support, auto-correlated to the request trace via the OTel
+        // logging pipeline. Log the resource id + tenant + role, never the raw email (PII).
+        LogMemberInvited(_logger, memberId.Value, tenantId.Value, command.Role);
+
         return Result.Ok(memberId);
     }
+
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Member invited: {MemberId} into tenant {TenantId} as {Role}")]
+    private static partial void LogMemberInvited(ILogger logger, string memberId, string tenantId, string role);
 }

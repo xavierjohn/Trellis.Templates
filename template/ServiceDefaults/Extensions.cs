@@ -57,6 +57,13 @@ public static class Extensions
                 .AddRuntimeInstrumentation())
             .WithTracing(tracing => tracing
                 .AddSource(builder.Environment.ApplicationName)
+                // The Trellis mediator emits one span per command/query under the "Trellis.Mediator"
+                // ActivitySource — the per-operation surface for following a request into a service
+                // and localising failures. Without this, those spans are created but never exported,
+                // so a distributed trace would show only the HTTP hops, not the operation inside.
+                .AddSource("Trellis.Mediator")
+                // The gateway's YARP reverse-proxy hop (a no-op in services that don't proxy).
+                .AddSource("Yarp.ReverseProxy")
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation());
 
