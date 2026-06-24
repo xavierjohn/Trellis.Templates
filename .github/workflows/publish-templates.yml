@@ -1,0 +1,95 @@
+# Manual publish of a template package to nuget.org.
+#
+# Pick a template and run. Defaults to a dry run (packs but does not push). Set dry_run = false to
+# publish for real — requires the NUGET_API_KEY repository secret. The package version is stamped by
+# Nerdbank.GitVersioning from git history (publicReleaseRefSpec makes main builds clean prerelease
+# versions); confirm the version in the dry-run output before publishing.
+name: Publish template
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Template to publish'
+        required: true
+        type: choice
+        options: [ asp, microservices ]
+      dry_run:
+        description: 'Dry run (pack only, do not push)'
+        required: false
+        default: 'true'
+        type: choice
+        options: [ 'true', 'false' ]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish ${{ inputs.template }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.template }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history for Nerdbank.GitVersioning
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve template
+        id: t
+        run: |
+          if [ "${{ inputs.template }}" = "asp" ]; then
+            echo "slnx=TrellisAspTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "short=trellis-asp" >> "$GITHUB_OUTPUT"
+            echo "test=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "slnx=ProjectTrackerTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "short=trellis-microservices" >> "$GITHUB_OUTPUT"
+            echo "test=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (gate)
+        run: dotnet build template/${{ steps.t.outputs.slnx }} -c Release
+
+      - name: Test (gate)
+        if: ${{ steps.t.outputs.test == 'true' }}
+        run: dotnet test template/${{ steps.t.outputs.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+
+      - name: Pack
+        run: dotnet pack templatepack.csproj -c Release -o nupkg
+
+      - name: Round-trip (install + instantiate + build)
+        run: |
+          NUPKG=$(ls nupkg/*.nupkg | head -n1)
+          echo "Installing $NUPKG"
+          dotnet new install "$NUPKG"
+          SMOKE="${{ runner.temp }}/publish-smoke"
+          mkdir -p "$SMOKE"
+          cd "$SMOKE"
+          dotnet new ${{ steps.t.outputs.short }} -n PublishSmoke
+          cd PublishSmoke
+          dotnet build PublishSmoke.slnx -c Release
+
+      - name: List packages
+        run: ls -lh nupkg/*.nupkg
+
+      - name: Publish to NuGet
+        if: ${{ inputs.dry_run == 'false' }}
+        run: >
+          dotnet nuget push nupkg/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Dry-run summary
+        if: ${{ inputs.dry_run == 'true' }}
+        run: |
+          echo "DRY RUN — package built but NOT published. Set dry_run = false to publish:"
+          ls -lh nupkg/*.nupkg

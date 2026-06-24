@@ -1,0 +1,80 @@
+# Build gate for both templates.
+#
+# For each template: build + test the scaffolded content, pack the template, then install the
+# pack, instantiate it, and build the generated solution end-to-end. This catches the
+# "template installs but produces code that doesn't compile" class of regression. All packages
+# restore from public nuget.org (no private feed / secret required).
+#
+# Adding a template = adding a matrix entry below.
+name: Build templates
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.template }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - template: asp
+            slnx: TrellisAspTemplate.slnx
+            short: trellis-asp
+            runTests: true
+          - template: microservices
+            slnx: ProjectTrackerTemplate.slnx
+            short: trellis-microservices
+            runTests: false
+    defaults:
+      run:
+        working-directory: ${{ matrix.template }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore template/${{ matrix.slnx }}
+
+      - name: Build
+        run: dotnet build template/${{ matrix.slnx }} --no-restore -c Release
+
+      - name: Test
+        if: ${{ matrix.runTests }}
+        run: dotnet test template/${{ matrix.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+
+      - name: Pack template
+        run: dotnet pack templatepack.csproj -c Release -o nupkg
+
+      - name: Install pack, instantiate, build (round-trip gate)
+        run: |
+          NUPKG=$(ls nupkg/*.nupkg | head -n1)
+          echo "Installing $NUPKG"
+          dotnet new install "$NUPKG"
+          SMOKE="${{ runner.temp }}/smoke-${{ matrix.template }}"
+          mkdir -p "$SMOKE"
+          cd "$SMOKE"
+          dotnet new ${{ matrix.short }} -n SmokeTest
+          cd SmokeTest
+          dotnet build SmokeTest.slnx -c Release
+
+      - name: Upload pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.template }}-nupkg
+          path: ${{ matrix.template }}/nupkg/*.nupkg
