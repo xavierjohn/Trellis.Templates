@@ -26,9 +26,14 @@ public static class MemberEndpoints
             .ReportApiVersions()
             .Build();
 
+        // Conventions shared by EVERY endpoint in the group are declared once here — the whole API
+        // requires authorization and maps to the single supported version. Each endpoint below adds
+        // only what is genuinely its own (its SLI operation name; idempotency on the create).
         var members = app.MapGroup("/api/members")
             .WithApiVersionSet(versionSet)
-            .WithTags("Members");
+            .WithTags("Members")
+            .MapToApiVersion(V20260326)
+            .RequireAuthorization();
 
         // GET /api/members/{id}: the MemberId route value is bound as a Trellis value object and
         // validated by UseScalarValueValidation (an invalid id is a 422 before the handler runs).
@@ -37,8 +42,6 @@ public static class MemberEndpoints
                 var result = await mediator.Send(new GetMemberQuery(id), ct);
                 return result.ToHttpResponse(MemberResponse.From);
             })
-            .MapToApiVersion(V20260326)
-            .RequireAuthorization()
             .AddServiceLevelIndicator("get_member");
 
         // POST /api/members: invite a new member into the actor's tenant. [Idempotent] lets a caller
@@ -48,8 +51,6 @@ public static class MemberEndpoints
                 var result = await mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct);
                 return result.ToHttpResponse(id => new { id = id.Value });
             })
-            .MapToApiVersion(V20260326)
-            .RequireAuthorization()
             .WithMetadata(new IdempotentAttribute())
             .AddServiceLevelIndicator("invite_member");
 

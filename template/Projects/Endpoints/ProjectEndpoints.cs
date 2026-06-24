@@ -21,17 +21,20 @@ public static class ProjectEndpoints
             .ReportApiVersions()
             .Build();
 
+        // Conventions shared by EVERY endpoint in the group are declared once here — the whole API
+        // requires authorization and maps to the single supported version. Each endpoint below adds
+        // only its own SLI operation name.
         var projects = app.MapGroup("/api/projects")
             .WithApiVersionSet(versionSet)
-            .WithTags("Projects");
+            .WithTags("Projects")
+            .MapToApiVersion(V20260326)
+            .RequireAuthorization();
 
         projects.MapGet("/", async (IMediator mediator, CancellationToken ct) =>
             {
                 var result = await mediator.Send(new ListProjectsQuery(), ct);
                 return result.ToHttpResponse(items => items.Select(ProjectResponse.From).ToArray());
             })
-            .MapToApiVersion(V20260326)
-            .RequireAuthorization()
             .AddServiceLevelIndicator("list_projects");
 
         projects.MapGet("/{id}", async (ProjectId id, IMediator mediator, CancellationToken ct) =>
@@ -39,8 +42,6 @@ public static class ProjectEndpoints
                 var result = await mediator.Send(new GetProjectQuery(id), ct);
                 return result.ToHttpResponse(ProjectResponse.From);
             })
-            .MapToApiVersion(V20260326)
-            .RequireAuthorization()
             .AddServiceLevelIndicator("get_project");
 
         projects.MapPut("/{id}", async (ProjectId id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
@@ -48,8 +49,6 @@ public static class ProjectEndpoints
                 var result = await mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description), ct);
                 return result.ToHttpResponse();
             })
-            .MapToApiVersion(V20260326)
-            .RequireAuthorization()
             .AddServiceLevelIndicator("update_project");
 
         return app;
