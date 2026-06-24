@@ -28,3 +28,15 @@ public sealed record GetMemberQuery(MemberId Id)
                 Detail = "Cross-tenant member access is not permitted.",
             });
 }
+
+// Reads the SAME Member instance ResourceAuthorizationBehavior loaded for
+// Authorize — no second repository round-trip.
+public sealed class GetMemberHandler : IQueryHandler<GetMemberQuery, Result<Member>>
+{
+    private readonly IAuthorizedResource<GetMemberQuery, Member> _authorized;
+
+    public GetMemberHandler(IAuthorizedResource<GetMemberQuery, Member> authorized) => _authorized = authorized;
+
+    public ValueTask<Result<Member>> Handle(GetMemberQuery query, CancellationToken cancellationToken) =>
+        new(Result.Ok(_authorized.GetRequiredResource()));
+}

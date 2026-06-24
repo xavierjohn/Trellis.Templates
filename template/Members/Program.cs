@@ -1,12 +1,15 @@
-﻿using Mediator;
+﻿using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using ProjectTrackerTemplate.Members.Application;
 using ProjectTrackerTemplate.Members.Domain;
+using ProjectTrackerTemplate.Members.Endpoints;
 using ProjectTrackerTemplate.Members.Infrastructure;
+using Scalar.AspNetCore;
 using Trellis.Asp;
+using Trellis.Asp.Idempotency;
 using Trellis.Mediator;
 using Trellis.Microservices.AspNetCore;
+using Trellis.ServiceLevelIndicators;
 
 // Members microservice — HR-sensitive cluster (CRUD on Member aggregate).
 //
@@ -29,6 +32,46 @@ using Trellis.Microservices.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// === API surface =========================================================
+//
+// Date-based API versioning (clients pass ?api-version=2026-03-26), OpenAPI + Scalar, RFC 9457
+// ProblemDetails, scalar value-object validation, idempotency, and Service Level Indicators. The
+// endpoints themselves — versioned route groups — live in Endpoints/MemberEndpoints.cs.
+
+builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
+    .AddApiExplorer()
+    .AddOpenApi(options => options.Document.AddScalarTransformers());
+
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
+{
+    // Always surface the active trace id so clients can correlate the error with server spans.
+    ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
+
+    // Never leak raw exception detail on a 500.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status500InternalServerError)
+        ctx.ProblemDetails.Detail = "An error occurred. Please share the trace id with support.";
+
+    // RFC 9110 §15.5.6: surface the supported methods from the Allow header as a structured array.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status405MethodNotAllowed &&
+        ctx.HttpContext.Response.Headers.TryGetValue("Allow", out var allow))
+    {
+        ctx.ProblemDetails.Extensions["allow"] = allow.ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+});
+
+// Trellis ASP integration + scalar value-object validation. The UseScalarValueValidation
+// middleware (below) rewrites a failed value-object bind — e.g. a malformed {id} route value —
+// into a 422 ProblemDetails before the handler runs. Add .WithScalarValueValidation() to an
+// endpoint only when its request BODY carries value objects (none here yet).
+builder.Services.AddTrellisAspWithScalarValidation();
+builder.Services.AddTrellisIdempotency();
+builder.Services.AddInMemoryIdempotencyStore();
+
+builder.Services.AddServiceLevelIndicator(options =>
+        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+    .AddApiVersion();
 
 // === Trust-boundary layer =================================================
 
@@ -86,34 +129,34 @@ builder.Services.AddResourceAuthorization(typeof(Member).Assembly);
 builder.Services.AddResourceAuthorization(o => o.HideExistence<Member>());
 
 var app = builder.Build();
-app.MapDefaultEndpoints();
+
+// === HTTP pipeline =======================================================
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi().WithDocumentPerVersion();
+    app.MapScalarApiReference(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        for (var i = 0; i < descriptions.Count; i++)
+        {
+            var description = descriptions[i];
+            options.AddDocument(description.GroupName, description.GroupName, isDefault: i == descriptions.Count - 1);
+        }
+    });
+}
+
+// Render any 4xx/5xx (including pipeline short-circuits) as RFC 9457 ProblemDetails.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseTrellisIdempotency();
+app.UseScalarValueValidation();
+app.UseServiceLevelIndicator();
 
-// === Endpoints — dispatch via mediator, translate Result→HTTP via ToHttpResponse ===
-
-app.MapGet("/api/members/{id}", async (string id, IMediator mediator, CancellationToken ct) =>
-{
-    if (!MemberId.TryCreate(id).TryGetValue(out var memberId))
-        return Results.BadRequest(new { error = "invalid_member_id" });
-
-    var result = await mediator.Send(new GetMemberQuery(memberId), ct);
-    return result.ToHttpResponse(MemberResponse.From);
-}).RequireAuthorization();
-
-app.MapPost("/api/members", async (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
-{
-    var result = await mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct);
-    return result.ToHttpResponse(id => new { id = id.Value });
-}).RequireAuthorization();
+app.MapMemberEndpoints();
+app.MapDefaultEndpoints();
 
 app.Run();
-
-// === Wire-format DTOs (kept inline for readability — single Program.cs scan) ===
-
-internal sealed record InviteMemberRequest(string Email, string Role);
-
-internal sealed record MemberResponse(string Id, string TenantId, string Email, string Role)
-{
-    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId.Value, m.Email, m.Role);
-}

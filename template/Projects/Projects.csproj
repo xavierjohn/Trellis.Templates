@@ -24,12 +24,20 @@
     <!-- Mediator (Martin Othamar) — source-generator + abstractions. -->
     <PackageReference Include="Mediator.Abstractions" />
     <PackageReference Include="Mediator.SourceGenerator" PrivateAssets="all" OutputItemType="Analyzer" />
+    <!-- API surface: date-based versioning, OpenAPI + Scalar. -->
+    <PackageReference Include="Asp.Versioning.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <!-- Trellis runtime + actor + mediator pipeline. -->
     <PackageReference Include="Trellis.Asp" />
+    <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
+    <!-- Service Level Indicators (with API-version dimension). -->
+    <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!-- Consumer-side actor provider for the gateway-minted internal JWT. -->
     <PackageReference Include="Trellis.Microservices.AspNetCore" />
   </ItemGroup>

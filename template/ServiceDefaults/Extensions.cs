@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Trellis.ServiceLevelIndicators;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -49,6 +51,7 @@ public static class Extensions
 
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics => metrics
+                .AddServiceLevelIndicatorInstrumentation()
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation())
@@ -92,12 +95,16 @@ public static class Extensions
         // shipping a free attack-surface enumeration in production builds.
         if (app.Environment.IsDevelopment())
         {
-            app.MapHealthChecks("/health");
+            // Tag the health endpoints API-version-neutral so they answer without ?api-version and
+            // surface as "Neutral" (not "Unspecified") in the SLI / OpenTelemetry version dimension.
+            app.MapHealthChecks("/health")
+                .WithMetadata(new ApiVersionNeutralAttribute());
 
             app.MapHealthChecks("/alive", new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live"),
-            });
+            })
+                .WithMetadata(new ApiVersionNeutralAttribute());
         }
 
         return app;

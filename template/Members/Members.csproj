@@ -23,11 +23,17 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Mediator.Abstractions" />
     <PackageReference Include="Mediator.SourceGenerator" PrivateAssets="all" OutputItemType="Analyzer" />
+    <PackageReference Include="Asp.Versioning.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="Trellis.Asp" />
+    <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
+    <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Microservices.AspNetCore" />
   </ItemGroup>
 
