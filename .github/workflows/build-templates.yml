@@ -56,7 +56,7 @@ jobs:
 
       - name: Test
         if: ${{ matrix.runTests }}
-        run: dotnet test template/${{ matrix.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+        run: dotnet test --solution template/${{ matrix.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
 
       - name: Pack template
         run: dotnet pack templatepack.csproj -c Release -o nupkg
