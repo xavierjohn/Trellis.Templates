@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Trellis.ServiceLevelIndicators;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -49,11 +51,19 @@ public static class Extensions
 
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics => metrics
+                .AddServiceLevelIndicatorInstrumentation()
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation())
             .WithTracing(tracing => tracing
                 .AddSource(builder.Environment.ApplicationName)
+                // The Trellis mediator emits one span per command/query under the "Trellis.Mediator"
+                // ActivitySource — the per-operation surface for following a request into a service
+                // and localising failures. Without this, those spans are created but never exported,
+                // so a distributed trace would show only the HTTP hops, not the operation inside.
+                .AddSource("Trellis.Mediator")
+                // The gateway's YARP reverse-proxy hop (a no-op in services that don't proxy).
+                .AddSource("Yarp.ReverseProxy")
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation());
 
@@ -92,12 +102,16 @@ public static class Extensions
         // shipping a free attack-surface enumeration in production builds.
         if (app.Environment.IsDevelopment())
         {
-            app.MapHealthChecks("/health");
+            // Tag the health endpoints API-version-neutral so they answer without ?api-version and
+            // surface as "Neutral" (not "Unspecified") in the SLI / OpenTelemetry version dimension.
+            app.MapHealthChecks("/health")
+                .WithMetadata(new ApiVersionNeutralAttribute());
 
             app.MapHealthChecks("/alive", new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live"),
-            });
+            })
+                .WithMetadata(new ApiVersionNeutralAttribute());
         }
 
         return app;

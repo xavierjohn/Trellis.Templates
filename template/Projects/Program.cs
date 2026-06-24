@@ -1,12 +1,14 @@
-﻿using Mediator;
+﻿using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
+using ProjectTrackerTemplate.Projects.Endpoints;
 using ProjectTrackerTemplate.Projects.Infrastructure;
+using Scalar.AspNetCore;
 using Trellis.Asp;
 using Trellis.Mediator;
 using Trellis.Microservices.AspNetCore;
+using Trellis.ServiceLevelIndicators;
 
 // Projects microservice — operational cluster (CRUD on Project aggregate).
 //
@@ -34,6 +36,44 @@ builder.AddServiceDefaults();
 // + the stock instrumentation; this adds the per-service meter.
 builder.Services.AddOpenTelemetry()
     .WithMetrics(m => m.AddMeter(ProjectsMetrics.MeterName));
+
+// === API surface =========================================================
+//
+// Date-based API versioning (clients pass ?api-version=2026-03-26), OpenAPI + Scalar, RFC 9457
+// ProblemDetails, scalar value-object validation, and Service Level Indicators. The endpoints —
+// versioned route groups — live in Endpoints/ProjectEndpoints.cs.
+
+builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
+    .AddApiExplorer()
+    .AddOpenApi(options => options.Document.AddScalarTransformers());
+
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
+{
+    // Always surface the active trace id so clients can correlate the error with server spans.
+    ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
+
+    // Never leak raw exception detail on a 500.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status500InternalServerError)
+        ctx.ProblemDetails.Detail = "An error occurred. Please share the trace id with support.";
+
+    // RFC 9110 §15.5.6: surface the supported methods from the Allow header as a structured array.
+    if (ctx.ProblemDetails.Status == StatusCodes.Status405MethodNotAllowed &&
+        ctx.HttpContext.Response.Headers.TryGetValue("Allow", out var allow))
+    {
+        ctx.ProblemDetails.Extensions["allow"] = allow.ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+});
+
+// Trellis ASP integration + scalar value-object validation. The UseScalarValueValidation
+// middleware (below) rewrites a failed value-object bind — e.g. a malformed {id} route value —
+// into a 422 ProblemDetails before the handler runs. Add .WithScalarValueValidation() to an
+// endpoint only when its request BODY carries value objects (none here yet).
+builder.Services.AddTrellisAspWithScalarValidation();
+
+builder.Services.AddServiceLevelIndicator(options =>
+        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+    .AddApiVersion();
 
 // === Trust-boundary layer =================================================
 
@@ -100,51 +140,33 @@ builder.Services.AddResourceAuthorization(typeof(Project).Assembly);
                                           // + registers IAuthorizedResource<,> accessor
 
 var app = builder.Build();
-app.MapDefaultEndpoints();
+
+// === HTTP pipeline =======================================================
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi().WithDocumentPerVersion();
+    app.MapScalarApiReference(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        for (var i = 0; i < descriptions.Count; i++)
+        {
+            var description = descriptions[i];
+            options.AddDocument(description.GroupName, description.GroupName, isDefault: i == descriptions.Count - 1);
+        }
+    });
+}
+
+// Render any 4xx/5xx (including pipeline short-circuits) as RFC 9457 ProblemDetails.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseScalarValueValidation();
+app.UseServiceLevelIndicator();
 
-// === Endpoints — dispatch via mediator, translate Result→HTTP via ToHttpResponse ===
-
-app.MapGet("/api/projects", async (IMediator mediator, CancellationToken ct) =>
-{
-    var result = await mediator.Send(new ListProjectsQuery(), ct);
-    return result.ToHttpResponse(projects => projects.Select(ProjectResponse.From).ToArray());
-}).RequireAuthorization();
-
-app.MapGet("/api/projects/{id}", async (string id, IMediator mediator, CancellationToken ct) =>
-{
-    if (!ProjectId.TryCreate(id).TryGetValue(out var projectId))
-        return Results.BadRequest(new { error = "invalid_project_id" });
-
-    var result = await mediator.Send(new GetProjectQuery(projectId), ct);
-    return result.ToHttpResponse(ProjectResponse.From);
-}).RequireAuthorization();
-
-app.MapPut("/api/projects/{id}", async (string id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
-{
-    if (!ProjectId.TryCreate(id).TryGetValue(out var projectId))
-        return Results.BadRequest(new { error = "invalid_project_id" });
-
-    var result = await mediator.Send(new UpdateProjectCommand(projectId, body.Title, body.Description), ct);
-    return result.ToHttpResponse();
-}).RequireAuthorization();
+app.MapProjectEndpoints();
+app.MapDefaultEndpoints();
 
 app.Run();
-
-// === Wire-format DTOs (kept inline for readability — single Program.cs scan) ===
-
-// Intentionally NOT validated — template starter focuses on the auth pipeline.
-// Production would validate at the endpoint/DTO boundary before sending the
-// command, or make UpdateProjectCommand implement IValidate (via
-// Trellis.Mediator.FluentValidation) so ValidationBehavior rejects bad input
-// before the handler runs. NOTE: Trellis pipeline order is
-// static auth → resource auth → validation → handler, so a validation failure
-// surfaces only AFTER the resource-auth gates pass.
-internal sealed record UpdateProjectRequest(string Title, string Description);
-
-internal sealed record ProjectResponse(string Id, string OwnerId, string TenantId, string Title, string Description)
-{
-    public static ProjectResponse From(Project p) =>
-        new(p.Id.Value, p.OwnerId, p.TenantId.Value, p.Title, p.Description);
-}

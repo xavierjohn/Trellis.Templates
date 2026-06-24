@@ -44,3 +44,36 @@ public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Des
         return Result.Ok();
     }
 }
+
+// The mutation path. Reads the SAME Project instance ResourceAuthorizationBehavior
+// loaded for Authorize, mutates it in place, returns Result.Ok(Unit.Value).
+//
+// In-memory store quirk: the dictionary holds the SAME reference, so mutating
+// the instance from the accessor automatically updates the "stored" project
+// without a save call. A real EF service would call SaveChangesAsync (or rely
+// on TransactionalCommandBehavior from Trellis.EntityFrameworkCore).
+public sealed partial class UpdateProjectHandler : ICommandHandler<UpdateProjectCommand, Result<Trellis.Unit>>
+{
+    private readonly IAuthorizedResource<UpdateProjectCommand, Project> _authorized;
+    private readonly ILogger<UpdateProjectHandler> _logger;
+
+    public UpdateProjectHandler(IAuthorizedResource<UpdateProjectCommand, Project> authorized, ILogger<UpdateProjectHandler> logger)
+    {
+        _authorized = authorized;
+        _logger = logger;
+    }
+
+    public ValueTask<Result<Trellis.Unit>> Handle(UpdateProjectCommand command, CancellationToken cancellationToken)
+    {
+        var project = _authorized.GetRequiredResource();
+        project.Update(command.Title, command.Description);
+
+        // Business event for live support, auto-correlated to the request trace.
+        LogProjectUpdated(_logger, project.Id.Value);
+
+        return new(Result.Ok());
+    }
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Information, Message = "Project updated: {ProjectId}")]
+    private static partial void LogProjectUpdated(ILogger logger, string projectId);
+}
