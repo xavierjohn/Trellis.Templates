@@ -23,9 +23,10 @@ own control plane, fully isolated (no cross-cloud data sharing). Within a cloud 
   DNS namespaces are your own → **no global suffix**. Region-scoped tokens carry uniqueness.
 - **Shared**: commercial or shared sovereign Azure. The types CAF marks **Global** name-scope
   (st, kv, sbns, evhns, cosmos, sql, app, cr — PaaS with a public DNS name) compete provider-wide →
-  append a 5-char deterministic suffix `{u5}` = base32(cloud + subscriptionId/tenantId +
-  full-logical-name) to **those types only**. CAF's other scopes (Resource group, Resource) need no
-  suffix. Non-DNS types stay hashless in every mode.
+  append a 5-char deterministic suffix `{u5}` to **those types only**. `{u5}` is a base36 (a–z0–9)
+  encoding of a SHA-256 hash of the resource's logical identity (its name tokens) plus the cloud, so the
+  same workload yields a stable suffix while distinct workloads diverge. CAF's other scopes (Resource
+  group, Resource) need no suffix. Non-DNS types stay hashless in every mode.
 
 ## Naming context (inputs)
 ```
