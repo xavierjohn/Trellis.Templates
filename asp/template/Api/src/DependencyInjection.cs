@@ -140,8 +140,8 @@ internal static class DependencyInjection
 
         services.AddServiceLevelIndicator(options =>
         {
-            options.LocationId = ServiceLevelIndicator.CreateLocationId(
-                environment.GetLocationCloud(), environment.Region);
+            // The region comes from configuration; the cloud segment stays a fixed placeholder.
+            options.LocationId = ServiceLevelIndicator.CreateLocationId("public", environment.Region);
         })
         .AddMvc()
         .AddApiVersion();

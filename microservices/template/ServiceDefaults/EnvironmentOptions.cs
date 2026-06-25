@@ -40,21 +40,3 @@ public static class CloudType
     /// <summary>Azure Germany cloud (retired by Azure).</summary>
     public const string AzureGermanCloud = nameof(AzureGermanCloud);
 }
-
-/// <summary>Accessors that derive environment-specific values from <see cref="EnvironmentOptions"/>.</summary>
-public static class EnvironmentOptionsExtensions
-{
-    /// <summary>The cloud segment of an SLI ms-loc location id (e.g. <c>public</c>) for the configured cloud.</summary>
-    public static string GetLocationCloud(this EnvironmentOptions settings)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-        return settings.Cloud switch
-        {
-            CloudType.AzureCloud => "public",
-            CloudType.AzureUSGovernment => "usgov",
-            CloudType.AzureChinaCloud => "china",
-            CloudType.AzureGermanCloud => "germany",
-            _ => throw new NotSupportedException($"Cloud type '{settings.Cloud}' has no SLI location moniker."),
-        };
-    }
-}
