@@ -69,8 +69,15 @@ builder.Services.AddTrellisAspWithScalarValidation();
 builder.Services.AddTrellisIdempotency();
 builder.Services.AddInMemoryIdempotencyStore();
 
+// Bind the deployed-environment options once; the SLI location id (cloud moniker + full region) derives
+// from them instead of being hardcoded.
+var deployedEnvironmentSection = builder.Configuration.GetSection(EnvironmentOptions.SectionName);
+builder.Services.Configure<EnvironmentOptions>(deployedEnvironmentSection);
+var deployedEnvironment = deployedEnvironmentSection.Get<EnvironmentOptions>() ?? new EnvironmentOptions();
+
 builder.Services.AddServiceLevelIndicator(options =>
-        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+        options.LocationId = ServiceLevelIndicator.CreateLocationId(
+            deployedEnvironment.GetLocationCloud(), deployedEnvironment.Region))
     .AddApiVersion();
 
 // === Trust-boundary layer =================================================
