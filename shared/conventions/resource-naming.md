@@ -23,9 +23,12 @@ own control plane, fully isolated (no cross-cloud data sharing). Within a cloud 
   DNS namespaces are your own → **no global suffix**. Region-scoped tokens carry uniqueness.
 - **Shared**: commercial or shared sovereign Azure. The types CAF marks **Global** name-scope
   (st, kv, sbns, evhns, cosmos, sql, app, cr — PaaS with a public DNS name) compete provider-wide →
-  append a 5-char deterministic suffix `{u5}` to **those types only**. `{u5}` is a base36 (a–z0–9)
-  encoding of a SHA-256 hash of the resource's logical identity (its name tokens) plus the cloud, so the
-  same workload yields a stable suffix while distinct workloads diverge. CAF's other scopes (Resource
+  append a 5-char deterministic suffix `{u5}` to **those types only**. `{u5}` is computed by SHA-256 hashing
+  a canonical `|`-joined seed of the resource's identity — system, service, type, the full CAF environment
+  word (used even when the emitted name later falls back to a 1-char env to fit), region, stamp, instance,
+  and cloud — then reading the first 8 bytes of the digest as a little-endian 64-bit integer and emitting 5
+  base36 (a–z0–9) digits least-significant first, so the same workload yields a stable suffix while distinct
+  workloads diverge. CAF's other scopes (Resource
   group, Resource) need no suffix. Non-DNS types stay hashless in every mode.
 
 ## Naming context (inputs)
@@ -37,10 +40,11 @@ env,       // CAF word: local|test|stage|prod (auto 1-char l/t/s/p fallback on o
 region?,   // physical region within a cloud  "wus","cus","weu"  (in name for REGIONAL resources only)
 stamp?,    // IMMUTABLE cell/scale-unit ordinal  "001"
 instance?, // disambiguates multiple same-TYPE resources in a slice (role differs -> tag)  "001"
-cloud,     // sovereign cloud US|EU|SG (CloudType) -> endpoint suffix + tag, NOT a name token
+cloud,     // cloud identifier (CloudType) -> endpoint suffix + Shared-scope hash seed, NOT a name token
 scope      // Isolated | Shared
 ```
-Tags carry the FULL taxonomy regardless of name:
+Governance **tags** — applied separately by Azure Policy / IaC, **not emitted by the name resolver** — carry
+the full taxonomy regardless of name:
 `system, service, purpose, env, region, stamp, ring, zone, instance, owner, costCenter, dataClassification`.
 
 ## Pattern (workload FIRST — so the portal's name sort groups by service)
@@ -106,10 +110,10 @@ A name sort now clusters every `ptk-mbr-*` resource together. The same service i
 Central US (`cus`), is identical but `…-cus`, in a physically separate cloud — names may even
 **repeat across clouds** (separate DNS namespaces).
 
-**Shared** scope (commercial Azure — the template's other users) adds `{u5}` to the Global-scope
-types: `ptk-sbns-prod-k7x2q`, `ptkmbrstprodk7x2q`, `ptk-mbr-kv-prod-weu-k7x2q`. **Length
-fallback:** if a name overflows (Storage at 24), env drops to `p`; if still over, shorten the
-system/service codes — never truncate.
+**Shared** scope (a shared, multi-tenant DNS namespace) adds a per-resource `{u5}` to the Global-scope
+types: `ptk-sbns-prod-{u5}`, `ptkmbrstprod{u5}`, `ptk-mbr-kv-prod-weu-{u5}` — each `{u5}` differs because
+it is derived from that resource's full identity. **Length fallback:** if a name overflows (Storage at
+24), env drops to `p`; if still over, shorten the system/service codes — never truncate.
 
 ### Same type, two roles — the Storage + Event Hubs case
 A single resource TYPE can serve two roles in one slice — e.g. a shared blob store **and** a per-region
@@ -137,7 +141,7 @@ Shared scope: + {u5} hash (5)               = 26   — OVER even without a role 
 ```
 Because you can't count on the room, role is a tag **everywhere** (one rule), and Storage disambiguates
 same-scope duplicates with `{instance}`. Fitting names: `ptkmbrstprod` (Isolated),
-`ptkmbrstpweuk7x2q` (Shared — env→`p`, `{u5}` hash).
+`ptkmbrstpweu{u5}` (Shared — env→`p`, plus the `{u5}` hash).
 
 ### Geo-DR paired Service Bus / Event Hubs (the alias case)
 SB Premium / Event Hubs geo-DR pairs **exactly two** regions (primary + secondary) behind a stable
