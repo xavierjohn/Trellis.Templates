@@ -10,7 +10,7 @@ using Trellis.Asp.Idempotency;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
-    .AddPresentation(builder.Environment)
+    .AddPresentation(builder.Environment, builder.Configuration)
     .AddApplication()
     .AddAntiCorruptionLayer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=todos.db");
 
