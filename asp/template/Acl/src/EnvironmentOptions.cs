@@ -2,9 +2,6 @@
 
 public class EnvironmentOptions
 {
-    /// <summary>The configuration section that binds these options.</summary>
-    public const string SectionName = "DeployedEnvironment";
-
     public string ServiceName { get; set; } = "TDO";
 
     public string Region { get; set; } = "local";

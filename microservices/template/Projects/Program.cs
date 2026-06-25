@@ -71,15 +71,9 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 // endpoint only when its request BODY carries value objects (none here yet).
 builder.Services.AddTrellisAspWithScalarValidation();
 
-// Bind the deployed-environment options once; the SLI location id's region comes from configuration
-// (the cloud segment stays a fixed placeholder).
-var deployedEnvironmentSection = builder.Configuration.GetSection(EnvironmentOptions.SectionName);
-builder.Services.Configure<EnvironmentOptions>(deployedEnvironmentSection);
-var deployedEnvironment = deployedEnvironmentSection.Get<EnvironmentOptions>() ?? new EnvironmentOptions();
-
 builder.Services.AddServiceLevelIndicator(options =>
-    options.LocationId = ServiceLevelIndicator.CreateLocationId("public", deployedEnvironment.Region))
-.AddApiVersion();
+        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+    .AddApiVersion();
 
 // === Trust-boundary layer =================================================
 

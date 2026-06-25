@@ -2,7 +2,6 @@
 
 using System.Diagnostics;
 using Asp.Versioning.Conventions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -13,16 +12,14 @@ using Trellis.ServiceLevelIndicators;
 using Trellis.Asp;
 using Trellis.Asp.Authorization;
 using Trellis.Asp.Idempotency;
-using TodoSample.AntiCorruptionLayer;
 using TodoSample.Domain;
 
 internal static class DependencyInjection
 {
-    public static IServiceCollection AddPresentation(
-        this IServiceCollection services, IHostEnvironment environment, IConfiguration configuration)
+    public static IServiceCollection AddPresentation(this IServiceCollection services, IHostEnvironment environment)
     {
         services.ConfigureOpenTelemetry();
-        services.ConfigureServiceLevelIndicators(configuration);
+        services.ConfigureServiceLevelIndicators();
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = ctx =>
@@ -128,20 +125,11 @@ internal static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection ConfigureServiceLevelIndicators(
-        this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection ConfigureServiceLevelIndicators(this IServiceCollection services)
     {
-        // The deployed-environment options are the single source for both resource naming and the SLI
-        // location id. Bind them once, then derive the location (cloud moniker + full region) from them
-        // instead of hardcoding it.
-        var section = configuration.GetSection(EnvironmentOptions.SectionName);
-        services.Configure<EnvironmentOptions>(section);
-        var environment = section.Get<EnvironmentOptions>() ?? new EnvironmentOptions();
-
         services.AddServiceLevelIndicator(options =>
         {
-            // The region comes from configuration; the cloud segment stays a fixed placeholder.
-            options.LocationId = ServiceLevelIndicator.CreateLocationId("public", environment.Region);
+            options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3");
         })
         .AddMvc()
         .AddApiVersion();
