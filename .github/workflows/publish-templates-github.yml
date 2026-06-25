@@ -3,7 +3,7 @@
 # Uses the built-in GITHUB_TOKEN (no stored secret). The version is the Nerdbank.GitVersioning stamp
 # (a prerelease, unique per commit). This is the internal/alpha channel; for the public, stable
 # nuget.org release use publish-templates.yml (Trusted Publishing).
-name: Publish to GitHub Packages
+name: Publish templates to GitHub Packages
 
 on:
   workflow_dispatch:
