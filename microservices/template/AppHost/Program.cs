@@ -19,8 +19,16 @@ var builder = DistributedApplication.CreateBuilder(args);
 // `Projects.Gateway` are derived from each project's CSPROJ BASE NAME by Aspire's
 // source generator. The repeated `Projects.Projects` looks odd but is correct — the
 // outer `Projects` is Aspire's namespace; the inner `Projects` is our project name.
+
+// SQL Server backs the Members service's data plane (Projects stays in-memory for now). Aspire
+// provisions the container + the "membersdb" database and injects its connection string into Members.
+var sql = builder.AddSqlServer("sql");
+var membersDb = sql.AddDatabase("membersdb");
+
 var projects = builder.AddProject<Projects.Projects>("projects");
-var members = builder.AddProject<Projects.Members>("members");
+var members = builder.AddProject<Projects.Members>("members")
+    .WithReference(membersDb)
+    .WaitFor(membersDb);
 
 // The gateway is pinned to a stable port so its issuer URL stays constant across
 // runs (the JWT 'iss' claim and the consumer-side JwtBearerOptions.Authority both

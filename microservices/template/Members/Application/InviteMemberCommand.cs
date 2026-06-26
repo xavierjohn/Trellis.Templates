@@ -21,17 +21,15 @@ public sealed record InviteMemberCommand(string Email, string Role)
 // Member lands in the actor's tenant (taken from the JWT-projected
 // actor.Attributes["tenant_id"]), NEVER in a tenant the caller could spoof
 // by editing the request body.
-public sealed partial class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<MemberId>>
+public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<MemberId>>
 {
     private readonly IMemberRepository _repository;
     private readonly IActorProvider _actorProvider;
-    private readonly ILogger<InviteMemberHandler> _logger;
 
-    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider, ILogger<InviteMemberHandler> logger)
+    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider)
     {
         _repository = repository;
         _actorProvider = actorProvider;
-        _logger = logger;
     }
 
     public async ValueTask<Result<MemberId>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
@@ -64,15 +62,14 @@ public sealed partial class InviteMemberHandler : ICommandHandler<InviteMemberCo
             return Result.Fail<MemberId>(new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"));
 
         var member = new Member(memberId, tenantId, command.Email, command.Role);
-        await _repository.AddAsync(member, cancellationToken).ConfigureAwait(false);
 
-        // Business event for live support, auto-correlated to the request trace via the OTel
-        // logging pipeline. Log the resource id + tenant + role, never the raw email (PII).
-        LogMemberInvited(_logger, memberId.Value, tenantId.Value, command.Role);
+        // Stage the new member; the TransactionalCommandBehavior commits the unit of work when this
+        // handler returns success. We deliberately do NOT log a "member invited" business event here:
+        // it would fire BEFORE the deferred commit, so a commit failure could emit a success event for
+        // a member that was never persisted. The correct home is a domain event the aggregate raises,
+        // dispatched AFTER the commit (added with the outbox/eventing path).
+        _repository.Add(member);
 
         return Result.Ok(memberId);
     }
-
-    [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Member invited: {MemberId} into tenant {TenantId} as {Role}")]
-    private static partial void LogMemberInvited(ILogger logger, string memberId, string tenantId, string role);
 }

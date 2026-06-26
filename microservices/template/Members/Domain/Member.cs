@@ -1,4 +1,6 @@
-﻿namespace ProjectTrackerTemplate.Members.Domain;
+﻿using Trellis;
+
+namespace ProjectTrackerTemplate.Members.Domain;
 
 // Member aggregate — an HR-sensitive identity inside a single tenant.
 //
@@ -9,29 +11,33 @@
 // does not exist as far as you're concerned"). The difference matters when the
 // resource identifier itself is sensitive — e.g., an attacker enumerating
 // member IDs to discover the existence of employees across tenants.
-public sealed class Member
+// Now a Trellis Aggregate<MemberId>: it inherits an ETag concurrency token and Created/LastModified
+// timestamps (stamped by the EF interceptors), and can raise domain events the outbox captures.
+public sealed class Member : Aggregate<MemberId>
 {
-    public Member(MemberId id, TenantId tenantId, string email, string role)
+    // EF Core materialization constructor. The materializer sets the key + required scalars.
+    private Member()
+        : base(default!)
     {
-        Id = id;
+    }
+
+    public Member(MemberId id, TenantId tenantId, string email, string role)
+        : base(id)
+    {
         TenantId = tenantId;
         Email = email;
         Role = role;
     }
 
-    public MemberId Id { get; }
-
     // The tenant this member belongs to. The resource-auth pipeline +
     // HideExistence<Member>() collapses cross-tenant access into 404.
-    public TenantId TenantId { get; }
+    public TenantId TenantId { get; private set; } = null!;
 
-    // PII. Production would project this through a value object that
-    // applies redaction in toString/log output and uses a value-object-based
-    // equality comparer that hashes the input rather than comparing raw strings
-    // when used as a dictionary key. The template keeps the body trivial.
-    public string Email { get; private set; }
+    // PII. Production would project this through a value object that applies redaction in
+    // ToString/log output. The template keeps the body trivial.
+    public string Email { get; private set; } = null!;
 
-    public string Role { get; private set; }
+    public string Role { get; private set; } = null!;
 
     public void UpdateRole(string role) => Role = role;
 }

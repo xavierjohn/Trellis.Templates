@@ -36,11 +36,15 @@
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.EntityFrameworkCore" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
     <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Microservices.AspNetCore" />
+    <!-- Persistence: EF Core on SQL Server, provisioned and wired by Aspire. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
   </ItemGroup>
 
 </Project>
