@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ProjectTrackerTemplate.SharedKernel</RootNamespace>
+    <AssemblyName>ProjectTrackerTemplate.SharedKernel</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Trellis.Primitives" />
+  </ItemGroup>
+
+</Project>

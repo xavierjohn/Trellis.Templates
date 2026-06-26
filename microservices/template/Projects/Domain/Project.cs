@@ -1,6 +1,6 @@
 ﻿namespace ProjectTrackerTemplate.Projects.Domain;
 
-// Project aggregate — a unit of work owned by one Member inside a single tenant.
+// Project aggregate — a unit of work owned by a principal (actor) inside a single tenant.
 //
 // In-memory mutable POCO for the template starter. A real production service would
 // derive from Trellis.Authorization.Aggregate<ProjectId> and use value objects for
@@ -23,8 +23,9 @@ public sealed class Project
 
     public ProjectId Id { get; }
 
-    // The Member.Id of the owner. Resource-based authorization compares
-    // against Actor.Id.Value in UpdateProjectCommand.Authorize.
+    // The actor (principal) id of the owner — e.g. "alice", which is distinct from that person's
+    // tenant-scoped MemberId ("acme-alice"). Resource-based authorization compares it against
+    // Actor.Id.Value in UpdateProjectCommand.Authorize.
     public string OwnerId { get; }
 
     // The tenant this project belongs to. Cross-tenant access is rejected

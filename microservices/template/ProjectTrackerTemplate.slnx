@@ -2,6 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path="ProjectTrackerTemplate.http" />
     <File Path="README.md" />
+    <File Path="UBIQUITOUS-LANGUAGE.md" />
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
@@ -13,4 +14,5 @@
   <Project Path="Members/Members.csproj" />
   <Project Path="AppHost/AppHost.csproj" />
   <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
+  <Project Path="SharedKernel/SharedKernel.csproj" />
 </Solution>
