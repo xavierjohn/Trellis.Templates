@@ -45,6 +45,10 @@
     <!-- Persistence: EF Core on SQL Server, provisioned and wired by Aspire. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <!-- Transactional outbox: capture domain events atomically + relay them after commit. -->
+    <PackageReference Include="Trellis.EntityFrameworkCore.Outbox" />
+    <!-- Azure Service Bus client (Aspire-wired) for publishing integration events cross-service. -->
+    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" />
   </ItemGroup>
 
 </Project>

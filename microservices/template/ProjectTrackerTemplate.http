@@ -104,6 +104,14 @@ X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tena
   "role": "contributor"
 }
 
+### 12b. alice lists her tenant's TEAM DIRECTORY in Projects — 200 OK
+###      This read model is built entirely from the MemberInvited integration event that the
+###      invite (#12) published over Azure Service Bus — Projects answers from its OWN store with
+###      no synchronous call to Members. Delivery is asynchronous: re-send until acme-newperson
+###      appears (eventual consistency), then re-send again to confirm the inbox deduped it.
+GET {{gateway}}/api/team
+X-Test-Actor: {"Id":"alice","Permissions":["projects:read"],"Attributes":{"tenant_id":"acme"}}
+
 ### 13. bob (no members:invite permission) tries to invite — 403 missing permission
 POST {{gateway}}/api/members
 Content-Type: application/json

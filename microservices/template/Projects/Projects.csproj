@@ -46,6 +46,13 @@
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!-- Consumer-side actor provider for the gateway-minted internal JWT. -->
     <PackageReference Include="Trellis.Microservices.AspNetCore" />
+    <!-- Persistence + cross-service eventing: EF Core on SQL Server (Aspire-wired) + the transactional inbox. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Trellis.EntityFrameworkCore" />
+    <PackageReference Include="Trellis.EntityFrameworkCore.Inbox" />
+    <!-- Azure Service Bus client (Aspire-wired) for consuming integration events. -->
+    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" />
   </ItemGroup>
 
 </Project>

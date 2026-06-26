@@ -1,11 +1,13 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
 using ProjectTrackerTemplate.Projects.Endpoints;
 using ProjectTrackerTemplate.Projects.Infrastructure;
 using Scalar.AspNetCore;
 using Trellis.Asp;
+using Trellis.EntityFrameworkCore;
 using Trellis.Mediator;
 using Trellis.Microservices.AspNetCore;
 using Trellis.ResourceNaming.Azure;
@@ -148,6 +150,30 @@ builder.Services.AddTrellisInternalJwtActorProvider(o =>
 
 builder.Services.AddSingleton<IProjectRepository, InMemoryProjectRepository>();
 
+// === Cross-service eventing (consumer) ==================================
+//
+// Projects consumes Members' MemberInvited integration events over Azure Service Bus and builds a local
+// team-directory read model, so GET /api/team is answered from Projects' OWN store with no synchronous
+// call to Members. The inbox turns at-least-once delivery into effectively-once processing. (The Project
+// aggregate stays in the in-memory repository above — this plane is purely the event-sourced read side.)
+
+// Azure Service Bus client (Aspire injects the "messaging" connection — the local emulator in dev).
+builder.AddAzureServiceBusClient(MemberEventsChannel.ConnectionName);
+
+// EF Core over SQL Server for the inbox dedup table + the read models. Aspire injects the "projectsdb"
+// connection string; AddTrellisInterceptors wires the value-object column conventions.
+builder.AddSqlServerDbContext<ProjectsDbContext>("projectsdb",
+    configureDbContextOptions: options => options.AddTrellisInterceptors());
+
+// The inbox: dedup keyed on (ConsumerId, MessageId). ConsumerId must be STABLE across deploys — it is
+// part of the dedup key, so renaming it would reprocess everything still in the redelivery window.
+builder.Services.AddTrellisInbox<ProjectsDbContext>(options => options.ConsumerId = "projects");
+
+// The in-process consumer the inbox dispatcher fans out to, plus the Service Bus pump that receives from
+// the broker and hands each message to the dispatcher.
+builder.Services.AddIntegrationEventHandler<MemberInvitedIntegrationEvent, MemberInvitedHandler>();
+builder.Services.AddHostedService<MemberEventsConsumer>();
+
 // === Mediator + resource-based authorization layer ======================
 
 // Handlers MUST be Scoped because IAuthorizedResource<TMessage, TResource>
@@ -163,6 +189,15 @@ builder.Services.AddResourceAuthorization(typeof(Project).Assembly);
                                           // + registers IAuthorizedResource<,> accessor
 
 var app = builder.Build();
+
+// Create the inbox + read-model schema in Development (use EF migrations in production). Runs before the
+// Service Bus pump starts (hosted services start on app.Run), so the consumer always finds its tables.
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var projectsDb = scope.ServiceProvider.GetRequiredService<ProjectsDbContext>();
+    await projectsDb.Database.EnsureCreatedAsync();
+}
 
 // === HTTP pipeline =======================================================
 
@@ -195,6 +230,7 @@ app.UseAuthorization();
 app.UseScalarValueValidation();
 
 app.MapProjectEndpoints();
+app.MapTeamEndpoints();
 app.MapDefaultEndpoints();
 
 app.Run();
