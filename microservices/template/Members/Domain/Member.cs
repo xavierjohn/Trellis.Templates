@@ -29,6 +29,17 @@ public sealed class Member : Aggregate<MemberId>
         Role = role;
     }
 
+    // The invitation business operation. Unlike the plain constructor (used to reconstitute or seed a
+    // member with no side effects), this raises the MemberInvited domain event — so only a genuine
+    // invitation flows to the outbox, the audit log, and the cross-service integration event. The
+    // OccurredAt timestamp comes from the injected TimeProvider so it is deterministic under test.
+    public static Member Invite(MemberId id, TenantId tenantId, string email, string role, TimeProvider timeProvider)
+    {
+        var member = new Member(id, tenantId, email, role);
+        member.DomainEvents.Add(new MemberInvited(tenantId, id, role, timeProvider.GetUtcNow()));
+        return member;
+    }
+
     // The tenant this member belongs to. The resource-auth pipeline +
     // HideExistence<Member>() collapses cross-tenant access into 404.
     public TenantId TenantId { get; private set; } = null!;

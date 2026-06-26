@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.Primitives" />
   </ItemGroup>
 

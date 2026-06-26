@@ -25,11 +25,13 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
 {
     private readonly IMemberRepository _repository;
     private readonly IActorProvider _actorProvider;
+    private readonly TimeProvider _timeProvider;
 
-    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider)
+    public InviteMemberHandler(IMemberRepository repository, IActorProvider actorProvider, TimeProvider timeProvider)
     {
         _repository = repository;
         _actorProvider = actorProvider;
+        _timeProvider = timeProvider;
     }
 
     public async ValueTask<Result<MemberId>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
@@ -61,13 +63,14 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         if (existing.HasValue)
             return Result.Fail<MemberId>(new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"));
 
-        var member = new Member(memberId, tenantId, command.Email, command.Role);
+        var member = Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider);
 
         // Stage the new member; the TransactionalCommandBehavior commits the unit of work when this
-        // handler returns success. We deliberately do NOT log a "member invited" business event here:
-        // it would fire BEFORE the deferred commit, so a commit failure could emit a success event for
-        // a member that was never persisted. The correct home is a domain event the aggregate raises,
-        // dispatched AFTER the commit (added with the outbox/eventing path).
+        // handler returns success. The "member invited" business event is NOT logged here — Member.Invite
+        // raises a MemberInvited domain event, the outbox captures it in the SAME transaction as the
+        // member row, and the relay dispatches it AFTER the commit: the audit log (MemberInvitedAuditLogger)
+        // and the cross-service integration event (MemberInvitedTranslator) both hang off that event, so
+        // neither can fire for a member that failed to persist.
         _repository.Add(member);
 
         return Result.Ok(memberId);

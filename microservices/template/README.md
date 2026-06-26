@@ -18,7 +18,7 @@ That boots the Aspire dashboard at <http://localhost:15151> and brings up three 
 | **Projects** | dynamic | Operational cluster. Cross-tenant access returns **403**. |
 | **Members** | dynamic | HR-sensitive cluster. Cross-tenant access returns **404** (HideExistence). |
 
-Open **`ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome.
+Open **`AppHost/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
 
 > **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
 
@@ -52,7 +52,22 @@ Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboar
 
 The **Members** service is the template's *real data plane*. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; the `TransactionalCommandBehavior` registered by `AddTrellisUnitOfWork<MembersDbContext>()` commits the unit of work when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects — the `MemberId` key and the shared-kernel `TenantId` — to columns with no hand-written `HasConversion`.
 
-**Projects** is deliberately left on an in-memory repository — the side-by-side contrast makes the EF/UnitOfWork seam easy to see. (Async cross-service eventing — the outbox/inbox — is the next step.)
+**Projects** keeps its `Project` aggregate on an in-memory repository — the side-by-side contrast makes the EF/UnitOfWork seam easy to see. It gains a small EF `DbContext` of its own purely for the eventing read model + inbox (below).
+
+### Cross-service eventing — transactional outbox + inbox over Azure Service Bus
+
+Inviting a member is the template's **asynchronous, cross-context** story: it threads a fact from the Members write model to a Projects read model with no synchronous call between the services.
+
+1. **Raise.** `Member.Invite(...)` raises a `MemberInvited` **domain event** (internal to Members).
+2. **Capture (atomic).** The **transactional outbox** (`AddTrellisOutbox()` + the capture interceptor) writes one outbox row per event in the *same* `SaveChanges` as the member — so an event can never be lost in the gap between persisting the member and publishing it.
+3. **Translate.** After the commit, the relay re-dispatches the domain event to `MemberInvitedTranslator` (an `IDomainEventHandler<MemberInvited>`) which `Add()`s a `MemberInvitedIntegrationEvent` — the stable, primitive-only **published-language** contract in `SharedKernel` (Evans' *Published Language*, distinct from the Shared Kernel proper). A second handler, `MemberInvitedAuditLogger`, writes the post-commit business-event log.
+4. **Publish.** The relay hands the integration event to `IIntegrationEventPublisher`. The default is in-process fan-out; the template **replaces** it with `ServiceBusIntegrationEventPublisher`, an app-owned adapter that serializes the event onto an Azure Service Bus queue. *Only that one registration differs* between a modular monolith and separate services.
+5. **Consume + dedupe (effectively-once).** Projects' `MemberEventsConsumer` (a `BackgroundService` pump) receives the message and calls the **transactional inbox** `IInboxDispatcher`. The inbox dedupes on `(ConsumerId, MessageId)` and commits the handler's read-model write **together with** the dedup record in one `SaveChanges` — turning at-least-once delivery into effectively-once processing.
+6. **Read locally.** `MemberInvitedHandler` upserts a `KnownMember` row; `GET /api/team` answers the tenant's team directory entirely from Projects' **own** store, no call back to Members.
+
+**The dedup key is a business identity, not a transport id.** The outbox is at-least-once and re-runs a translator on retry, so one invitation may be published more than once. `DeterministicEventId.ForMember(memberId)` derives the event id by hashing the member's business key, so every copy of one invitation carries the same id and the inbox collapses the redeliveries.
+
+Falsifiable proof: invite a member (`POST /api/members`), then `GET /api/team` — the new member appears with no synchronous call to Members. A redelivery of the same event leaves the directory unchanged. A queue fits this single consumer; for fan-out to several services switch to a topic with a per-consumer subscription (see `SharedKernel/MemberEventsChannel.cs`).
 
 ### Deny-overrides-allow JWT contract
 
@@ -71,14 +86,15 @@ ProjectTrackerTemplate.slnx
 ├── Gateway/                 — YARP + JWT minting + JWKS endpoints
 ├── Projects/                — operational cluster (403 cross-tenant)
 │   ├── Domain/              — Project aggregate + ProjectId
-│   ├── Application/         — Get/List/Update queries + handlers
-│   └── Infrastructure/      — in-memory repository + ProjectResourceLoader
+│   ├── Application/         — Get/List/Update queries + MemberInvited consumer + ListTeam query
+│   ├── ReadModel/           — KnownMember (team directory, built from events)
+│   └── Infrastructure/      — in-memory repo + ProjectsDbContext (inbox) + Service Bus pump
 ├── Members/                 — HR-sensitive cluster (404 cross-tenant)
-│   ├── Domain/              — Member aggregate + MemberId
-│   ├── Application/         — Get + Invite queries/commands + handlers
-│   └── Infrastructure/      — EF Core repository + DbContext + MemberResourceLoader
-├── SharedKernel/            — shared kernel (DDD): TenantId, the cross-cutting tenant identity
-├── AppHost/                 — Aspire orchestration (+ SQL Server for Members)
+│   ├── Domain/              — Member aggregate + MemberId + MemberInvited domain event
+│   ├── Application/         — Get + Invite + integration-event translator + audit-log handler
+│   └── Infrastructure/      — EF Core repo + DbContext (outbox) + Service Bus publisher
+├── SharedKernel/            — shared kernel (TenantId) + published language (MemberInvited contract)
+├── AppHost/                 — Aspire orchestration (SQL Server + Azure Service Bus emulator)
 └── ServiceDefaults/         — shared OpenTelemetry, health, service discovery
 ```
 

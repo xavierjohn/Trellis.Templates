@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using ProjectTrackerTemplate.Members.Domain;
 using ProjectTrackerTemplate.Members.Endpoints;
@@ -142,9 +143,16 @@ builder.Services.AddTrellisInternalJwtActorProvider(o =>
 // connection resilience, health checks, and telemetry; AddTrellisInterceptors stamps the ETag +
 // timestamps and rewrites value-object / Maybe<T> queries.
 builder.AddSqlServerDbContext<MembersDbContext>("membersdb",
-    configureDbContextOptions: options => options.AddTrellisInterceptors());
+    configureDbContextOptions: options => options
+        .AddTrellisInterceptors()
+        .AddTrellisOutboxInterceptor());
 
 builder.Services.AddScoped<IMemberRepository, EfMemberRepository>();
+
+// Azure Service Bus client (Aspire injects the "messaging" connection string — the local emulator in
+// dev, a real namespace in production). The Service Bus integration-event publisher uses it to deliver
+// MemberInvited to the Projects service.
+builder.AddAzureServiceBusClient(MemberEventsChannel.ConnectionName);
 
 // === Mediator + resource-based authorization layer ======================
 
@@ -158,11 +166,33 @@ builder.Services.AddResourceAuthorization(typeof(Member).Assembly);
 // IIdentifyResource binds to Member inherits the policy.
 builder.Services.AddResourceAuthorization(o => o.HideExistence<Member>());
 
+// === Domain events + transactional outbox (cross-service eventing) =======
+//
+// Member.Invite raises a MemberInvited domain event. AddDomainEventDispatch registers the dispatch
+// behavior + publisher and scans the assembly for its IDomainEventHandler<MemberInvited> handlers — the
+// audit logger and the integration-event translator. The outbox capture interceptor (on the DbContext
+// options above) writes one row per raised event in the SAME transaction as the member; the relay
+// (AddTrellisOutbox, below) re-dispatches them after the commit, closing the crash window a plain
+// in-pipeline dispatch leaves between the commit and the handlers.
+builder.Services.AddDomainEventDispatch(typeof(Member).Assembly);
+
+// The translator Add()s an integration event to the collector; the relay drains it and publishes each
+// through IIntegrationEventPublisher. AddIntegrationEventDispatch wires the default in-process publisher
+// + the collector; we then REPLACE the publisher with the Service Bus adapter so events leave the
+// process for other services. The aggregates, translator, and outbox do not change — only this line.
+builder.Services.AddIntegrationEventDispatch();
+builder.Services.Replace(ServiceDescriptor.Singleton<IIntegrationEventPublisher, ServiceBusIntegrationEventPublisher>());
+
 // The EF unit of work + TransactionalCommandBehavior. Registered AFTER AddTrellisBehaviors so the
 // commit runs INNERMOST — closest to the handler — and a commit failure surfaces through the outer
 // logging/exception behaviors. Staged changes commit only when a command handler returns success
 // (queries do not commit).
 builder.Services.AddTrellisUnitOfWork<MembersDbContext>();
+
+// The outbox relay — a background service that drains captured rows after the commit, dispatches domain
+// events to their handlers, and publishes translated integration events. As a hosted service its
+// registration order versus the unit of work does not matter.
+builder.Services.AddTrellisOutbox<MembersDbContext>();
 
 var app = builder.Build();
 

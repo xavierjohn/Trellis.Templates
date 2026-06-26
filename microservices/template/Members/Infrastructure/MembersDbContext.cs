@@ -20,6 +20,14 @@ public class MembersDbContext : DbContext
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
         configurationBuilder.ApplyTrellisConventionsFor<MembersDbContext>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MembersDbContext).Assembly);
+
+        // Map the transactional outbox table (TrellisOutboxMessages). The capture interceptor
+        // (AddTrellisOutboxInterceptor, wired on the context options in Program.cs) writes one row per
+        // raised domain event into it, in the SAME SaveChanges as the aggregate — so an event can never
+        // be lost between persisting the member and publishing the event.
+        modelBuilder.AddTrellisOutbox();
+    }
 }
