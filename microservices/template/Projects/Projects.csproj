@@ -14,6 +14,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ServiceDefaults\ServiceDefaults.csproj" />
+    <!-- Shared Kernel (DDD): the minimal cross-cutting domain model both services co-own (TenantId).
+         The ProjectReference is the deliberate, explicit dependency; the global Using makes its types
+         ambient so handlers/aggregates read `TenantId` without per-file usings. -->
+    <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
+    <Using Include="ProjectTrackerTemplate.SharedKernel" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,6 +24,14 @@ Open **`ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for cl
 
 ## What it demonstrates
 
+### Domain-driven design (DDD)
+
+Two **bounded contexts** with separate models and policies: **Projects** (operational — cross-tenant access is a 403) and **Members** (HR-sensitive — cross-tenant access is a 404 via `HideExistence`). The same phrase, *"cross-tenant access,"* deliberately *means* different things in each — that is what a context boundary is.
+
+`TenantId` lives in a dedicated **`SharedKernel`** project both contexts reference, instead of being copied per service. `tenant_id` is a cross-cutting platform identity — the gateway stamps it into every JWT and every service authorizes against it — so the contexts must agree on one definition byte-for-byte; a duplicated copy could silently drift and break cross-service tenant matching. This is Evans' **Shared Kernel** pattern, kept deliberately minimal: service-local identities (`ProjectId`, `MemberId`) stay in their own service (**Separate Ways**).
+
+The domain vocabulary is catalogued in **[`UBIQUITOUS-LANGUAGE.md`](UBIQUITOUS-LANGUAGE.md)** — the shared glossary that keeps code, tests, docs, and conversation speaking one language.
+
 ### Tenant isolation (ABAC)
 
 Every internal JWT carries a `tenant_id` claim. The Trellis actor provider on every downstream service **requires** it (`o.RequiredAttributes = ["tenant_id"]`). A request that somehow reaches a downstream service without `tenant_id` fails at the actor-provider boundary with 401 — never at the handler.
@@ -61,6 +69,7 @@ ProjectTrackerTemplate.slnx
 │   ├── Domain/              — Member aggregate + MemberId
 │   ├── Application/         — Get + Invite queries/commands + handlers
 │   └── Infrastructure/      — in-memory repository + MemberResourceLoader
+├── SharedKernel/            — shared kernel (DDD): TenantId, the cross-cutting tenant identity
 ├── AppHost/                 — Aspire orchestration
 └── ServiceDefaults/         — shared OpenTelemetry, health, service discovery
 ```
