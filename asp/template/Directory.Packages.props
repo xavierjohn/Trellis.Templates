@@ -40,6 +40,7 @@
     <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Mediator.FluentValidation" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.ResourceNaming.Azure" Version="0.1.0-preview.1" />
     <PackageVersion Include="Trellis.ServiceDefaults" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />

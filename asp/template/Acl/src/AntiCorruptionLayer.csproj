@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Trellis.EntityFrameworkCore" />
     <PackageReference Include="Trellis.Authorization" />
+    <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
   </ItemGroup>
