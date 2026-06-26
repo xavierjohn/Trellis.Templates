@@ -1,5 +1,6 @@
 ﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
+using ProjectTrackerTemplate.Projects.Domain;
 using ProjectTrackerTemplate.Projects.Infrastructure;
 using ProjectTrackerTemplate.Projects.ReadModel;
 using Trellis;
@@ -13,7 +14,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 public sealed record ListTeamQuery
     : IQuery<Result<IReadOnlyList<KnownMember>>>, IAuthorize
 {
-    public IReadOnlyList<string> RequiredPermissions => ["projects:read"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsRead];
 }
 
 public sealed class ListTeamHandler : IQueryHandler<ListTeamQuery, Result<IReadOnlyList<KnownMember>>>

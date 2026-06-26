@@ -23,7 +23,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 public sealed record GetProjectQuery(ProjectId Id)
     : IQuery<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
-    public IReadOnlyList<string> RequiredPermissions => ["projects:read"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsRead];
 
     public ProjectId GetResourceId() => Id;
 

@@ -15,7 +15,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 public sealed record ListProjectsQuery
     : IQuery<Result<IReadOnlyList<Project>>>, IAuthorize
 {
-    public IReadOnlyList<string> RequiredPermissions => ["projects:read"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsRead];
 }
 
 // Lists projects scoped to the actor's tenant_id. The IActorProvider injection

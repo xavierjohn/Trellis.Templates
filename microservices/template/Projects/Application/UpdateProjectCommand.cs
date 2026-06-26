@@ -18,7 +18,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Description)
     : ICommand<Result<Trellis.Unit>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
-    public IReadOnlyList<string> RequiredPermissions => ["projects:write"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsWrite];
 
     public ProjectId GetResourceId() => Id;
 

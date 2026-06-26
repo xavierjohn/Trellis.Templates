@@ -15,7 +15,7 @@ namespace ProjectTrackerTemplate.Members.Application;
 public sealed record GetMemberQuery(MemberId Id)
     : IQuery<Result<Member>>, IAuthorize, IAuthorizeResource<Member>, IIdentifyResource<Member, MemberId>
 {
-    public IReadOnlyList<string> RequiredPermissions => ["members:read"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersRead];
 
     public MemberId GetResourceId() => Id;
 
