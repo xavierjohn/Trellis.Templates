@@ -87,6 +87,15 @@ if (string.IsNullOrWhiteSpace(region))
 
 var locationId = ServiceLevelIndicator.CreateLocationId("public", region);
 builder.Services.AddServiceLevelIndicator(options => options.LocationId = locationId)
+    // Stamp each SLI with the caller's tenant so emissions aren't all CustomerResourceId=Unknown.
+    // The enrichment runs after authentication (on the way out), so the tenant_id claim is available;
+    // under an ARM resource provider, switch this to the ARM resource id.
+    .Enrich(ctx =>
+    {
+        var tenantId = ctx.HttpContext.User.FindFirst("tenant_id")?.Value;
+        if (!string.IsNullOrEmpty(tenantId))
+            ctx.SetCustomerResourceId($"tenant://{tenantId}");
+    })
     .AddApiVersion();
 
 // === Trust-boundary layer =================================================
@@ -175,10 +184,15 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+// Measure every matched request, BEFORE auth and validation. Routing has already run, so the SLI
+// middleware sees the endpoint, and because it emits on the way out it still records the final
+// status. Placed after auth/validation it would miss 401/403/422 short-circuits, silently
+// undercounting the failure surface.
+app.UseServiceLevelIndicator();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseScalarValueValidation();
-app.UseServiceLevelIndicator();
 
 app.MapProjectEndpoints();
 app.MapDefaultEndpoints();
