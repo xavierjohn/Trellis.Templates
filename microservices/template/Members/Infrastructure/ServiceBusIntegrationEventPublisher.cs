@@ -23,10 +23,14 @@ internal sealed class ServiceBusIntegrationEventPublisher : IIntegrationEventPub
 
     public async ValueTask PublishAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken)
     {
-        // This service publishes exactly one contract; serialize by its concrete type so the wire
-        // payload is the contract shape, not the IIntegrationEvent interface.
+        // This service publishes exactly one contract. Fail fast on anything else: because this adapter
+        // REPLACES the in-process publisher globally, silently returning would let the outbox mark the row
+        // processed and drop the event. A throw is recorded as a relay failure (retried, then parked with
+        // the error visible) so a missing mapping surfaces instead of vanishing.
         if (integrationEvent is not MemberInvitedIntegrationEvent invited)
-            return;
+            throw new NotSupportedException(
+                $"No Service Bus mapping for integration event '{integrationEvent.GetType().Name}'. " +
+                "Add one here when this service starts publishing a new contract.");
 
         var json = JsonSerializer.Serialize(invited, IntegrationEventSerialization.Options);
         var message = new ServiceBusMessage(json)

@@ -10,6 +10,8 @@
 // assigned Projects port, and opens the Aspire dashboard with logs, traces, and
 // metrics flowing in from every service.
 
+using ProjectTrackerTemplate.SharedKernel;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // The two backend microservices. Aspire assigns dynamic ports — Gateway only
@@ -30,9 +32,9 @@ var projectsDb = sql.AddDatabase("projectsdb");
 // Bus emulator as a local container (needs Docker) — no Azure subscription for development. Members
 // publishes MemberInvited to the "member-events" queue and Projects consumes it. The queue name matches
 // SharedKernel.MemberEventsChannel so both services bind to it.
-var serviceBus = builder.AddAzureServiceBus("messaging")
+var serviceBus = builder.AddAzureServiceBus(MemberEventsChannel.ConnectionName)
     .RunAsEmulator();
-serviceBus.AddServiceBusQueue("member-events");
+serviceBus.AddServiceBusQueue(MemberEventsChannel.QueueName);
 
 var projects = builder.AddProject<Projects.Projects>("projects")
     .WithReference(projectsDb)

@@ -32,6 +32,18 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
         _processor.ProcessErrorAsync += OnErrorAsync;
 
         await _processor.StartProcessingAsync(stoppingToken).ConfigureAwait(false);
+
+        // Keep the background service alive for the app's lifetime. The processor pumps messages on its
+        // own callbacks; without this await ExecuteAsync would complete immediately and the host would
+        // report the consumer as stopped. StopAsync stops + disposes the processor on shutdown.
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown — the host signalled stoppingToken.
+        }
     }
 
     private async Task OnMessageAsync(ProcessMessageEventArgs args)
@@ -51,8 +63,9 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
         {
             evt = JsonSerializer.Deserialize<MemberInvitedIntegrationEvent>(message.Body.ToString(), IntegrationEventSerialization.Options);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            LogMalformedPayload(_logger, message.MessageId, message.Subject, ex);
             evt = null;
         }
 
@@ -102,4 +115,7 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
 
     [LoggerMessage(2, LogLevel.Error, "Service Bus processor error from {ErrorSource}.")]
     private static partial void LogProcessorError(ILogger logger, string errorSource, Exception exception);
+
+    [LoggerMessage(3, LogLevel.Error, "Dead-lettering malformed message {MessageId} (subject {Subject}); body is not a MemberInvitedIntegrationEvent.")]
+    private static partial void LogMalformedPayload(ILogger logger, string messageId, string? subject, Exception exception);
 }
