@@ -13,7 +13,7 @@ namespace ProjectTrackerTemplate.Members.Application;
 public sealed record InviteMemberCommand(string Email, string Role)
     : ICommand<Result<MemberId>>, IAuthorize
 {
-    public IReadOnlyList<string> RequiredPermissions => ["members:invite"];
+    public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersInvite];
 }
 
 // Mints a new MemberId, materializes the aggregate, and pushes it into the
