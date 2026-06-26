@@ -19,6 +19,7 @@
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.0.0-rc.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
@@ -38,6 +39,8 @@
   <!-- Aspire AppHost + OpenTelemetry -->
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.5" />
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.4.5" />
+    <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.5" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
@@ -51,6 +54,7 @@
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.EntityFrameworkCore" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.ResourceNaming.Azure" Version="0.1.0-preview.1" />

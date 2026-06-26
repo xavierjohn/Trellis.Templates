@@ -7,6 +7,7 @@ using ProjectTrackerTemplate.Members.Infrastructure;
 using Scalar.AspNetCore;
 using Trellis.Asp;
 using Trellis.Asp.Idempotency;
+using Trellis.EntityFrameworkCore;
 using Trellis.Mediator;
 using Trellis.Microservices.AspNetCore;
 using Trellis.ResourceNaming.Azure;
@@ -137,7 +138,13 @@ builder.Services.AddTrellisInternalJwtActorProvider(o =>
 
 // === Domain + infrastructure ============================================
 
-builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
+// EF Core over SQL Server. Aspire injects the "membersdb" connection string (see AppHost) and adds
+// connection resilience, health checks, and telemetry; AddTrellisInterceptors stamps the ETag +
+// timestamps and rewrites value-object / Maybe<T> queries.
+builder.AddSqlServerDbContext<MembersDbContext>("membersdb",
+    configureDbContextOptions: options => options.AddTrellisInterceptors());
+
+builder.Services.AddScoped<IMemberRepository, EfMemberRepository>();
 
 // === Mediator + resource-based authorization layer ======================
 
@@ -151,7 +158,21 @@ builder.Services.AddResourceAuthorization(typeof(Member).Assembly);
 // IIdentifyResource binds to Member inherits the policy.
 builder.Services.AddResourceAuthorization(o => o.HideExistence<Member>());
 
+// The EF unit of work + TransactionalCommandBehavior. Registered AFTER AddTrellisBehaviors so the
+// commit runs INNERMOST — closest to the handler — and a commit failure surfaces through the outer
+// logging/exception behaviors. Staged changes commit only when a command handler returns success
+// (queries do not commit).
+builder.Services.AddTrellisUnitOfWork<MembersDbContext>();
+
 var app = builder.Build();
+
+// Create the schema + seed the demo members in Development (use EF migrations in production).
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var membersDb = scope.ServiceProvider.GetRequiredService<MembersDbContext>();
+    await MembersSeed.EnsureSeededAsync(membersDb);
+}
 
 // === HTTP pipeline =======================================================
 

@@ -22,6 +22,8 @@ Open **`ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for cl
 
 > **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
 
+> **SQL Server (Docker).** The **Members** service persists to SQL Server, which Aspire runs as a container — **Docker (or Podman) must be running**. The schema is created and seeded automatically on first run (Development only). **Projects** stays in-memory, so the two services deliberately contrast an EF/SQL data plane against an in-memory one.
+
 ## What it demonstrates
 
 ### Domain-driven design (DDD)
@@ -46,6 +48,12 @@ Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboar
 
 `Members/Program.cs` calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
 
+### Persistence (Members) — EF Core + UnitOfWork on SQL Server
+
+The **Members** service is the template's *real data plane*. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; the `TransactionalCommandBehavior` registered by `AddTrellisUnitOfWork<MembersDbContext>()` commits the unit of work when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects — the `MemberId` key and the shared-kernel `TenantId` — to columns with no hand-written `HasConversion`.
+
+**Projects** is deliberately left on an in-memory repository — the side-by-side contrast makes the EF/UnitOfWork seam easy to see. (Async cross-service eventing — the outbox/inbox — is the next step.)
+
 ### Deny-overrides-allow JWT contract
 
 The gateway mints a sentinel + count claim trio (`trellis_actor_contract_version=1`, `trellis_permissions_count`, `trellis_forbidden_permissions_count`) on every internal JWT. The consumer-side `TrellisInternalJwtActorProvider` enforces that contract strictly — a JWT missing either count claim is rejected, defending the deny-overrides-allow invariant against a misbehaving proxy that strips the forbidden-permissions array but leaves the allow list intact.
@@ -68,9 +76,9 @@ ProjectTrackerTemplate.slnx
 ├── Members/                 — HR-sensitive cluster (404 cross-tenant)
 │   ├── Domain/              — Member aggregate + MemberId
 │   ├── Application/         — Get + Invite queries/commands + handlers
-│   └── Infrastructure/      — in-memory repository + MemberResourceLoader
+│   └── Infrastructure/      — EF Core repository + DbContext + MemberResourceLoader
 ├── SharedKernel/            — shared kernel (DDD): TenantId, the cross-cutting tenant identity
-├── AppHost/                 — Aspire orchestration
+├── AppHost/                 — Aspire orchestration (+ SQL Server for Members)
 └── ServiceDefaults/         — shared OpenTelemetry, health, service discovery
 ```
 
