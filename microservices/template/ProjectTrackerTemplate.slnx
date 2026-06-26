@@ -1,6 +1,27 @@
 ﻿<Solution>
+  <Folder Name="/AppHost/">
+    <Project Path="AppHost/src/AppHost.csproj" />
+    <File Path="AppHost/src/ProjectTrackerTemplate.http" />
+  </Folder>
+  <Folder Name="/Gateway/">
+    <Project Path="Gateway/src/Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Members/">
+    <Project Path="Members/src/Members.csproj" />
+    <Project Path="Members/tests/Members.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/">
+    <Project Path="Projects/src/Projects.csproj" />
+    <Project Path="Projects/tests/Projects.Tests.csproj" />
+  </Folder>
+  <Folder Name="/ServiceDefaults/">
+    <Project Path="ServiceDefaults/src/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/SharedKernel/">
+    <Project Path="SharedKernel/src/SharedKernel.csproj" />
+    <Project Path="SharedKernel/tests/SharedKernel.Tests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
-    <File Path="AppHost/ProjectTrackerTemplate.http" />
     <File Path="README.md" />
     <File Path="UBIQUITOUS-LANGUAGE.md" />
     <File Path=".editorconfig" />
@@ -9,10 +30,4 @@
     <File Path="global.json" />
     <File Path="nuget.config" />
   </Folder>
-  <Project Path="Gateway/Gateway.csproj" />
-  <Project Path="Projects/Projects.csproj" />
-  <Project Path="Members/Members.csproj" />
-  <Project Path="AppHost/AppHost.csproj" />
-  <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
-  <Project Path="SharedKernel/SharedKernel.csproj" />
 </Solution>

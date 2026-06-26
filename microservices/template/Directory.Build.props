@@ -28,4 +28,14 @@
     <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
   </PropertyGroup>
 
+  <!-- Every project exposes its internals to its sibling test project (e.g. internal handlers). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(MSBuildProjectName).Tests" />
+  </ItemGroup>
+
+  <!-- Test projects (name ends with .Tests) pull the shared xUnit v3 + Trellis.Testing wiring. -->
+  <ImportGroup Condition=" '$(IsTestProject)' == 'true' ">
+    <Import Project="$(MSBuildThisFileDirectory)build/test.props" />
+  </ImportGroup>
+
 </Project>

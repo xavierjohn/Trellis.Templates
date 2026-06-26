@@ -83,4 +83,18 @@
     <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
   </ItemGroup>
+
+  <!-- Test framework (referenced from build/test.props for *.Tests projects) -->
+  <ItemGroup>
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+    <PackageVersion Include="Trellis.Testing" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <!-- Override the transitive native SQLite lib to the patched 3.50.3 (GHSA-2m69-gcr7-jv3q / NU1903);
+         EF Core Sqlite 10.x still pins the vulnerable 2.1.11. SQLitePCLRaw pairs the native lib
+         independently of core, so 3.50.3 + core 2.1.x is supported. Remove once EF's bump lands. -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.6" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
+  </ItemGroup>
 </Project>

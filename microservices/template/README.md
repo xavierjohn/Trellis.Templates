@@ -18,9 +18,9 @@ That boots the Aspire dashboard at <http://localhost:15151> and brings up three 
 | **Projects** | dynamic | Operational cluster. Cross-tenant access returns **403**. |
 | **Members** | dynamic | HR-sensitive cluster. Cross-tenant access returns **404** (HideExistence). |
 
-Open **`AppHost/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
+Open **`AppHost/src/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
 
-> **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
+> **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/src/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
 
 > **SQL Server (Docker).** The **Members** service persists to SQL Server, which Aspire runs as a container — **Docker (or Podman) must be running**. The schema is created and seeded automatically on first run (Development only). **Projects** stays in-memory, so the two services deliberately contrast an EF/SQL data plane against an in-memory one.
 
@@ -46,11 +46,11 @@ Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboar
 
 ### HideExistence pattern (HR-sensitive resources)
 
-`Members/Program.cs` calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
+`Members/src/Program.cs` calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
 
 ### Persistence (Members) — EF Core + UnitOfWork on SQL Server
 
-The **Members** service is the template's *real data plane*. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; the `TransactionalCommandBehavior` registered by `AddTrellisUnitOfWork<MembersDbContext>()` commits the unit of work when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects — the `MemberId` key and the shared-kernel `TenantId` — to columns with no hand-written `HasConversion`.
+The **Members** service is the template's *real data plane*. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/src/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; the `TransactionalCommandBehavior` registered by `AddTrellisUnitOfWork<MembersDbContext>()` commits the unit of work when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects — the `MemberId` key and the shared-kernel `TenantId` — to columns with no hand-written `HasConversion`.
 
 **Projects** keeps its `Project` aggregate on an in-memory repository — the side-by-side contrast makes the EF/UnitOfWork seam easy to see. It gains a small EF `DbContext` of its own purely for the eventing read model + inbox (below).
 
@@ -67,7 +67,7 @@ Inviting a member is the template's **asynchronous, cross-context** story: it th
 
 **The dedup key is a business identity, not a transport id.** The outbox is at-least-once and re-runs a translator on retry, so one invitation may be published more than once. `DeterministicEventId.ForMember(memberId)` derives the event id by hashing the member's business key, so every copy of one invitation carries the same id and the inbox collapses the redeliveries.
 
-Falsifiable proof: invite a member (`POST /api/members`), then `GET /api/team` — the new member appears with no synchronous call to Members. A redelivery of the same event leaves the directory unchanged. A queue fits this single consumer; for fan-out to several services switch to a topic with a per-consumer subscription (see `SharedKernel/MemberEventsChannel.cs`).
+Falsifiable proof: invite a member (`POST /api/members`), then `GET /api/team` — the new member appears with no synchronous call to Members. A redelivery of the same event leaves the directory unchanged. A queue fits this single consumer; for fan-out to several services switch to a topic with a per-consumer subscription (see `SharedKernel/src/MemberEventsChannel.cs`).
 
 ### Deny-overrides-allow JWT contract
 
@@ -77,30 +77,42 @@ The gateway mints a sentinel + count claim trio (`trellis_actor_contract_version
 
 The gateway exposes `/.well-known/openid-configuration` + `/.well-known/jwks.json`. Downstream services configure `AddJwtBearer(o.Authority = gatewayUrl)`; ASP.NET Core auto-discovers the signing key and refreshes JWKS on `SecurityTokenSignatureKeyNotFoundException`. **Zero downstream config change required** for key rotation.
 
-For PRODUCTION key rotation (multi-replica gateway, gradual cut-over), see the comment block in `Gateway/Program.cs` — there's a 5-step runbook embedded there.
+For PRODUCTION key rotation (multi-replica gateway, gradual cut-over), see the comment block in `Gateway/src/Program.cs` — there's a 5-step runbook embedded there.
 
 ## Project layout
 
+Each component is laid out with its `src/` (and, where present, `tests/`) side by side, the
+same convention the ASP template uses.
+
 ```
 ProjectTrackerTemplate.slnx
-├── Gateway/                 — YARP + JWT minting + JWKS endpoints
+├── Gateway/
+│   └── src/                 — YARP + JWT minting + JWKS endpoints
 ├── Projects/                — operational cluster (403 cross-tenant)
-│   ├── Domain/              — Project aggregate + ProjectId
-│   ├── Application/         — Get/List/Update queries + MemberInvited consumer + ListTeam query
-│   ├── ReadModel/           — KnownMember (team directory, built from events)
-│   └── Infrastructure/      — in-memory repo + ProjectsDbContext (inbox) + Service Bus pump
+│   ├── src/
+│   │   ├── Domain/          — Project aggregate + ProjectId
+│   │   ├── Application/     — Get/List/Update queries + MemberInvited consumer + ListTeam query
+│   │   ├── ReadModel/       — KnownMember (team directory, built from events)
+│   │   └── Infrastructure/  — in-memory repo + ProjectsDbContext (inbox) + Service Bus pump
+│   └── tests/               — read-model upsert + idempotency (SQLite)
 ├── Members/                 — HR-sensitive cluster (404 cross-tenant)
-│   ├── Domain/              — Member aggregate + MemberId + MemberInvited domain event
-│   ├── Application/         — Get + Invite + integration-event translator + audit-log handler
-│   └── Infrastructure/      — EF Core repo + DbContext (outbox) + Service Bus publisher
+│   ├── src/
+│   │   ├── Domain/          — Member aggregate + MemberId + MemberInvited domain event
+│   │   ├── Application/     — Get + Invite + integration-event translator + audit-log handler
+│   │   └── Infrastructure/  — EF Core repo + DbContext (outbox) + Service Bus publisher
+│   └── tests/               — aggregate behaviour + deterministic event id + translator
 ├── SharedKernel/            — shared kernel (TenantId) + published language (MemberInvited contract)
-├── AppHost/                 — Aspire orchestration (SQL Server + Azure Service Bus emulator)
-└── ServiceDefaults/         — shared OpenTelemetry, health, service discovery
+│   ├── src/
+│   └── tests/               — TenantId value object + integration-event contract
+├── AppHost/
+│   └── src/                 — Aspire orchestration (SQL Server + Azure Service Bus emulator) + ProjectTrackerTemplate.http
+└── ServiceDefaults/
+    └── src/                 — shared OpenTelemetry, health, service discovery
 ```
 
 ## Replacing the dev-mode actor provider
 
-`Gateway/Program.cs` registers `AddDevelopmentActorProvider` for the inbound side — it reads an `X-Test-Actor` header so you can curl scenarios without minting real JWTs. **Replace it for production** with one of the actor providers in `Trellis.Asp.Authorization`:
+`Gateway/src/Program.cs` registers `AddDevelopmentActorProvider` for the inbound side — it reads an `X-Test-Actor` header so you can curl scenarios without minting real JWTs. **Replace it for production** with one of the actor providers in `Trellis.Asp.Authorization`:
 
 | Provider | Use when |
 |---|---|
