@@ -6,13 +6,39 @@
   <Folder Name="/Gateway/">
     <Project Path="Gateway/src/Gateway.csproj" />
   </Folder>
-  <Folder Name="/Members/">
-    <Project Path="Members/src/Members.csproj" />
-    <Project Path="Members/tests/Members.Tests.csproj" />
+  <Folder Name="/Members/" />
+  <Folder Name="/Members/Domain/">
+    <Project Path="Members/Domain/src/Members.Domain.csproj" />
+    <Project Path="Members/Domain/tests/Members.Domain.Tests.csproj" />
   </Folder>
-  <Folder Name="/Projects/">
-    <Project Path="Projects/src/Projects.csproj" />
-    <Project Path="Projects/tests/Projects.Tests.csproj" />
+  <Folder Name="/Members/Application/">
+    <Project Path="Members/Application/src/Members.Application.csproj" />
+    <Project Path="Members/Application/tests/Members.Application.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Members/Acl/">
+    <Project Path="Members/Acl/src/Members.Acl.csproj" />
+    <Project Path="Members/Acl/tests/Members.Acl.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Members/Api/">
+    <Project Path="Members/Api/src/Members.Api.csproj" />
+    <Project Path="Members/Api/tests/Members.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/" />
+  <Folder Name="/Projects/Domain/">
+    <Project Path="Projects/Domain/src/Projects.Domain.csproj" />
+    <Project Path="Projects/Domain/tests/Projects.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Application/">
+    <Project Path="Projects/Application/src/Projects.Application.csproj" />
+    <Project Path="Projects/Application/tests/Projects.Application.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Acl/">
+    <Project Path="Projects/Acl/src/Projects.Acl.csproj" />
+    <Project Path="Projects/Acl/tests/Projects.Acl.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Api/">
+    <Project Path="Projects/Api/src/Projects.Api.csproj" />
+    <Project Path="Projects/Api/tests/Projects.Api.Tests.csproj" />
   </Folder>
   <Folder Name="/ServiceDefaults/">
     <Project Path="ServiceDefaults/src/ServiceDefaults.csproj" />

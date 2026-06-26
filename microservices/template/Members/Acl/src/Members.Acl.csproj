@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ProjectTrackerTemplate.Members.Acl</RootNamespace>
+    <AssemblyName>ProjectTrackerTemplate.Members.Acl</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Trellis.Authorization" />
+    <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.EntityFrameworkCore" />
+    <PackageReference Include="Trellis.EntityFrameworkCore.Outbox" />
+    <PackageReference Include="Trellis.Mediator" />
+    <PackageReference Include="Trellis.ResourceNaming.Azure" />
+    <!-- Persistence: EF Core on SQL Server, provisioned and wired by Aspire. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <!-- Azure Service Bus client (Aspire-wired) for publishing integration events cross-service. -->
+    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\src\Members.Application.csproj" />
+    <ProjectReference Include="..\..\..\SharedKernel\src\SharedKernel.csproj" />
+    <Using Include="ProjectTrackerTemplate.SharedKernel" />
+  </ItemGroup>
+
+</Project>

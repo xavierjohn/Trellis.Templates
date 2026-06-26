@@ -24,8 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Gateway\src\Gateway.csproj" />
-    <ProjectReference Include="..\..\Projects\src\Projects.csproj" />
-    <ProjectReference Include="..\..\Members\src\Members.csproj" />
+    <ProjectReference Include="..\..\Projects\Api\src\Projects.Api.csproj" />
+    <ProjectReference Include="..\..\Members\Api\src\Members.Api.csproj" />
     <!-- For the shared MemberEventsChannel constants only; not an orchestrated resource. -->
     <ProjectReference Include="..\..\SharedKernel\src\SharedKernel.csproj" IsAspireProjectResource="false" />
   </ItemGroup>

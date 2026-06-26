@@ -46,7 +46,7 @@ Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboar
 
 ### HideExistence pattern (HR-sensitive resources)
 
-`Members/src/Program.cs` calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
+`Members`'s Acl layer (`Members/Acl/src/DependencyInjection.cs`, wired from the host via `AddMembersAcl`) calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
 
 ### Persistence (Members) — EF Core + UnitOfWork on SQL Server
 
@@ -81,33 +81,35 @@ For PRODUCTION key rotation (multi-replica gateway, gradual cut-over), see the c
 
 ## Project layout
 
-Each component is laid out with its `src/` (and, where present, `tests/`) side by side, the
-same convention the ASP template uses.
+Each microservice is split into the four layers — Domain, Application, Acl, Api — and **every layer is
+its own project with `src/` and `tests/` side by side**, the same convention the ASP template uses:
 
 ```
-ProjectTrackerTemplate.slnx
-├── Gateway/
-│   └── src/                 — YARP + JWT minting + JWKS endpoints
-├── Projects/                — operational cluster (403 cross-tenant)
-│   ├── src/
-│   │   ├── Domain/          — Project aggregate + ProjectId
-│   │   ├── Application/     — Get/List/Update queries + MemberInvited consumer + ListTeam query
-│   │   ├── ReadModel/       — KnownMember (team directory, built from events)
-│   │   └── Infrastructure/  — in-memory repo + ProjectsDbContext (inbox) + Service Bus pump
-│   └── tests/               — read-model upsert + idempotency (SQLite)
-├── Members/                 — HR-sensitive cluster (404 cross-tenant)
-│   ├── src/
-│   │   ├── Domain/          — Member aggregate + MemberId + MemberInvited domain event
-│   │   ├── Application/     — Get + Invite + integration-event translator + audit-log handler
-│   │   └── Infrastructure/  — EF Core repo + DbContext (outbox) + Service Bus publisher
-│   └── tests/               — aggregate behaviour + deterministic event id + translator
-├── SharedKernel/            — shared kernel (TenantId) + published language (MemberInvited contract)
-│   ├── src/
-│   └── tests/               — TenantId value object + integration-event contract
-├── AppHost/
-│   └── src/                 — Aspire orchestration (SQL Server + Azure Service Bus emulator) + ProjectTrackerTemplate.http
-└── ServiceDefaults/
-    └── src/                 — shared OpenTelemetry, health, service discovery
+Members/
+├── Domain/
+│   ├── src/    Members.Domain.csproj         — Member aggregate + MemberId + MemberInvited event
+│   └── tests/  Members.Domain.Tests.csproj
+├── Application/
+│   ├── src/    Members.Application.csproj     — Invite/Get handlers + translator + audit logger + IMemberRepository
+│   └── tests/  Members.Application.Tests.csproj
+├── Acl/
+│   ├── src/    Members.Acl.csproj             — EF repo + MembersDbContext (outbox) + Service Bus publisher
+│   └── tests/  Members.Acl.Tests.csproj
+└── Api/
+    ├── src/    Members.Api.csproj             — host: Program.cs + versioned MemberEndpoints
+    └── tests/  Members.Api.Tests.csproj
+```
+
+`Projects/` follows the same four-layer split: its **Domain** adds the `KnownMember` read model; its
+**Application** adds the `ListTeam` query + the `IKnownMemberDirectory` read port; its **Acl** adds the
+`ProjectsDbContext` (inbox), the read-model projection handler, and the Service Bus consumer. The
+remaining components are single `src/` projects:
+
+```
+SharedKernel/     src + tests   — shared kernel (TenantId) + published language (MemberInvited contract)
+Gateway/          src           — YARP + JWT minting + JWKS endpoints
+ServiceDefaults/  src           — shared OpenTelemetry, health, service discovery
+AppHost/          src           — Aspire orchestration (SQL Server + Service Bus emulator) + ProjectTrackerTemplate.http
 ```
 
 ## Replacing the dev-mode actor provider

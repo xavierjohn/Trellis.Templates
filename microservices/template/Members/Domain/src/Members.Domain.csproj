@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ProjectTrackerTemplate.Members.Domain</RootNamespace>
+    <AssemblyName>ProjectTrackerTemplate.Members.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.Primitives" />
+    <!-- Analyzer-only: the MaybePartialPropertyGenerator ships in Trellis.EntityFrameworkCore.
+         ReferenceOutputAssembly=false keeps EF Core out of the Domain layer's runtime surface. -->
+    <PackageReference Include="Trellis.EntityFrameworkCore" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\SharedKernel\src\SharedKernel.csproj" />
+    <Using Include="ProjectTrackerTemplate.SharedKernel" />
+  </ItemGroup>
+
+</Project>

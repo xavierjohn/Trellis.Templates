@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ProjectTrackerTemplate.Projects.Application</RootNamespace>
+    <AssemblyName>ProjectTrackerTemplate.Projects.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Mediator.SourceGenerator" PrivateAssets="all" OutputItemType="Analyzer" />
+    <PackageReference Include="Trellis.Authorization" />
+    <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.Mediator" />
+    <PackageReference Include="Trellis.Primitives" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\src\Projects.Domain.csproj" />
+    <ProjectReference Include="..\..\..\SharedKernel\src\SharedKernel.csproj" />
+    <Using Include="ProjectTrackerTemplate.SharedKernel" />
+  </ItemGroup>
+
+</Project>

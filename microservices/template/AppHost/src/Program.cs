@@ -17,10 +17,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 // The two backend microservices. Aspire assigns dynamic ports — Gateway only
 // needs the logical name; service discovery handles the rest.
 //
-// NOTE: the generated type names `Projects.Projects` / `Projects.Members` /
-// `Projects.Gateway` are derived from each project's CSPROJ BASE NAME by Aspire's
-// source generator. The repeated `Projects.Projects` looks odd but is correct — the
-// outer `Projects` is Aspire's namespace; the inner `Projects` is our project name.
+// NOTE: the generated type names `Projects.Projects_Api` / `Projects.Members_Api` /
+// `Projects.Gateway` are derived from each project's CSPROJ BASE NAME by Aspire's source
+// generator (dots in the name become underscores). The outer `Projects` is Aspire's
+// namespace; the inner name is our host project (e.g. the Projects service host is `Projects_Api`).
 
 // SQL Server backs both services' data planes. Aspire provisions the container, the per-service
 // databases ("membersdb", "projectsdb"), and injects each connection string into its owner.
@@ -36,13 +36,13 @@ var serviceBus = builder.AddAzureServiceBus(MemberEventsChannel.ConnectionName)
     .RunAsEmulator();
 serviceBus.AddServiceBusQueue(MemberEventsChannel.QueueName);
 
-var projects = builder.AddProject<Projects.Projects>("projects")
+var projects = builder.AddProject<Projects.Projects_Api>("projects")
     .WithReference(projectsDb)
     .WithReference(serviceBus)
     .WaitFor(projectsDb)
     .WaitFor(serviceBus);
 
-var members = builder.AddProject<Projects.Members>("members")
+var members = builder.AddProject<Projects.Members_Api>("members")
     .WithReference(membersDb)
     .WithReference(serviceBus)
     .WaitFor(membersDb)
