@@ -18,7 +18,7 @@ That boots the Aspire dashboard at <http://localhost:15151> and brings up three 
 | **Projects** | dynamic | Operational cluster. Cross-tenant access returns **403**. |
 | **Members** | dynamic | HR-sensitive cluster. Cross-tenant access returns **404** (HideExistence). |
 
-Open **`ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome.
+Open **`AppHost/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
 
 > **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
 

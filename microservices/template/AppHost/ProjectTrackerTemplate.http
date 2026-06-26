@@ -1,6 +1,13 @@
 ### Project Tracker — outcome matrix
 ### Click any "Send Request" link above a row. Each row exercises one auth path.
 ###
+### Run the app first:  dotnet run --project AppHost   (needs Docker for SQL Server + Service Bus).
+### Wait for the gateway on http://localhost:5001 (the Aspire dashboard URL prints in the console).
+###
+### Every /api request carries ?api-version=2026-03-26 (date-based API versioning), and every POST
+### carries an Idempotency-Key header (any unique value; re-sending the same key returns the cached
+### response instead of repeating the operation). The /.well-known/* endpoints are not versioned.
+###
 ### Seed actors used below:
 ###   alice   tenant=acme   role=owner       perms=projects:read,projects:write,members:read,members:invite
 ###   bob     tenant=acme   role=contributor perms=projects:read,projects:write,members:read
@@ -23,6 +30,7 @@
 ### The gateway re-mints these claims as a real internal JWT before forwarding.
 
 @gateway = http://localhost:5001
+@version = 2026-03-26
 
 ###
 ### ============================================================================
@@ -31,19 +39,19 @@
 ###
 
 ### 1. alice reads her own project — 200 OK
-GET {{gateway}}/api/projects/acme-p1
+GET {{gateway}}/api/projects/acme-p1?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
 ### 2. alice reads bob's project (same tenant) — 200 OK (read-all in tenant)
-GET {{gateway}}/api/projects/acme-p2
+GET {{gateway}}/api/projects/acme-p2?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
 ### 3. alice reads a globex project — 403 cross_tenant
-GET {{gateway}}/api/projects/globex-p1
+GET {{gateway}}/api/projects/globex-p1?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
 ### 4. alice updates her own project — 204 No Content
-PUT {{gateway}}/api/projects/acme-p1
+PUT {{gateway}}/api/projects/acme-p1?api-version={{version}}
 Content-Type: application/json
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
@@ -53,7 +61,7 @@ X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"At
 }
 
 ### 5. alice updates bob's project (same tenant, not owner) — 403 not_owner
-PUT {{gateway}}/api/projects/acme-p2
+PUT {{gateway}}/api/projects/acme-p2?api-version={{version}}
 Content-Type: application/json
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
@@ -63,11 +71,11 @@ X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"At
 }
 
 ### 6. no-perm tries to read — 403 (missing projects:read static permission)
-GET {{gateway}}/api/projects/acme-p1
+GET {{gateway}}/api/projects/acme-p1?api-version={{version}}
 X-Test-Actor: {"Id":"no-perm","Permissions":[],"Attributes":{"tenant_id":"acme"}}
 
 ### 7. alice lists her tenant's projects — 200 OK (acme-p1 + acme-p2 only)
-GET {{gateway}}/api/projects
+GET {{gateway}}/api/projects?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read"],"Attributes":{"tenant_id":"acme"}}
 
 ###
@@ -77,26 +85,27 @@ X-Test-Actor: {"Id":"alice","Permissions":["projects:read"],"Attributes":{"tenan
 ###
 
 ### 8. alice reads herself (member id is tenant-scoped: "acme-alice") — 200 OK
-GET {{gateway}}/api/members/acme-alice
+GET {{gateway}}/api/members/acme-alice?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
 
 ### 9. alice reads bob (same tenant) — 200 OK
-GET {{gateway}}/api/members/acme-bob
+GET {{gateway}}/api/members/acme-bob?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
 
 ### 10. alice reads carol — 404 (HideExistence hides the cross-tenant 403!)
 ###     Without HideExistence this would return 403 and leak the existence of carol.
-GET {{gateway}}/api/members/globex-carol
+GET {{gateway}}/api/members/globex-carol?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
 
 ### 11. alice reads a member that doesn't exist anywhere — 404 (same shape as #10)
 ###     A cross-tenant attacker cannot distinguish #10 from #11.
-GET {{gateway}}/api/members/acme-no-such-member
+GET {{gateway}}/api/members/acme-no-such-member?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
 
 ### 12. alice invites a new member to her tenant — 200 OK { "id": "acme-newperson" }
-POST {{gateway}}/api/members
+POST {{gateway}}/api/members?api-version={{version}}
 Content-Type: application/json
+Idempotency-Key: 11111111-1111-1111-1111-111111111111
 X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
 
 {
@@ -108,13 +117,14 @@ X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tena
 ###      This read model is built entirely from the MemberInvited integration event that the
 ###      invite (#12) published over Azure Service Bus — Projects answers from its OWN store with
 ###      no synchronous call to Members. Delivery is asynchronous: re-send until acme-newperson
-###      appears (eventual consistency), then re-send again to confirm the inbox deduped it.
-GET {{gateway}}/api/team
+###      appears (eventual consistency).
+GET {{gateway}}/api/team?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read"],"Attributes":{"tenant_id":"acme"}}
 
 ### 13. bob (no members:invite permission) tries to invite — 403 missing permission
-POST {{gateway}}/api/members
+POST {{gateway}}/api/members?api-version={{version}}
 Content-Type: application/json
+Idempotency-Key: 22222222-2222-2222-2222-222222222222
 X-Test-Actor: {"Id":"bob","Permissions":["members:read"],"Attributes":{"tenant_id":"acme"}}
 
 {
@@ -124,8 +134,9 @@ X-Test-Actor: {"Id":"bob","Permissions":["members:read"],"Attributes":{"tenant_i
 
 ### 14. alice re-invites bob (same-tenant duplicate) — 409 Conflict
 ###     Same-tenant Conflict is safe to surface (no cross-tenant leak).
-POST {{gateway}}/api/members
+POST {{gateway}}/api/members?api-version={{version}}
 Content-Type: application/json
+Idempotency-Key: 33333333-3333-3333-3333-333333333333
 X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
 
 {
@@ -137,8 +148,9 @@ X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tena
 ###     With tenant-scoped MemberIds this becomes 'acme-carol' — a brand-new member,
 ###     200 OK. The globex 'globex-carol' is untouched. (Without tenant-scoping this
 ###     invite would silently overwrite globex's carol — a real cross-tenant bug.)
-POST {{gateway}}/api/members
+POST {{gateway}}/api/members?api-version={{version}}
 Content-Type: application/json
+Idempotency-Key: 44444444-4444-4444-4444-444444444444
 X-Test-Actor: {"Id":"alice","Permissions":["members:invite"],"Attributes":{"tenant_id":"acme"}}
 
 {
