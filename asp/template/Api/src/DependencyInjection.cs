@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using Asp.Versioning.Conventions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -12,14 +13,16 @@ using Trellis.ServiceLevelIndicators;
 using Trellis.Asp;
 using Trellis.Asp.Authorization;
 using Trellis.Asp.Idempotency;
+using Trellis.ResourceNaming.Azure;
 using TodoSample.Domain;
 
 internal static class DependencyInjection
 {
-    public static IServiceCollection AddPresentation(this IServiceCollection services, IHostEnvironment environment)
+    public static IServiceCollection AddPresentation(
+        this IServiceCollection services, IHostEnvironment environment, IConfiguration configuration)
     {
         services.ConfigureOpenTelemetry();
-        services.ConfigureServiceLevelIndicators();
+        services.ConfigureServiceLevelIndicators(configuration);
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = ctx =>
@@ -125,11 +128,26 @@ internal static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection ConfigureServiceLevelIndicators(this IServiceCollection services)
+    private static IServiceCollection ConfigureServiceLevelIndicators(
+        this IServiceCollection services, IConfiguration configuration)
     {
+        // The deployed-environment options are the single source for resource naming and the SLI region.
+        var section = configuration.GetSection("DeployedEnvironment");
+        services.Configure<DeployedEnvironmentOptions>(section);
+        var environment = section.Get<DeployedEnvironmentOptions>() ?? new DeployedEnvironmentOptions();
+
+        // Region is the deployment's telemetry location; fail fast rather than emit a region-less location id.
+        var region = environment.Region;
+        if (string.IsNullOrWhiteSpace(region))
+        {
+            throw new InvalidOperationException(
+                "Configuration 'DeployedEnvironment:Region' is required for the service-level-indicator location id.");
+        }
+
+        var locationId = ServiceLevelIndicator.CreateLocationId("public", region);
         services.AddServiceLevelIndicator(options =>
         {
-            options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3");
+            options.LocationId = locationId;
         })
         .AddMvc()
         .AddApiVersion();

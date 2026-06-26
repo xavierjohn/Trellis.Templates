@@ -36,6 +36,7 @@
     <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
+    <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <!-- Service Level Indicators (with API-version dimension). -->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!-- Consumer-side actor provider for the gateway-minted internal JWT. -->

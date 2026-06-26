@@ -9,6 +9,7 @@ using Trellis.Asp;
 using Trellis.Asp.Idempotency;
 using Trellis.Mediator;
 using Trellis.Microservices.AspNetCore;
+using Trellis.ResourceNaming.Azure;
 using Trellis.ServiceLevelIndicators;
 
 // Members microservice — HR-sensitive cluster (CRUD on Member aggregate).
@@ -69,8 +70,21 @@ builder.Services.AddTrellisAspWithScalarValidation();
 builder.Services.AddTrellisIdempotency();
 builder.Services.AddInMemoryIdempotencyStore();
 
-builder.Services.AddServiceLevelIndicator(options =>
-        options.LocationId = ServiceLevelIndicator.CreateLocationId("public", "westus3"))
+// Bind the deployed-environment options once; the SLI location id's region comes from configuration.
+var deployedEnvironmentSection = builder.Configuration.GetSection("DeployedEnvironment");
+builder.Services.Configure<DeployedEnvironmentOptions>(deployedEnvironmentSection);
+var deployedEnvironment = deployedEnvironmentSection.Get<DeployedEnvironmentOptions>() ?? new DeployedEnvironmentOptions();
+
+// Region is the deployment's telemetry location; fail fast rather than emit a region-less location id.
+var region = deployedEnvironment.Region;
+if (string.IsNullOrWhiteSpace(region))
+{
+    throw new InvalidOperationException(
+        "Configuration 'DeployedEnvironment:Region' is required for the service-level-indicator location id.");
+}
+
+var locationId = ServiceLevelIndicator.CreateLocationId("public", region);
+builder.Services.AddServiceLevelIndicator(options => options.LocationId = locationId)
     .AddApiVersion();
 
 // === Trust-boundary layer =================================================

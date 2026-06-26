@@ -53,6 +53,7 @@
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.ResourceNaming.Azure" Version="0.1.0-preview.1" />
   </ItemGroup>
 
   <!-- Service Level Indicators (xavierjohn/ServiceLevelIndicators on nuget.org) -->

@@ -33,6 +33,7 @@
     <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
+    <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <PackageReference Include="Trellis.Microservices.AspNetCore" />
   </ItemGroup>
