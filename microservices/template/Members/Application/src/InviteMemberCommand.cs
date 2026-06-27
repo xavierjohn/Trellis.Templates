@@ -35,43 +35,35 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
 
     public async ValueTask<Result<MemberId>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
     {
-        var actorMaybe = await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false);
-        if (!actorMaybe.HasValue)
-            return Result.Fail<MemberId>(new Error.AuthenticationRequired());
+        // The actor and its tenant_id are guaranteed by the time the handler runs: IAuthorize ran the
+        // static-permission gate first, and the actor provider's RequiredAttributes fails a missing
+        // tenant_id closed at the JWT boundary. GetValueOrThrow makes that guarantee explicit.
+        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false))
+            .GetValueOrThrow("Actor must be present; the IAuthorize pipeline guarantees it.");
+        var tenantId = actor.GetRequiredAttribute<TenantId>("tenant_id")
+            .GetValueOrThrow("tenant_id is a required actor attribute; the actor provider guarantees it.");
 
-        if (!actorMaybe.Value.GetRequiredAttribute<TenantId>("tenant_id").TryGetValue(out var tenantId))
-            return Result.Fail<MemberId>(new Error.AuthenticationRequired());
-
-        // Mint a TENANT-SCOPED MemberId from "{tenantId}-{localPart}". The tenant
-        // prefix prevents cross-tenant collisions by construction — without it, an
-        // attacker could invite carol@anything.example and silently overwrite a
-        // 'carol' member in a different tenant. Production would use a
-        // GUID-backed id (RequiredGuid<MemberId>) and a UNIQUE constraint on
-        // (TenantId, Email); the template keeps the id human-readable for the
-        // demo trace.
+        // Mint a TENANT-SCOPED MemberId from "{tenantId}-{localPart}". The tenant prefix prevents
+        // cross-tenant collisions by construction — without it, an attacker could invite
+        // carol@anything.example and silently overwrite a 'carol' member in a different tenant. Production
+        // would use a GUID-backed id (RequiredGuid<MemberId>) and a UNIQUE constraint on (TenantId, Email);
+        // the template keeps the id human-readable for the demo trace.
         var localPart = command.Email.Split('@')[0];
-        var idResult = MemberId.TryCreate($"{tenantId.Value}-{localPart}");
-        if (!idResult.TryGetValue(out var memberId))
-            return Result.Fail<MemberId>(Error.InvalidInput.ForRule("members.invalid_id", "Email local-part is not a valid MemberId."));
 
-        // Same-tenant duplicate check. Returning Conflict here does NOT leak
-        // cross-tenant existence because the id is tenant-scoped — only members
-        // in the actor's own tenant can produce a collision, and the actor
-        // already has visibility into their own tenant.
-        var existing = await _repository.FindByIdAsync(memberId, cancellationToken).ConfigureAwait(false);
-        if (existing.HasValue)
-            return Result.Fail<MemberId>(new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"));
-
-        var member = Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider);
-
-        // Stage the new member; the TransactionalCommandBehavior commits the unit of work when this
-        // handler returns success. The "member invited" business event is NOT logged here — Member.Invite
-        // raises a MemberInvited domain event, the outbox captures it in the SAME transaction as the
-        // member row, and the relay dispatches it AFTER the commit: the audit log (MemberInvitedAuditLogger)
-        // and the cross-service integration event (MemberInvitedTranslator) both hang off that event, so
-        // neither can fire for a member that failed to persist.
-        _repository.Add(member);
-
-        return Result.Ok(memberId);
+        // Railway: build the id, ensure it is not a same-tenant duplicate (Conflict does NOT leak
+        // cross-tenant existence — the id is tenant-scoped), then stage the new member. Member.Invite raises
+        // the MemberInvited domain event the outbox captures in the same transaction; the relay dispatches
+        // the audit log + the integration-event translator after the commit, so neither fires for a member
+        // that failed to persist.
+        return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
+            .Match(
+                memberId => Result.Ok(memberId),
+                _ => Result.Fail<MemberId>(Error.InvalidInput.ForRule(
+                    "members.invalid_id", "Email local-part is not a valid MemberId.")))
+            .EnsureAsync(
+                async memberId => !(await _repository.FindByIdAsync(memberId, cancellationToken).ConfigureAwait(false)).HasValue,
+                memberId => new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"))
+            .TapAsync(memberId => _repository.Add(
+                Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider)));
     }
 }

@@ -18,12 +18,7 @@ public sealed class MemberResourceLoader : SharedResourceLoaderById<Member, Memb
 
     public MemberResourceLoader(IMemberRepository repository) => _repository = repository;
 
-    public override async Task<Result<Member>> GetByIdAsync(MemberId id, CancellationToken cancellationToken)
-    {
-        var maybe = await _repository.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
-
-        return maybe.HasValue
-            ? Result.Ok(maybe.Value)
-            : Result.Fail<Member>(new Error.NotFound(ResourceRef.For<Member>(id.Value)));
-    }
+    public override Task<Result<Member>> GetByIdAsync(MemberId id, CancellationToken cancellationToken) =>
+        _repository.FindByIdAsync(id, cancellationToken)
+            .ToResultAsync(new Error.NotFound(ResourceRef.For<Member>(id.Value)));
 }

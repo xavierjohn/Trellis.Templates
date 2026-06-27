@@ -15,12 +15,7 @@ public sealed class ProjectResourceLoader : SharedResourceLoaderById<Project, Pr
 
     public ProjectResourceLoader(IProjectRepository repository) => _repository = repository;
 
-    public override async Task<Result<Project>> GetByIdAsync(ProjectId id, CancellationToken cancellationToken)
-    {
-        var maybe = await _repository.FindByIdAsync(id, cancellationToken).ConfigureAwait(false);
-
-        return maybe.HasValue
-            ? Result.Ok(maybe.Value)
-            : Result.Fail<Project>(new Error.NotFound(ResourceRef.For<Project>(id.Value)));
-    }
+    public override async Task<Result<Project>> GetByIdAsync(ProjectId id, CancellationToken cancellationToken) =>
+        await _repository.FindByIdAsync(id, cancellationToken)
+            .ToResultAsync(new Error.NotFound(ResourceRef.For<Project>(id.Value)));
 }

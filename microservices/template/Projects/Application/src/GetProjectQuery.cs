@@ -28,13 +28,9 @@ public sealed record GetProjectQuery(ProjectId Id)
     public ProjectId GetResourceId() => Id;
 
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
-        actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId)
-        && tenantId == resource.TenantId
-            ? Result.Ok()
-            : Result.Fail(new Error.Forbidden("projects.cross_tenant")
-            {
-                Detail = "Cross-tenant project access is not permitted.",
-            });
+        Result.Ensure(
+            actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId) && tenantId == resource.TenantId,
+            new Error.Forbidden("projects.cross_tenant") { Detail = "Cross-tenant project access is not permitted." });
 }
 
 // Reads the SAME Project instance that ResourceAuthorizationBehavior loaded for

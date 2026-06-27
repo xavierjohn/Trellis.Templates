@@ -28,12 +28,12 @@ public sealed class ListTeamHandler : IQueryHandler<ListTeamQuery, Result<IReadO
 
     public async ValueTask<Result<IReadOnlyList<KnownMember>>> Handle(ListTeamQuery query, CancellationToken cancellationToken)
     {
-        var actorMaybe = await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false);
-        if (!actorMaybe.HasValue)
-            return Result.Fail<IReadOnlyList<KnownMember>>(new Error.AuthenticationRequired());
-
-        if (!actorMaybe.Value.GetRequiredAttribute<TenantId>("tenant_id").TryGetValue(out var tenantId))
-            return Result.Fail<IReadOnlyList<KnownMember>>(new Error.AuthenticationRequired());
+        // The actor + tenant_id are guaranteed by the time the handler runs (IAuthorize + the actor
+        // provider's RequiredAttributes), so extract them directly rather than re-checking for absence.
+        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false))
+            .GetValueOrThrow("Actor must be present; the IAuthorize pipeline guarantees it.");
+        var tenantId = actor.GetRequiredAttribute<TenantId>("tenant_id")
+            .GetValueOrThrow("tenant_id is a required actor attribute; the actor provider guarantees it.");
 
         var members = await _directory.ListByTenantAsync(tenantId, cancellationToken).ConfigureAwait(false);
 

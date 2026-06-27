@@ -37,12 +37,12 @@ public sealed class ListProjectsHandler : IQueryHandler<ListProjectsQuery, Resul
 
     public async ValueTask<Result<IReadOnlyList<Project>>> Handle(ListProjectsQuery query, CancellationToken cancellationToken)
     {
-        var actorMaybe = await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false);
-        if (!actorMaybe.HasValue)
-            return Result.Fail<IReadOnlyList<Project>>(new Error.AuthenticationRequired());
-
-        if (!actorMaybe.Value.GetRequiredAttribute<TenantId>("tenant_id").TryGetValue(out var tenantId))
-            return Result.Fail<IReadOnlyList<Project>>(new Error.AuthenticationRequired());
+        // The actor + tenant_id are guaranteed by the time the handler runs (IAuthorize + the actor
+        // provider's RequiredAttributes), so extract them directly rather than re-checking for absence.
+        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false))
+            .GetValueOrThrow("Actor must be present; the IAuthorize pipeline guarantees it.");
+        var tenantId = actor.GetRequiredAttribute<TenantId>("tenant_id")
+            .GetValueOrThrow("tenant_id is a required actor attribute; the actor provider guarantees it.");
 
         var projects = await _repository.ListByTenantAsync(tenantId, cancellationToken).ConfigureAwait(false);
         return Result.Ok(projects);
