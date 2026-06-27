@@ -7,7 +7,7 @@ This is a multi-tenant microservices topology demonstrating the [Trellis framewo
 ## Quick start
 
 ```bash
-dotnet run --project AppHost
+dotnet run --project AppHost/src
 ```
 
 That boots the Aspire dashboard at <http://localhost:15151> and brings up three processes:

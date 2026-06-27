@@ -5,7 +5,7 @@
 //     ├── members  (audience="members",  /api/members/*  endpoints)
 //     └── gateway  (YARP, fixed port 5001, references projects + members)
 //
-// `dotnet run --project AppHost` boots all three processes, wires service-discovery
+// `dotnet run --project AppHost/src` boots all three processes, wires service-discovery
 // env vars so YARP destinations resolve `https+http://projects` to the dynamically-
 // assigned Projects port, and opens the Aspire dashboard with logs, traces, and
 // metrics flowing in from every service.

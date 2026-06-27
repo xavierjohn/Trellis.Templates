@@ -27,7 +27,10 @@ internal sealed class InMemoryBrokerPublisher(InMemoryBroker broker) : IIntegrat
     public async ValueTask PublishAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken)
     {
         if (integrationEvent is not MemberInvitedIntegrationEvent invited)
-            return;
+            throw new NotSupportedException(
+                $"No broker mapping for integration event '{integrationEvent.GetType().Name}'. The real " +
+                "ServiceBusIntegrationEventPublisher throws here too, so the outbox relay never marks an " +
+                "unmapped event processed and silently drops it.");
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(invited, IntegrationEventSerialization.Options);
         await broker.PublishAsync(bytes, cancellationToken);

@@ -119,12 +119,12 @@ internal sealed class ProjectsEventingFactory : WebApplicationFactory<ProjectsAp
             services.ReplaceDbProvider<ProjectTrackerTemplate.Projects.Acl.ProjectsDbContext>(options =>
                 options.UseSqlite(_connection).AddTrellisInterceptors());
 
-            // Replace the Service Bus pump with the in-memory broker consumer feeding the same inbox.
-            var pump = services.SingleOrDefault(descriptor =>
+            // Replace the Service Bus pump with the in-memory broker consumer feeding the same inbox. Use a
+            // type-safe predicate and fail loudly (Single) if the pump is no longer registered (e.g. renamed).
+            var pump = services.Single(descriptor =>
                 descriptor.ServiceType == typeof(IHostedService) &&
-                descriptor.ImplementationType?.FullName == "ProjectTrackerTemplate.Projects.Acl.MemberEventsConsumer");
-            if (pump is not null)
-                services.Remove(pump);
+                descriptor.ImplementationType == typeof(ProjectTrackerTemplate.Projects.Acl.MemberEventsConsumer));
+            services.Remove(pump);
 
             services.AddSingleton<IHostedService>(provider =>
                 new InMemoryBrokerConsumer(_broker, provider.GetRequiredService<IInboxDispatcher>()));
