@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis;
+using Trellis.Primitives;
 
 namespace ProjectTrackerTemplate.Members.Acl;
 
@@ -30,6 +31,6 @@ public static class MembersSeed
         new(
             MemberId.TryCreate(id).GetValueOrThrow($"seed MemberId('{id}') must be valid"),
             TenantId.TryCreate(tenant).GetValueOrThrow($"seed TenantId('{tenant}') must be valid"),
-            email,
-            role);
+            EmailAddress.TryCreate(email).GetValueOrThrow($"seed email('{email}') must be valid"),
+            Role.TryCreate(role).GetValueOrThrow($"seed role('{role}') must be valid"));
 }

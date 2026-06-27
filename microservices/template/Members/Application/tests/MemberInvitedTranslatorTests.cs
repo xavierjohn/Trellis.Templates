@@ -14,7 +14,7 @@ public class MemberInvitedTranslatorTests
         var translator = new MemberInvitedTranslator(collector);
         var tenant = TenantId.TryCreate("acme").GetValueOrThrow("valid tenant");
         var id = MemberId.TryCreate("acme-alice").GetValueOrThrow("valid id");
-        var domainEvent = new MemberInvited(tenant, id, "owner", DateTimeOffset.UtcNow);
+        var domainEvent = new MemberInvited(tenant, id, Role.Owner, DateTimeOffset.UtcNow);
 
         await translator.HandleAsync(domainEvent, CancellationToken.None);
 

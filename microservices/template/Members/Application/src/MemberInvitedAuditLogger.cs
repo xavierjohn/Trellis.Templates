@@ -13,7 +13,7 @@ internal sealed partial class MemberInvitedAuditLogger(ILogger<MemberInvitedAudi
 {
     public ValueTask HandleAsync(MemberInvited domainEvent, CancellationToken cancellationToken)
     {
-        LogMemberInvited(logger, domainEvent.MemberId.Value, domainEvent.TenantId.Value, domainEvent.Role, domainEvent.OccurredAt);
+        LogMemberInvited(logger, domainEvent.MemberId.Value, domainEvent.TenantId.Value, domainEvent.Role.Value, domainEvent.OccurredAt);
         return ValueTask.CompletedTask;
     }
 

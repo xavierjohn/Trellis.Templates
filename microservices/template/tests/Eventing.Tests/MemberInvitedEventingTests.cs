@@ -37,7 +37,7 @@ public sealed class MemberInvitedEventingTests : IDisposable
         invite.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
 
         var inviteResponse = await membersClient.SendAsync(invite, cancellationToken);
-        inviteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        inviteResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // The outbox relay publishes to the broker and the consumer projects it asynchronously, so poll the
         // team directory until the new member appears (or give up after a generous window).

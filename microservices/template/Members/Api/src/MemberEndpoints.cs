@@ -5,8 +5,11 @@ using Asp.Versioning.Builder;
 using Mediator;
 using ProjectTrackerTemplate.Members.Application;
 using ProjectTrackerTemplate.Members.Domain;
+using Trellis;
 using Trellis.Asp;
+using Trellis.Asp.ApiVersioning;
 using Trellis.Asp.Idempotency;
+using Trellis.Primitives;
 using Trellis.ServiceLevelIndicators;
 
 // Endpoints live in their own *Endpoints.cs extension method (one per resource) instead of inline
@@ -38,26 +41,45 @@ public static class MemberEndpoints
             .AddServiceLevelIndicator();
 
         // GET /api/members/{id}: the MemberId route value is bound as a Trellis value object and
-        // validated by UseScalarValueValidation (an invalid id is a 422 before the handler runs).
+        // validated by UseScalarValueValidation (an invalid id is a 422 before the handler runs). The
+        // response carries the aggregate's strong ETag + Last-Modified so a client can later make a
+        // conditional write. The route is NAMED so the create endpoint's Location header can resolve to it.
         members.MapGet("/{id}", (MemberId id, IMediator mediator, CancellationToken ct) =>
             mediator.Send(new GetMemberQuery(id), ct)
-                .ToHttpResponseAsync(MemberResponse.From));
+                .ToHttpResponseAsync(
+                    MemberResponse.From,
+                    opts => opts
+                        .WithETag(m => EntityTagValue.Strong(m.ETag))
+                        .WithLastModified(m => m.LastModified)))
+            .WithName("Members_GetById");
 
-        // POST /api/members: invite a new member into the actor's tenant. [Idempotent] lets a caller
-        // safely retry with an Idempotency-Key; the SLI measures the operation latency.
+        // POST /api/members: invite a new member into the actor's tenant. The request body carries value
+        // objects (EmailAddress, Role), so .WithScalarValueValidation() turns a malformed email/role into
+        // a 422 before the handler runs. On success it returns 201 Created with a Location header pointing
+        // at the new member (CreatedAtRoute + WithVersionedRoute injects the api-version so the URL round-
+        // trips), plus the member representation and its ETag. [Idempotent] lets a caller safely retry.
         members.MapPost("/", (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
                 mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct)
-                    .ToHttpResponseAsync(id => new { id = id.Value }))
+                    .ToHttpResponseAsync(
+                        MemberResponse.From,
+                        opts => opts
+                            .CreatedAtRoute("Members_GetById", m => m.Id.Value)
+                            .WithVersionedRoute()
+                            .WithETag(m => EntityTagValue.Strong(m.ETag))
+                            .WithLastModified(m => m.LastModified)))
+            .WithScalarValueValidation()
             .WithMetadata(new IdempotentAttribute());
 
         return app;
     }
 }
 
-// Wire-format DTOs for the Members API.
-internal sealed record InviteMemberRequest(string Email, string Role);
+// Wire-format DTOs for the Members API. The request carries value objects so a malformed email or role
+// is rejected with a 422 (see .WithScalarValueValidation() on the create endpoint); the response is
+// primitive so clients never couple to the domain types.
+internal sealed record InviteMemberRequest(EmailAddress Email, Role Role);
 
 internal sealed record MemberResponse(string Id, string TenantId, string Email, string Role)
 {
-    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId.Value, m.Email, m.Role);
+    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId.Value, m.Email.Value, m.Role.Value);
 }

@@ -4,6 +4,7 @@ using ProjectTrackerTemplate.Members.Acl;
 using ProjectTrackerTemplate.Members.Domain;
 using ProjectTrackerTemplate.SharedKernel;
 using Trellis.EntityFrameworkCore;
+using Trellis.Primitives;
 
 namespace Members.Acl.Tests;
 
@@ -45,8 +46,8 @@ public sealed class EfMemberRepositoryTests : IDisposable
         new(
             MemberId.TryCreate(id).GetValueOrThrow("valid id"),
             TenantId.TryCreate(tenant).GetValueOrThrow("valid tenant"),
-            $"{id}@example.test",
-            "contributor");
+            EmailAddress.TryCreate($"{id}@example.test").GetValueOrThrow("valid email"),
+            Role.Contributor);
 
     public void Dispose()
     {

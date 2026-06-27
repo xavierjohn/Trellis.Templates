@@ -20,7 +20,7 @@ internal sealed class MemberInvitedTranslator(IIntegrationEventCollector collect
             DeterministicEventId.ForMember(domainEvent.MemberId.Value),
             domainEvent.TenantId.Value,
             domainEvent.MemberId.Value,
-            domainEvent.Role,
+            domainEvent.Role.Value,
             domainEvent.OccurredAt));
 
         return ValueTask.CompletedTask;

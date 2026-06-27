@@ -10,4 +10,4 @@ namespace ProjectTrackerTemplate.Members.Domain;
 //
 // It carries the member + tenant identity and role, but NOT the email: PII stays out of the event
 // stream. OccurredAt is stamped from the injected TimeProvider so the time is testable.
-public sealed record MemberInvited(TenantId TenantId, MemberId MemberId, string Role, DateTimeOffset OccurredAt) : IDomainEvent;
+public sealed record MemberInvited(TenantId TenantId, MemberId MemberId, Role Role, DateTimeOffset OccurredAt) : IDomainEvent;

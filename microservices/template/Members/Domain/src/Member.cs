@@ -1,4 +1,5 @@
 ﻿using Trellis;
+using Trellis.Primitives;
 
 namespace ProjectTrackerTemplate.Members.Domain;
 
@@ -21,7 +22,7 @@ public sealed class Member : Aggregate<MemberId>
     {
     }
 
-    public Member(MemberId id, TenantId tenantId, string email, string role)
+    public Member(MemberId id, TenantId tenantId, EmailAddress email, Role role)
         : base(id)
     {
         TenantId = tenantId;
@@ -33,7 +34,7 @@ public sealed class Member : Aggregate<MemberId>
     // member with no side effects), this raises the MemberInvited domain event — so only a genuine
     // invitation flows to the outbox, the audit log, and the cross-service integration event. The
     // OccurredAt timestamp comes from the injected TimeProvider so it is deterministic under test.
-    public static Member Invite(MemberId id, TenantId tenantId, string email, string role, TimeProvider timeProvider)
+    public static Member Invite(MemberId id, TenantId tenantId, EmailAddress email, Role role, TimeProvider timeProvider)
     {
         var member = new Member(id, tenantId, email, role);
         member.DomainEvents.Add(new MemberInvited(tenantId, id, role, timeProvider.GetUtcNow()));
@@ -44,11 +45,12 @@ public sealed class Member : Aggregate<MemberId>
     // HideExistence<Member>() collapses cross-tenant access into 404.
     public TenantId TenantId { get; private set; } = null!;
 
-    // PII. Production would project this through a value object that applies redaction in
-    // ToString/log output. The template keeps the body trivial.
-    public string Email { get; private set; } = null!;
+    // PII, modelled as the built-in EmailAddress value object so an invalid address is rejected at the
+    // boundary (422) rather than persisted. Production would additionally apply redaction in log output.
+    public EmailAddress Email { get; private set; } = null!;
 
-    public string Role { get; private set; } = null!;
+    // The member's role, a RequiredEnum value object: an unknown role is rejected, never stored.
+    public Role Role { get; private set; } = null!;
 
-    public void UpdateRole(string role) => Role = role;
+    public void UpdateRole(Role role) => Role = role;
 }

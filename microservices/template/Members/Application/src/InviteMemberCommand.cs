@@ -2,6 +2,7 @@
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis;
 using Trellis.Authorization;
+using Trellis.Primitives;
 
 namespace ProjectTrackerTemplate.Members.Application;
 
@@ -9,8 +10,8 @@ namespace ProjectTrackerTemplate.Members.Application;
 // the actor's tenant (server-side decision; the wire format does NOT accept
 // a tenant_id parameter so a malicious caller cannot drop a member into a
 // different tenant). The command embeds only the public-facing fields.
-public sealed record InviteMemberCommand(string Email, string Role)
-    : ICommand<Result<MemberId>>, IAuthorize
+public sealed record InviteMemberCommand(EmailAddress Email, Role Role)
+    : ICommand<Result<Member>>, IAuthorize
 {
     public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersInvite];
 }
@@ -20,7 +21,7 @@ public sealed record InviteMemberCommand(string Email, string Role)
 // Member lands in the actor's tenant (taken from the JWT-projected
 // actor.Attributes["tenant_id"]), NEVER in a tenant the caller could spoof
 // by editing the request body.
-public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<MemberId>>
+public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, Result<Member>>
 {
     private readonly IMemberRepository _repository;
     private readonly IActorProvider _actorProvider;
@@ -33,7 +34,7 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         _timeProvider = timeProvider;
     }
 
-    public async ValueTask<Result<MemberId>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
+    public async ValueTask<Result<Member>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
     {
         // The actor and its tenant_id are guaranteed by the time the handler runs: IAuthorize ran the
         // static-permission gate first, and the actor provider's RequiredAttributes fails a missing
@@ -48,19 +49,20 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         // carol@anything.example and silently overwrite a 'carol' member in a different tenant. Production
         // would use a GUID-backed id (RequiredGuid<MemberId>) and a UNIQUE constraint on (TenantId, Email);
         // the template keeps the id human-readable for the demo trace.
-        var localPart = command.Email.Split('@')[0];
+        // EmailAddress is already a validated value object, so the local part is always present.
+        var localPart = command.Email.Value.Split('@')[0];
 
         // Railway: build the tenant-scoped id (TryCreate already returns the right validation error if it
         // somehow fails), ensure it is not a same-tenant duplicate (Conflict does NOT leak cross-tenant
-        // existence — the id is tenant-scoped), then stage the new member. Member.Invite raises the
-        // MemberInvited domain event the outbox captures in the same transaction; the relay dispatches the
-        // audit log + the integration-event translator after the commit, so neither fires for a member that
-        // failed to persist.
+        // existence — the id is tenant-scoped), then materialize and stage the new member. Member.Invite
+        // raises the MemberInvited domain event the outbox captures in the same transaction; the relay
+        // dispatches the audit log + the integration-event translator after the commit, so neither fires
+        // for a member that failed to persist.
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
             .EnsureAsync(
                 async memberId => !await _repository.ExistsAsync(memberId, cancellationToken),
                 memberId => Error.Conflict.For<Member>(memberId, "members.duplicate", "A member with this id already exists in this tenant."))
-            .TapAsync(memberId => _repository.Add(
-                Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider)));
+            .MapAsync(memberId => Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider))
+            .TapAsync(_repository.Add);
     }
 }

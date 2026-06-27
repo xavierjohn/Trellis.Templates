@@ -47,7 +47,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     }
 
     [Fact]
-    public async Task Invite_member_is_200_and_returns_a_tenant_scoped_id()
+    public async Task Invite_member_is_201_with_location_and_the_member_body()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members?api-version={Version}")
@@ -58,15 +58,32 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
 
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<InviteResponse>(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        var body = await response.Content.ReadFromJsonAsync<MemberBody>(TestContext.Current.CancellationToken);
         body!.Id.Should().Be("acme-newhire");
+        body.TenantId.Should().Be("acme");
+        body.Email.Should().Be("newhire@acme.example");
+        body.Role.Should().Be("contributor");
+    }
+
+    [Fact]
+    public async Task Invite_member_with_a_malformed_email_is_422()
+    {
+        var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members?api-version={Version}")
+        {
+            Content = JsonContent.Create(new { email = "not-an-email", role = "contributor" }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     private static Actor Actor(string id, string tenant, params string[] permissions) =>
         new(id, new HashSet<string>(permissions), new HashSet<string>(), new Dictionary<string, string> { ["tenant_id"] = tenant });
-
-    private sealed record InviteResponse(string Id);
 
     private sealed record MemberBody(string Id, string TenantId, string Email, string Role);
 }
