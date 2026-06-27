@@ -59,7 +59,7 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
             .EnsureAsync(
                 async memberId => !await _repository.ExistsAsync(memberId, cancellationToken),
-                memberId => Error.Conflict.For<Member>(memberId.Value, "members.duplicate"))
+                memberId => Error.Conflict.For<Member>(memberId, "members.duplicate", "A member with this id already exists in this tenant."))
             .TapAsync(memberId => _repository.Add(
                 Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider)));
     }

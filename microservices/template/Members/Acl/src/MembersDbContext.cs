@@ -6,7 +6,7 @@ namespace ProjectTrackerTemplate.Members.Acl;
 
 // EF Core context for the Members service. ApplyTrellisConventionsFor maps the value objects
 // (MemberId, TenantId) to columns, the aggregate ETag to a concurrency token, and Maybe<T> to
-// nullable columns. AddTrellisInterceptors (wired in Program.cs) stamps the ETag + Created/
+// nullable columns. AddTrellisInterceptors (wired in AddMembersAcl) stamps the ETag + Created/
 // LastModified timestamps on save.
 public class MembersDbContext : DbContext
 {
@@ -25,7 +25,7 @@ public class MembersDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MembersDbContext).Assembly);
 
         // Map the transactional outbox table (TrellisOutboxMessages). The capture interceptor
-        // (AddTrellisOutboxInterceptor, wired on the context options in Program.cs) writes one row per
+        // (AddTrellisOutboxInterceptor, wired on the context options in AddMembersAcl) writes one row per
         // raised domain event into it, in the SAME SaveChanges as the aggregate — so an event can never
         // be lost between persisting the member and publishing the event.
         modelBuilder.AddTrellisOutbox();

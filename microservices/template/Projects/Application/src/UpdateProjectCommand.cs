@@ -26,10 +26,10 @@ public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Des
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
         Result.Ensure(
             actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId) && tenantId == resource.TenantId,
-            new Error.Forbidden("projects.cross_tenant") { Detail = "Cross-tenant project access is not permitted." })
+            Error.Forbidden.For<Project>("projects.cross_tenant", resource.Id, "Cross-tenant project access is not permitted."))
         .Ensure(
             _ => string.Equals(resource.OwnerId, actor.Id.Value, StringComparison.Ordinal),
-            new Error.Forbidden("projects.not_owner") { Detail = "Only the project's owner can edit it." });
+            Error.Forbidden.For<Project>("projects.not_owner", resource.Id, "Only the project's owner can edit it."));
 }
 
 // The mutation path. Reads the SAME Project instance ResourceAuthorizationBehavior

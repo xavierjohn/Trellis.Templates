@@ -8,7 +8,7 @@ namespace ProjectTrackerTemplate.Members.Application;
 // Read one member.
 //
 // Authorize enforces tenant isolation — cross-tenant access fails. The combination
-// with HideExistence<Member>() (configured in Program.cs) collapses that 403 into
+// with HideExistence<Member>() (configured in AddMembersAcl) collapses that 403 into
 // a 404 at the response-mapping stage. Result: a cross-tenant caller cannot
 // distinguish "this member exists but I cannot see it" from "no such member" —
 // the canonical defence against employee-enumeration attacks.
@@ -22,7 +22,7 @@ public sealed record GetMemberQuery(MemberId Id)
     public Trellis.IResult Authorize(Actor actor, Member resource) =>
         Result.Ensure(
             actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId) && tenantId == resource.TenantId,
-            new Error.Forbidden("members.cross_tenant") { Detail = "Cross-tenant member access is not permitted." });
+            Error.Forbidden.For<Member>("members.cross_tenant", resource.Id, "Cross-tenant member access is not permitted."));
 }
 
 // Reads the SAME Member instance ResourceAuthorizationBehavior loaded for

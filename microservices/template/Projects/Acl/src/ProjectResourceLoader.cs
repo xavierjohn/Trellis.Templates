@@ -17,5 +17,5 @@ public sealed class ProjectResourceLoader : SharedResourceLoaderById<Project, Pr
 
     public override async Task<Result<Project>> GetByIdAsync(ProjectId id, CancellationToken cancellationToken) =>
         await _repository.FindByIdAsync(id, cancellationToken)
-            .ToResultAsync(Error.NotFound.For<Project>(id.Value));
+            .ToResultAsync(Error.NotFound.For<Project>(id, $"Project {id.Value} not found."));
 }
