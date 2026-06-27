@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <!-- Integration tests (the *.Api.Tests WebApplicationFactory suites + the cross-service eventing
+           test) run hermetically by default: in-memory SQLite, an in-memory broker, and a test auth
+           scheme. Set this to true to run the SAME tests against the real configured SQL Server +
+           Azure Service Bus instead (e.g. a gated CI lane). -->
+      <USE_REAL_SERVICES>false</USE_REAL_SERVICES>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

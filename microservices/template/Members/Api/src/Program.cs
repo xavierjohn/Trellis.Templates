@@ -185,3 +185,10 @@ app.MapMemberEndpoints();
 app.MapDefaultEndpoints();
 
 app.Run();
+
+// Public entry-point marker for WebApplicationFactory<T> integration tests. The cross-service eventing
+// test boots both hosts in one process, so each host needs a distinct public type to target.
+namespace ProjectTrackerTemplate.Members.Api
+{
+    public sealed class MembersApiEntryPoint;
+}

@@ -112,6 +112,29 @@ ServiceDefaults/  src           — shared OpenTelemetry, health, service discov
 AppHost/          src           — Aspire orchestration (SQL Server + Service Bus emulator) + ProjectTrackerTemplate.http
 ```
 
+## Testing
+
+Every layer has its own test project (`<Service>/<Layer>/tests`). The leaf layers are unit-tested
+(value objects, handlers, the EF mapping over in-memory SQLite). The **Api** layer adds
+`WebApplicationFactory` HTTP integration tests that drive the real pipeline — the JWT trust boundary,
+versioning, and the resource-authorization outcomes (200 / 403 / 404). A cross-service test under
+`tests/Eventing.Tests` boots **both** hosts in one process, joined by an in-memory broker, and proves the
+eventing flow end to end: inviting a member surfaces them in the other service's team directory with no
+synchronous call between services.
+
+By default the integration tests are **hermetic** — the SQL Server contexts are swapped for in-memory
+SQLite, Azure Service Bus is replaced (a no-op publisher / an in-memory broker), and the gateway-minted
+JWT is swapped for a test auth scheme. Run everything with:
+
+```
+dotnet test
+```
+
+Set **`USE_REAL_SERVICES=true`** (the default lives in `.runsettings`) to run the *same* Api integration
+tests against the real configured SQL Server + Azure Service Bus instead — e.g. a gated CI lane that
+validates the production providers.
+
+
 ## Replacing the dev-mode actor provider
 
 `Gateway/src/Program.cs` registers `AddDevelopmentActorProvider` for the inbound side — it reads an `X-Test-Actor` header so you can curl scenarios without minting real JWTs. **Replace it for production** with one of the actor providers in `Trellis.Asp.Authorization`:

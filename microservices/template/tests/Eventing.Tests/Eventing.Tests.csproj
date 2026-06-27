@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\src\Members.Api.csproj" />
+    <ProjectReference Include="..\..\Members\Api\src\Members.Api.csproj" />
+    <ProjectReference Include="..\..\Projects\Api\src\Projects.Api.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
@@ -10,4 +11,3 @@
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
   </ItemGroup>
 </Project>
-
