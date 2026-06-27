@@ -7,7 +7,7 @@ namespace ProjectTrackerTemplate.Projects.Acl;
 // so the Aspire dashboard surfaces it in the Metrics tab alongside the stock
 // AspNetCore / HttpClient / Runtime instrumentation.
 //
-// The ResourceLoads counter increments INSIDE InMemoryProjectRepository.FindByIdAsync
+// The ResourceLoads counter increments INSIDE EfProjectRepository.FindByIdAsync
 // (the ACL boundary). That placement matters: it counts every load that crosses the
 // boundary, including any handler that bypasses the v4 accessor and re-loads via
 // the repository directly. If the counter ever shows N=2 per single request, the

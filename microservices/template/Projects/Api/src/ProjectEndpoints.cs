@@ -5,6 +5,7 @@ using Asp.Versioning.Builder;
 using Mediator;
 using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
+using Trellis;
 using Trellis.Asp;
 using Trellis.ServiceLevelIndicators;
 
@@ -37,23 +38,39 @@ public static class ProjectEndpoints
 
         projects.MapGet("/{id}", (ProjectId id, IMediator mediator, CancellationToken ct) =>
             mediator.Send(new GetProjectQuery(id), ct)
-                .ToHttpResponseAsync(ProjectResponse.From));
+                .ToHttpResponseAsync(
+                    ProjectResponse.From,
+                    opts => opts
+                        .WithETag(p => EntityTagValue.Strong(p.ETag))
+                        .WithLastModified(p => p.LastModified)));
 
-        projects.MapPut("/{id}", (ProjectId id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
-            mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description), ct)
-                .ToHttpResponseAsync());
+        // PUT /api/projects/{id}: edit a project. The body carries value objects, so a malformed title or
+        // description is a 422 (.WithScalarValueValidation()). The write is conditional — If-Match is
+        // required (RFC 9110): a missing precondition is 428, a stale one is 412. On success it returns 200
+        // with the updated representation and the new ETag for the caller's next conditional write.
+        projects.MapPut("/{id}", (ProjectId id, UpdateProjectRequest body, HttpRequest request, IMediator mediator, CancellationToken ct) =>
+            {
+                var ifMatch = ETagHelper.ParseIfMatch(request);
+                return mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description, ifMatch), ct)
+                    .ToHttpResponseAsync(
+                        ProjectResponse.From,
+                        opts => opts
+                            .WithETag(p => EntityTagValue.Strong(p.ETag))
+                            .WithLastModified(p => p.LastModified));
+            })
+            .WithScalarValueValidation();
 
         return app;
     }
 }
 
-// Wire-format DTOs for the Projects API. UpdateProjectRequest is intentionally not validated here —
-// production would make UpdateProjectCommand implement IValidate (Trellis.Mediator.FluentValidation)
-// so ValidationBehavior rejects bad input before the handler runs.
-internal sealed record UpdateProjectRequest(string Title, string Description);
+// Wire-format DTOs for the Projects API. The request carries value objects, so a malformed (empty or
+// over-long) title/description is rejected with a 422 by .WithScalarValueValidation() before the handler
+// runs; the response is primitive so clients never couple to the domain types.
+internal sealed record UpdateProjectRequest(ProjectTitle Title, ProjectDescription Description);
 
 internal sealed record ProjectResponse(string Id, string OwnerId, string TenantId, string Title, string Description)
 {
     public static ProjectResponse From(Project p) =>
-        new(p.Id.Value, p.OwnerId, p.TenantId.Value, p.Title, p.Description);
+        new(p.Id.Value, p.OwnerId, p.TenantId.Value, p.Title.Value, p.Description.Value);
 }

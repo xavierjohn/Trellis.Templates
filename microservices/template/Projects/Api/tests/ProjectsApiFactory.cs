@@ -67,12 +67,13 @@ public class ProjectsApiFactory : WebApplicationFactory<Program>, ITestOutputHel
                 options.UseSqlite(_connection!).AddTrellisInterceptors());
 
             // The Service Bus pump dials the broker on startup; drop it so the host runs without one. The
-            // cross-service eventing flow is covered by the in-memory-broker integration test instead.
-            var consumer = services.SingleOrDefault(descriptor =>
+            // cross-service eventing flow is covered by the in-memory-broker integration test instead. Use a
+            // type-safe predicate and fail loudly (Single) if it is no longer registered — e.g. renamed —
+            // rather than silently leaving the real pump wired against the dummy connection string.
+            var consumer = services.Single(descriptor =>
                 descriptor.ServiceType == typeof(IHostedService) &&
-                descriptor.ImplementationType?.FullName == "ProjectTrackerTemplate.Projects.Acl.MemberEventsConsumer");
-            if (consumer is not null)
-                services.Remove(consumer);
+                descriptor.ImplementationType == typeof(MemberEventsConsumer));
+            services.Remove(consumer);
         });
     }
 

@@ -146,9 +146,9 @@ builder.Services.AddTrellisInternalJwtActorProvider(o =>
 // === Application + anti-corruption layers ================================
 //
 // The DI that used to be inlined here now lives with each layer. AddProjectsApplication wires the Mediator
-// pipeline; AddProjectsAcl wires the in-memory Project store, the EF Core context (SQL Server via Aspire),
-// the inbound eventing plane (inbox dedup + the read-model projection handler + the Service Bus pump), and
-// resource-based authorization.
+// pipeline; AddProjectsAcl wires the EF Core context (SQL Server via Aspire) holding the Project aggregate
+// + the team read model + the inbox, the repository + unit of work, the inbound eventing plane (inbox
+// dedup + the read-model projection handler + the Service Bus pump), and resource-based authorization.
 builder.Services.AddProjectsApplication();
 builder.AddProjectsAcl();
 

@@ -10,7 +10,7 @@ namespace ProjectTrackerTemplate.Projects.Acl;
 // the inbox dispatcher. Trellis ships the inbox (dedup + atomic handler commit) but NOT the broker
 // glue — receiving from a specific transport is the app's job. Swapping Service Bus for Kafka or
 // RabbitMQ replaces only this class; the inbox, handlers, and read model do not change.
-internal sealed partial class MemberEventsConsumer : BackgroundService
+public sealed partial class MemberEventsConsumer : BackgroundService
 {
     private readonly ServiceBusClient _client;
     private readonly IInboxDispatcher _inbox;

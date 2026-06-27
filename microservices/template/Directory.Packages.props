@@ -56,6 +56,7 @@
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Http.Abstractions" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.EntityFrameworkCore" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.EntityFrameworkCore.Inbox" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.EntityFrameworkCore.Outbox" Version="$(TrellisVersion)" />

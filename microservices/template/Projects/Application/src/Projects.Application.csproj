@@ -11,6 +11,7 @@
     <PackageReference Include="Mediator.SourceGenerator" PrivateAssets="all" OutputItemType="Analyzer" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
+    <PackageReference Include="Trellis.Http.Abstractions" />
     <PackageReference Include="Trellis.Mediator" />
     <PackageReference Include="Trellis.Primitives" />
   </ItemGroup>

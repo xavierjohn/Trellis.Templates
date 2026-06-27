@@ -3,8 +3,8 @@ using ProjectTrackerTemplate.SharedKernel;
 
 namespace Projects.Domain.Tests;
 
-// The Project aggregate is the in-memory starter the auth walkthrough loads, mutates, and re-reads.
-// Update mutates in place — the behaviour that proves the v4 accessor reads the same instance.
+// The Project aggregate is loaded once by the resource-auth pipeline, then mutated + re-read by the
+// handler. Update mutates in place — the behaviour that proves the v4 accessor reads the same instance.
 public class ProjectTests
 {
     [Fact]
@@ -14,12 +14,18 @@ public class ProjectTests
             ProjectId.TryCreate("acme-p1").GetValueOrThrow("valid id"),
             ownerId: "alice",
             tenantId: TenantId.TryCreate("acme").GetValueOrThrow("valid tenant"),
-            title: "Q1 launch",
-            description: "Coordinate Q1 marketing launch.");
+            title: Title("Q1 launch"),
+            description: Description("Coordinate Q1 marketing launch."));
 
-        project.Update("Q2 launch", "Coordinate Q2 launch.");
+        project.Update(Title("Q2 launch"), Description("Coordinate Q2 launch."));
 
-        project.Title.Should().Be("Q2 launch");
-        project.Description.Should().Be("Coordinate Q2 launch.");
+        project.Title.Value.Should().Be("Q2 launch");
+        project.Description.Value.Should().Be("Coordinate Q2 launch.");
     }
+
+    private static ProjectTitle Title(string value) =>
+        ProjectTitle.TryCreate(value).GetValueOrThrow("valid title");
+
+    private static ProjectDescription Description(string value) =>
+        ProjectDescription.TryCreate(value).GetValueOrThrow("valid description");
 }

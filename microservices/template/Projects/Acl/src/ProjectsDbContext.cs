@@ -1,18 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ProjectTrackerTemplate.Projects.Domain;
 using ProjectTrackerTemplate.Projects.ReadModel;
 using Trellis.EntityFrameworkCore;
 
 namespace ProjectTrackerTemplate.Projects.Acl;
 
-// EF Core context for the Projects service's CONSUMER state: the inbox dedup table and the read models
-// it builds from other services' integration events. The Project aggregate itself stays in the in-memory
-// repository (the template's auth walkthrough) — this context exists purely for the cross-service
-// eventing plane, so the two storage mechanisms read side by side as a deliberate contrast.
-//
-// ApplyTrellisConventionsFor maps the value-object columns (TenantId on the read model); AddTrellisInbox
-// maps the (ConsumerId, MessageId) dedup table the inbox dispatcher writes.
+// EF Core context for the Projects service: the Project aggregate it owns, the inbox dedup table, and the
+// team read model it builds from other services' integration events. ApplyTrellisConventionsFor maps the
+// value-object columns (ProjectId/TenantId/Title/Description on the aggregate, TenantId on the read model)
+// and the aggregate ETag to a concurrency token; AddTrellisInbox maps the (ConsumerId, MessageId) dedup
+// table the inbox dispatcher writes.
 public class ProjectsDbContext : DbContext
 {
+    public DbSet<Project> Projects => Set<Project>();
+
     public DbSet<KnownMember> KnownMembers => Set<KnownMember>();
 
     public ProjectsDbContext(DbContextOptions<ProjectsDbContext> options)

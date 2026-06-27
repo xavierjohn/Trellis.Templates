@@ -7,7 +7,7 @@ namespace ProjectTrackerTemplate.Projects.Application;
 // repo convention; Get* would return Result<T> with Error.NotFound when missing.
 public interface IProjectRepository
 {
-    ValueTask<Maybe<Project>> FindByIdAsync(ProjectId id, CancellationToken cancellationToken);
+    Task<Maybe<Project>> FindByIdAsync(ProjectId id, CancellationToken cancellationToken);
 
-    ValueTask<IReadOnlyList<Project>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Project>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken);
 }

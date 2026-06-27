@@ -16,8 +16,8 @@ namespace ProjectTrackerTemplate.Projects.Application;
 //
 // Anyone failing either check gets 403. The handler then reads the SAME instance
 // via IAuthorizedResource<TCommand, Project> — no second repository roundtrip.
-public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Description)
-    : ICommand<Result<Trellis.Unit>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
+public sealed record UpdateProjectCommand(ProjectId Id, ProjectTitle Title, ProjectDescription Description, EntityTagValue[]? IfMatchETags)
+    : ICommand<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
     public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsWrite];
 
@@ -32,14 +32,11 @@ public sealed record UpdateProjectCommand(ProjectId Id, string Title, string Des
             Error.Forbidden.For<Project>("projects.not_owner", resource.Id, "Only the project's owner can edit it."));
 }
 
-// The mutation path. Reads the SAME Project instance ResourceAuthorizationBehavior
-// loaded for Authorize, mutates it in place, returns Result.Ok(Unit.Value).
-//
-// In-memory store quirk: the dictionary holds the SAME reference, so mutating
-// the instance from the accessor automatically updates the "stored" project
-// without a save call. A real EF service would call SaveChangesAsync (or rely
-// on TransactionalCommandBehavior from Trellis.EntityFrameworkCore).
-public sealed partial class UpdateProjectHandler : ICommandHandler<UpdateProjectCommand, Result<Trellis.Unit>>
+// The mutation path. Reads the SAME Project instance ResourceAuthorizationBehavior loaded for Authorize
+// (so there is no second repository round-trip), checks the If-Match precondition, mutates it in place,
+// and returns the updated aggregate. The instance is EF-tracked, so TransactionalCommandBehavior (from
+// AddTrellisUnitOfWork) commits the change — and re-stamps the ETag — on handler success.
+public sealed partial class UpdateProjectHandler : ICommandHandler<UpdateProjectCommand, Result<Project>>
 {
     private readonly IAuthorizedResource<UpdateProjectCommand, Project> _authorized;
     private readonly ILogger<UpdateProjectHandler> _logger;
@@ -50,16 +47,20 @@ public sealed partial class UpdateProjectHandler : ICommandHandler<UpdateProject
         _logger = logger;
     }
 
-    public ValueTask<Result<Trellis.Unit>> Handle(UpdateProjectCommand command, CancellationToken cancellationToken)
-    {
-        var project = _authorized.GetRequiredResource();
-        project.Update(command.Title, command.Description);
+    public ValueTask<Result<Project>> Handle(UpdateProjectCommand command, CancellationToken cancellationToken) =>
+        // RequireETag enforces the If-Match precondition against the loaded aggregate's current ETag: a
+        // missing header is 428, a stale one is 412 (RFC 9110). Only then is the mutation applied; the unit
+        // of work commits it and re-stamps a fresh ETag, which the response returns.
+        Result.Ok(_authorized.GetRequiredResource())
+            .RequireETag(command.IfMatchETags)
+            .Tap(project =>
+            {
+                project.Update(command.Title, command.Description);
 
-        // Business event for live support, auto-correlated to the request trace.
-        LogProjectUpdated(_logger, project.Id.Value);
-
-        return Result.Ok().AsValueTask();
-    }
+                // Business event for live support, auto-correlated to the request trace.
+                LogProjectUpdated(_logger, project.Id.Value);
+            })
+            .AsValueTask();
 
     [LoggerMessage(EventId = 2001, Level = LogLevel.Information, Message = "Project updated: {ProjectId}")]
     private static partial void LogProjectUpdated(ILogger logger, string projectId);

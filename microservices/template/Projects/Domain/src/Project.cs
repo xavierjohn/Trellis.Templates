@@ -1,49 +1,51 @@
-﻿namespace ProjectTrackerTemplate.Projects.Domain;
+﻿using Trellis;
+
+namespace ProjectTrackerTemplate.Projects.Domain;
 
 // Project aggregate — a unit of work owned by a principal (actor) inside a single tenant.
 //
-// In-memory mutable POCO for the template starter. A real production service would
-// derive from Trellis.Authorization.Aggregate<ProjectId> and use value objects for
-// the body fields. The template keeps the body intentionally minimal so the AUTH
-// pipeline is the only moving piece you have to read on a first scan.
+// A Trellis Aggregate<ProjectId>: it inherits an ETag concurrency token and Created/LastModified
+// timestamps (stamped by the EF interceptors on save). The ETag is what lets the update endpoint
+// enforce an RFC 9110 If-Match precondition and reject a stale write with 412. The body fields are
+// value objects (ProjectTitle, ProjectDescription) so an empty or over-long value is rejected at the
+// boundary (422) rather than persisted.
 //
-// Notably mutable: `Update(...)` mutates in place. That mutation is what proves the
-// v4 accessor pattern works — the handler reads the SAME instance the auth pipeline
-// loaded, mutates it, and the change persists in the in-memory store.
-public sealed class Project
+// Update(...) mutates in place; the resource-auth pipeline loads the aggregate once and the handler
+// reads + mutates that SAME tracked instance, which the unit of work commits.
+public sealed class Project : Aggregate<ProjectId>
 {
-    public Project(ProjectId id, string ownerId, TenantId tenantId, string title, string description)
+    // EF Core materialization constructor. The materializer sets the key + required scalars.
+    private Project()
+        : base(default!)
     {
-        Id = id;
+    }
+
+    public Project(ProjectId id, string ownerId, TenantId tenantId, ProjectTitle title, ProjectDescription description)
+        : base(id)
+    {
         OwnerId = ownerId;
         TenantId = tenantId;
         Title = title;
         Description = description;
     }
 
-    public ProjectId Id { get; }
-
     // The actor (principal) id of the owner — e.g. "alice", which is distinct from that person's
     // tenant-scoped MemberId ("acme-alice"). Resource-based authorization compares it against
-    // Actor.Id.Value in UpdateProjectCommand.Authorize.
-    public string OwnerId { get; }
+    // Actor.Id.Value in UpdateProjectCommand.Authorize. It is an external identity (a JWT subject),
+    // so it stays a plain string.
+    public string OwnerId { get; private set; } = null!;
 
-    // The tenant this project belongs to. Cross-tenant access is rejected
-    // at the resource-auth boundary in BOTH Get and Update handlers — projects
-    // tell the caller their request is forbidden (403), unlike Members which
-    // hide existence (404).
-    public TenantId TenantId { get; }
+    // The tenant this project belongs to. Cross-tenant access is rejected at the resource-auth
+    // boundary in BOTH Get and Update handlers — projects tell the caller their request is forbidden
+    // (403), unlike Members which hide existence (404).
+    public TenantId TenantId { get; private set; } = null!;
 
-    public string Title { get; private set; }
+    public ProjectTitle Title { get; private set; } = null!;
 
-    public string Description { get; private set; }
+    public ProjectDescription Description { get; private set; } = null!;
 
-    public void Update(string title, string description)
+    public void Update(ProjectTitle title, ProjectDescription description)
     {
-        // Intentionally trivial — template starter focuses on the auth pipeline.
-        // A production aggregate would Result-check inputs via Trellis.Core's
-        // Result.Ensure + Trellis.FluentValidation, and Update would become
-        // `Result<Unit> Update(...)` so the handler can Bind on it.
         Title = title;
         Description = description;
     }
