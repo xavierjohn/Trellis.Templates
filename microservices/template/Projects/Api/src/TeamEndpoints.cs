@@ -31,11 +31,9 @@ public static class TeamEndpoints
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 
-        team.MapGet("/", async (IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new ListTeamQuery(), ct);
-                return result.ToHttpResponse(items => items.Select(TeamMemberResponse.From).ToArray());
-            });
+        team.MapGet("/", (IMediator mediator, CancellationToken ct) =>
+            mediator.Send(new ListTeamQuery(), ct)
+                .ToHttpResponseAsync(items => items.Select(TeamMemberResponse.From).ToArray()));
 
         return app;
     }

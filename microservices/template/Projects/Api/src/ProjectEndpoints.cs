@@ -31,23 +31,17 @@ public static class ProjectEndpoints
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 
-        projects.MapGet("/", async (IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new ListProjectsQuery(), ct);
-                return result.ToHttpResponse(items => items.Select(ProjectResponse.From).ToArray());
-            });
+        projects.MapGet("/", (IMediator mediator, CancellationToken ct) =>
+            mediator.Send(new ListProjectsQuery(), ct)
+                .ToHttpResponseAsync(items => items.Select(ProjectResponse.From).ToArray()));
 
-        projects.MapGet("/{id}", async (ProjectId id, IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new GetProjectQuery(id), ct);
-                return result.ToHttpResponse(ProjectResponse.From);
-            });
+        projects.MapGet("/{id}", (ProjectId id, IMediator mediator, CancellationToken ct) =>
+            mediator.Send(new GetProjectQuery(id), ct)
+                .ToHttpResponseAsync(ProjectResponse.From));
 
-        projects.MapPut("/{id}", async (ProjectId id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description), ct);
-                return result.ToHttpResponse();
-            });
+        projects.MapPut("/{id}", (ProjectId id, UpdateProjectRequest body, IMediator mediator, CancellationToken ct) =>
+            mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description), ct)
+                .ToHttpResponseAsync());
 
         return app;
     }

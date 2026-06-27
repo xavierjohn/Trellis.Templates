@@ -39,19 +39,15 @@ public static class MemberEndpoints
 
         // GET /api/members/{id}: the MemberId route value is bound as a Trellis value object and
         // validated by UseScalarValueValidation (an invalid id is a 422 before the handler runs).
-        members.MapGet("/{id}", async (MemberId id, IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new GetMemberQuery(id), ct);
-                return result.ToHttpResponse(MemberResponse.From);
-            });
+        members.MapGet("/{id}", (MemberId id, IMediator mediator, CancellationToken ct) =>
+            mediator.Send(new GetMemberQuery(id), ct)
+                .ToHttpResponseAsync(MemberResponse.From));
 
         // POST /api/members: invite a new member into the actor's tenant. [Idempotent] lets a caller
         // safely retry with an Idempotency-Key; the SLI measures the operation latency.
-        members.MapPost("/", async (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
-            {
-                var result = await mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct);
-                return result.ToHttpResponse(id => new { id = id.Value });
-            })
+        members.MapPost("/", (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
+                mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct)
+                    .ToHttpResponseAsync(id => new { id = id.Value }))
             .WithMetadata(new IdempotentAttribute());
 
         return app;
