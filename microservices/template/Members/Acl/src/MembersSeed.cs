@@ -12,9 +12,9 @@ public static class MembersSeed
 {
     public static async Task EnsureSeededAsync(MembersDbContext db, CancellationToken cancellationToken = default)
     {
-        await db.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+        await db.Database.EnsureCreatedAsync(cancellationToken);
 
-        if (await db.Members.AnyAsync(cancellationToken).ConfigureAwait(false))
+        if (await db.Members.AnyAsync(cancellationToken))
             return;
 
         db.Members.AddRange(
@@ -23,7 +23,7 @@ public static class MembersSeed
             NewMember("globex-carol", "globex", "carol@globex.example", "owner"),
             NewMember("globex-dave", "globex", "dave@globex.example", "contributor"));
 
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static Member NewMember(string id, string tenant, string email, string role) =>

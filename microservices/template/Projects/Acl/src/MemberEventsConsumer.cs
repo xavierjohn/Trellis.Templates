@@ -33,14 +33,14 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
         _processor.ProcessMessageAsync += OnMessageAsync;
         _processor.ProcessErrorAsync += OnErrorAsync;
 
-        await _processor.StartProcessingAsync(stoppingToken).ConfigureAwait(false);
+        await _processor.StartProcessingAsync(stoppingToken);
 
         // Keep the background service alive for the app's lifetime. The processor pumps messages on its
         // own callbacks; without this await ExecuteAsync would complete immediately and the host would
         // report the consumer as stopped. StopAsync stops + disposes the processor on shutdown.
         try
         {
-            await Task.Delay(Timeout.Infinite, stoppingToken).ConfigureAwait(false);
+            await Task.Delay(Timeout.Infinite, stoppingToken);
         }
         catch (OperationCanceledException)
         {
@@ -56,7 +56,7 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
         // anything else is dead-lettered (not abandoned) so it does not loop forever on this subscription.
         if (message.Subject != MemberInvitedIntegrationEvent.MessageType)
         {
-            await args.DeadLetterMessageAsync(message, "unknown-subject", $"No handler for subject '{message.Subject}'.", args.CancellationToken).ConfigureAwait(false);
+            await args.DeadLetterMessageAsync(message, "unknown-subject", $"No handler for subject '{message.Subject}'.", args.CancellationToken);
             return;
         }
 
@@ -73,7 +73,7 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
 
         if (evt is null)
         {
-            await args.DeadLetterMessageAsync(message, "malformed-payload", "Body is not a MemberInvitedIntegrationEvent.", args.CancellationToken).ConfigureAwait(false);
+            await args.DeadLetterMessageAsync(message, "malformed-payload", "Body is not a MemberInvitedIntegrationEvent.", args.CancellationToken);
             return;
         }
 
@@ -83,15 +83,15 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
             // redelivery (or a re-translated copy) carries the same id, so DispatchAsync collapses it to
             // one effect. The lineage fields are observability only and never participate in dedup.
             var envelope = new IntegrationEnvelope(evt.EventId, evt) { MessageSource = "members" };
-            await _inbox.DispatchAsync(envelope, args.CancellationToken).ConfigureAwait(false);
-            await args.CompleteMessageAsync(message, args.CancellationToken).ConfigureAwait(false);
+            await _inbox.DispatchAsync(envelope, args.CancellationToken);
+            await args.CompleteMessageAsync(message, args.CancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // A handler or infrastructure failure: abandon so Service Bus redelivers. The inbox makes the
             // retry safe — nothing was committed, so re-running produces no partial effect.
             LogDispatchFailed(_logger, evt.MemberId, ex);
-            await args.AbandonMessageAsync(message, cancellationToken: args.CancellationToken).ConfigureAwait(false);
+            await args.AbandonMessageAsync(message, cancellationToken: args.CancellationToken);
         }
     }
 
@@ -105,11 +105,11 @@ internal sealed partial class MemberEventsConsumer : BackgroundService
     {
         if (_processor is not null)
         {
-            await _processor.StopProcessingAsync(cancellationToken).ConfigureAwait(false);
-            await _processor.DisposeAsync().ConfigureAwait(false);
+            await _processor.StopProcessingAsync(cancellationToken);
+            await _processor.DisposeAsync();
         }
 
-        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        await base.StopAsync(cancellationToken);
     }
 
     [LoggerMessage(1, LogLevel.Error, "Failed to dispatch MemberInvited for member {MemberId}; abandoning for redelivery.")]

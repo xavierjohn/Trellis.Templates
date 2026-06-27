@@ -30,7 +30,7 @@ internal sealed class InMemoryBrokerPublisher(InMemoryBroker broker) : IIntegrat
             return;
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(invited, IntegrationEventSerialization.Options);
-        await broker.PublishAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await broker.PublishAsync(bytes, cancellationToken);
     }
 }
 
@@ -41,7 +41,7 @@ internal sealed class InMemoryBrokerConsumer(InMemoryBroker broker, IInboxDispat
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var message in broker.ReadAllAsync(stoppingToken).ConfigureAwait(false))
+        await foreach (var message in broker.ReadAllAsync(stoppingToken))
         {
             var integrationEvent = JsonSerializer.Deserialize<MemberInvitedIntegrationEvent>(
                 message, IntegrationEventSerialization.Options);
@@ -49,7 +49,7 @@ internal sealed class InMemoryBrokerConsumer(InMemoryBroker broker, IInboxDispat
                 continue;
 
             var envelope = new IntegrationEnvelope(integrationEvent.EventId, integrationEvent) { MessageSource = "members" };
-            await inbox.DispatchAsync(envelope, stoppingToken).ConfigureAwait(false);
+            await inbox.DispatchAsync(envelope, stoppingToken);
         }
     }
 }

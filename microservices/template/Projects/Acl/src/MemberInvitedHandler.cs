@@ -23,7 +23,7 @@ internal sealed class MemberInvitedHandler(ProjectsDbContext db) : IIntegrationE
 
         var alreadyKnown = await db.KnownMembers
             .AnyAsync(km => km.TenantId == tenantId && km.MemberId == integrationEvent.MemberId, cancellationToken)
-            .ConfigureAwait(false);
+            ;
         if (alreadyKnown)
             return;
 

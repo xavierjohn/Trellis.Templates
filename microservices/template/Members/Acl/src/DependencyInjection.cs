@@ -61,6 +61,6 @@ public static class DependencyInjection
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<MembersDbContext>();
-        await MembersSeed.EnsureSeededAsync(db, cancellationToken).ConfigureAwait(false);
+        await MembersSeed.EnsureSeededAsync(db, cancellationToken);
     }
 }

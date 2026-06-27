@@ -13,5 +13,5 @@ internal sealed class KnownMemberDirectory(ProjectsDbContext db) : IKnownMemberD
             .Where(km => km.TenantId == tenantId)
             .OrderBy(km => km.MemberId)
             .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            ;
 }

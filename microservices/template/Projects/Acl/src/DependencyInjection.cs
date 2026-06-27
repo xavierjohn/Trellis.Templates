@@ -54,6 +54,6 @@ public static class DependencyInjection
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ProjectsDbContext>();
-        await db.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+        await db.Database.EnsureCreatedAsync(cancellationToken);
     }
 }

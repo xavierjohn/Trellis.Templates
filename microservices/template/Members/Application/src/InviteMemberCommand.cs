@@ -38,7 +38,7 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         // The actor and its tenant_id are guaranteed by the time the handler runs: IAuthorize ran the
         // static-permission gate first, and the actor provider's RequiredAttributes fails a missing
         // tenant_id closed at the JWT boundary. GetValueOrThrow makes that guarantee explicit.
-        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken).ConfigureAwait(false))
+        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken))
             .GetValueOrThrow("Actor must be present; the IAuthorize pipeline guarantees it.");
         var tenantId = actor.GetRequiredAttribute<TenantId>("tenant_id")
             .GetValueOrThrow("tenant_id is a required actor attribute; the actor provider guarantees it.");
@@ -61,8 +61,8 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
                 _ => Result.Fail<MemberId>(Error.InvalidInput.ForRule(
                     "members.invalid_id", "Email local-part is not a valid MemberId.")))
             .EnsureAsync(
-                async memberId => !(await _repository.FindByIdAsync(memberId, cancellationToken).ConfigureAwait(false)).HasValue,
-                memberId => new Error.Conflict(ResourceRef.For<Member>(memberId.Value), "members.duplicate"))
+                async memberId => !(await _repository.FindByIdAsync(memberId, cancellationToken)).HasValue,
+                memberId => Error.Conflict.For<Member>(memberId.Value, "members.duplicate"))
             .TapAsync(memberId => _repository.Add(
                 Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider)));
     }

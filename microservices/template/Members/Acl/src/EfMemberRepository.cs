@@ -20,5 +20,5 @@ internal sealed class EfMemberRepository : RepositoryBase<Member, MemberId>, IMe
             .Where(m => m.TenantId == tenantId)
             .OrderBy(m => m.Id)
             .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            ;
 }

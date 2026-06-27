@@ -43,7 +43,7 @@ internal sealed class ServiceBusIntegrationEventPublisher : IIntegrationEventPub
             MessageId = invited.EventId.ToString("N"),
         };
 
-        await _sender.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
+        await _sender.SendMessageAsync(message, cancellationToken);
     }
 
     public ValueTask DisposeAsync() => _sender.DisposeAsync();
