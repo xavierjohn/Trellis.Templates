@@ -58,7 +58,7 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         // failed to persist.
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
             .EnsureAsync(
-                async memberId => !(await _repository.FindByIdAsync(memberId, cancellationToken)).HasValue,
+                async memberId => !await _repository.ExistsAsync(memberId, cancellationToken),
                 memberId => Error.Conflict.For<Member>(memberId.Value, "members.duplicate"))
             .TapAsync(memberId => _repository.Add(
                 Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider)));
