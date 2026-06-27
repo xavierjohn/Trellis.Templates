@@ -50,16 +50,13 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         // the template keeps the id human-readable for the demo trace.
         var localPart = command.Email.Split('@')[0];
 
-        // Railway: build the id, ensure it is not a same-tenant duplicate (Conflict does NOT leak
-        // cross-tenant existence — the id is tenant-scoped), then stage the new member. Member.Invite raises
-        // the MemberInvited domain event the outbox captures in the same transaction; the relay dispatches
-        // the audit log + the integration-event translator after the commit, so neither fires for a member
-        // that failed to persist.
+        // Railway: build the tenant-scoped id (TryCreate already returns the right validation error if it
+        // somehow fails), ensure it is not a same-tenant duplicate (Conflict does NOT leak cross-tenant
+        // existence — the id is tenant-scoped), then stage the new member. Member.Invite raises the
+        // MemberInvited domain event the outbox captures in the same transaction; the relay dispatches the
+        // audit log + the integration-event translator after the commit, so neither fires for a member that
+        // failed to persist.
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
-            .Match(
-                memberId => Result.Ok(memberId),
-                _ => Result.Fail<MemberId>(Error.InvalidInput.ForRule(
-                    "members.invalid_id", "Email local-part is not a valid MemberId.")))
             .EnsureAsync(
                 async memberId => !(await _repository.FindByIdAsync(memberId, cancellationToken)).HasValue,
                 memberId => Error.Conflict.For<Member>(memberId.Value, "members.duplicate"))
