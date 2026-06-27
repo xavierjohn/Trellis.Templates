@@ -34,5 +34,5 @@ public sealed class GetMemberHandler : IQueryHandler<GetMemberQuery, Result<Memb
     public GetMemberHandler(IAuthorizedResource<GetMemberQuery, Member> authorized) => _authorized = authorized;
 
     public ValueTask<Result<Member>> Handle(GetMemberQuery query, CancellationToken cancellationToken) =>
-        new(Result.Ok(_authorized.GetRequiredResource()));
+        Result.Ok(_authorized.GetRequiredResource()).AsValueTask();
 }

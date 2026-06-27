@@ -48,5 +48,5 @@ public sealed class GetProjectHandler : IQueryHandler<GetProjectQuery, Result<Pr
     public GetProjectHandler(IAuthorizedResource<GetProjectQuery, Project> authorized) => _authorized = authorized;
 
     public ValueTask<Result<Project>> Handle(GetProjectQuery query, CancellationToken cancellationToken) =>
-        new(Result.Ok(_authorized.GetRequiredResource()));
+        Result.Ok(_authorized.GetRequiredResource()).AsValueTask();
 }
