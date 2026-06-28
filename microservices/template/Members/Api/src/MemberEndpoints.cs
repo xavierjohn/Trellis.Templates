@@ -81,5 +81,5 @@ internal sealed record InviteMemberRequest(EmailAddress Email, Role Role);
 
 internal sealed record MemberResponse(string Id, string TenantId, string Email, string Role)
 {
-    public static MemberResponse From(Member m) => new(m.Id.Value, m.TenantId.Value, m.Email.Value, m.Role.Value);
+    public static MemberResponse From(Member m) => new(m.Id, m.TenantId, m.Email, m.Role);
 }

@@ -17,10 +17,10 @@ internal sealed class MemberInvitedTranslator(IIntegrationEventCollector collect
     public ValueTask HandleAsync(MemberInvited domainEvent, CancellationToken cancellationToken)
     {
         collector.Add(new MemberInvitedIntegrationEvent(
-            DeterministicEventId.ForMember(domainEvent.MemberId.Value),
-            domainEvent.TenantId.Value,
-            domainEvent.MemberId.Value,
-            domainEvent.Role.Value,
+            DeterministicEventId.ForMember(domainEvent.MemberId),
+            domainEvent.TenantId,
+            domainEvent.MemberId,
+            domainEvent.Role,
             domainEvent.OccurredAt));
 
         return ValueTask.CompletedTask;
