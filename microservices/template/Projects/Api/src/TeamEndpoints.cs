@@ -44,5 +44,5 @@ public static class TeamEndpoints
 internal sealed record TeamMemberResponse(string MemberId, string TenantId, string Role, DateTimeOffset InvitedAt)
 {
     public static TeamMemberResponse From(KnownMember m) =>
-        new(m.MemberId, m.TenantId.Value, m.Role, m.InvitedAt);
+        new(m.MemberId, m.TenantId, m.Role, m.InvitedAt);
 }

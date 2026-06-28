@@ -72,5 +72,5 @@ internal sealed record UpdateProjectRequest(ProjectTitle Title, ProjectDescripti
 internal sealed record ProjectResponse(string Id, string OwnerId, string TenantId, string Title, string Description)
 {
     public static ProjectResponse From(Project p) =>
-        new(p.Id.Value, p.OwnerId, p.TenantId.Value, p.Title.Value, p.Description.Value);
+        new(p.Id, p.OwnerId, p.TenantId, p.Title, p.Description);
 }

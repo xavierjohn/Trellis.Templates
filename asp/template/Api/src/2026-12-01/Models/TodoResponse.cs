@@ -46,10 +46,10 @@ public record TodoResponse
     /// <summary>Maps from domain aggregate to API response.</summary>
     public static TodoResponse From(TodoItem todo, DateTime now) => new()
     {
-        Id = todo.Id.Value,
-        Title = todo.Title.Value,
-        DueDate = todo.DueDate.Value,
-        Status = todo.Status.Value,
+        Id = todo.Id,
+        Title = todo.Title,
+        DueDate = todo.DueDate,
+        Status = todo.Status,
         CompletedAt = todo.CompletedAt.AsNullable(),
         Tag = todo.Tag.Match<string?>(t => t.Value, () => null),
         CreatedByActorId = todo.CreatedByActorId,

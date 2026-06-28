@@ -24,7 +24,7 @@ internal sealed partial class EfProjectRepository : RepositoryBase<Project, Proj
     public override async Task<Maybe<Project>> FindByIdAsync(ProjectId id, CancellationToken cancellationToken = default)
     {
         ProjectsMetrics.ResourceLoads.Add(1, new KeyValuePair<string, object?>("project.id", id.Value));
-        LogProjectResourceLoaded(_logger, id.Value);
+        LogProjectResourceLoaded(_logger, id);
 
         return await base.FindByIdAsync(id, cancellationToken);
     }

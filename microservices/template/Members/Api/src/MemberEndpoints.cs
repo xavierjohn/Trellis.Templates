@@ -63,7 +63,7 @@ public static class MemberEndpoints
                     .ToHttpResponseAsync(
                         MemberResponse.From,
                         opts => opts
-                            .CreatedAtRoute("Members_GetById", m => m.Id.Value)
+                            .CreatedAtRoute("Members_GetById", m => m.Id)
                             .WithVersionedRoute()
                             .WithETag(m => EntityTagValue.Strong(m.ETag))
                             .WithLastModified(m => m.LastModified)))

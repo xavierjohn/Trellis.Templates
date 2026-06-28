@@ -58,7 +58,7 @@ public sealed partial class UpdateProjectHandler : ICommandHandler<UpdateProject
                 project.Update(command.Title, command.Description);
 
                 // Business event for live support, auto-correlated to the request trace.
-                LogProjectUpdated(_logger, project.Id.Value);
+                LogProjectUpdated(_logger, project.Id);
             })
             .AsValueTask();
 
