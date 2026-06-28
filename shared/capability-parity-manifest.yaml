@@ -120,6 +120,14 @@ capabilities:
       - { kind: package-referenced, package: "Trellis.ResourceNaming.Azure" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "DeployedEnvironmentOptions|IResourceNamer" }
 
+  build-guidance:
+    title: AI build guidance (.github/copilot-instructions.md)
+    requiredFor: [asp, microservices]
+    docs: conventions/build-guidance.md
+    checks:
+      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "command and its handler", desc: "guide present; command + handler colocation rule documented" }
+      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "[Pp]ermission", desc: "permissions-in-Domain rule documented" }
+
   # --- template-specific (still tracked, but not cross-cutting) -------------------------------
   aspire-servicedefaults:
     title: Aspire AppHost + ServiceDefaults
