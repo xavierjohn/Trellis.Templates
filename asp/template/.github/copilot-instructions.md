@@ -570,7 +570,7 @@ internal sealed class CompleteTodoCommandHandler(ITodoRepository repository)
     public async ValueTask<Result<Todo>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
         await repository.FindByIdAsync(command.Id, cancellationToken)
             .ToResultAsync(Error.NotFound.For<Todo>(command.Id))
-            .CheckAsync(todo => todo.Complete(DateTime.UtcNow));  // state machine guards the transition
+            .CheckAsync(todo => todo.Complete());  // state machine guards the transition; TimeProvider defaults to system
 }
 
 // Api/src/{version}/Controllers/TodosController.cs
