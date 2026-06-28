@@ -222,19 +222,22 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     // ... value-object properties, private ctor + TryCreate, RequiredPermissions ...
 }
 
-internal sealed class UpdateTodoCommandHandler(ITodoRepository repository)
-    : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
+public sealed class UpdateTodoCommandHandler : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
 {
+    private readonly ITodoRepository _repository;
+
+    public UpdateTodoCommandHandler(ITodoRepository repository) => _repository = repository;
+
     // The unit-of-work commits on handler success; the handler only loads + mutates.
     public async ValueTask<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
-        await repository.FindByIdAsync(command.TodoId, cancellationToken)
+        await _repository.FindByIdAsync(command.TodoId, cancellationToken)
             .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
             .RequireETagAsync(command.IfMatchETags)
             .BindAsync(todo => todo.Update(command.Title, command.DueDate, command.Tag));
 }
 ```
-- **Incorrect:** `UpdateTodoCommand.cs` holding only the record, with `UpdateTodoCommandHandler.cs` in a separate `Handlers/` folder.
-- **Reference:** See `Application/src/Todos/UpdateTodoCommand.cs`, `CompleteTodoCommand.cs`, `DeleteTodoCommand.cs`, `GetTodoByIdQuery.cs`.
+- **Incorrect:** `Application/src/Todos/UpdateTodoCommand.cs` holding only the record, with `UpdateTodoCommandHandler.cs` in a separate `Handlers/` folder.
+- **Reference:** See `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs`, `Application/src/Todos/GetTodoByIdQuery.cs`.
 
 ### Declare permissions as constants in the Domain layer
 
@@ -582,7 +585,7 @@ public Task<IActionResult> Complete(TodoId id, CancellationToken cancellationTok
         .ToActionResultAsync(this, t => RepresentationMetadata.WithStrongETag(t.ETag), TodoResponse.From);
 ```
 - **Incorrect:** PUT/PATCH/DELETE handler that calls `new UpdateXyzCommand(id, body)` without `ETagHelper.ParseIfMatch(Request)` and omits `.RequireETag(...)`. Returns `200` even when the client supplied a stale (or missing) `If-Match`, silently overwriting a concurrent change.
-- **Reference:** See `.github/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `CompleteTodoCommand.cs`, `DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.github/trellis-api-core.md §RequireETag` for the framework primitive.
+- **Reference:** See `.github/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.github/trellis-api-core.md §RequireETag` for the framework primitive.
 
 ### Use namespace-based API versioning
 
