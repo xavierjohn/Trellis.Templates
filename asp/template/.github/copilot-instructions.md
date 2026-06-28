@@ -210,6 +210,66 @@ public Result<Order> Approve() =>
 ```
 - **Reference:** See `.github/trellis-api-core.md`, `.github/trellis-api-cookbook.md`.
 
+### Keep each command/query and its handler in one file
+
+- **Rule:** 🔴 MUST colocate a command/query and its handler in the **same file**, named after the message (e.g. `Application/src/Todos/UpdateTodoCommand.cs` contains both `UpdateTodoCommand` and `UpdateTodoCommandHandler`). Do not split the handler into a separate `*Handler.cs`. (Domain-event subscribers such as `TodoCreatedLoggingHandler` are not command handlers and keep their own file.)
+- **Rationale:** A command and its handler are one feature slice — reading or changing the behaviour means reading both. One file per feature keeps the slice cohesive, makes the message-to-handler mapping obvious, and avoids a parallel folder of handlers that drifts out of step with its messages.
+- **Correct:**
+```csharp
+// Application/src/Todos/UpdateTodoCommand.cs — record and handler together
+public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
+{
+    // ... value-object properties, private ctor + TryCreate, RequiredPermissions ...
+}
+
+public sealed class UpdateTodoCommandHandler : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
+{
+    private readonly ITodoRepository _repository;
+
+    public UpdateTodoCommandHandler(ITodoRepository repository) => _repository = repository;
+
+    // The unit-of-work commits on handler success; the handler only loads + mutates.
+    public async ValueTask<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
+        await _repository.FindByIdAsync(command.TodoId, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .RequireETagAsync(command.IfMatchETags)
+            .BindAsync(todo => todo.Update(command.Title, command.DueDate, command.Tag));
+}
+```
+- **Incorrect:** `Application/src/Todos/UpdateTodoCommand.cs` holding only the record, with `UpdateTodoCommandHandler.cs` in a separate `Handlers/` folder.
+- **Reference:** See `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs`, `Application/src/Todos/GetTodoByIdQuery.cs`.
+
+### Declare permissions as constants in the Domain layer
+
+- **Rule:** 🔴 MUST declare permission scopes as `public const string` members of a `public static class Permissions` in the **Domain** project, and reference them from commands/queries via `IAuthorize.RequiredPermissions` (e.g. `[Permissions.TodosUpdate]`). Never hard-code permission strings at the call site, and never put the constants in the Application or Api layer.
+- **Rationale:** Permissions are a domain vocabulary (what the service allows), so they belong with the domain. Centralizing them as typed constants prevents string drift between the command that requires a permission and the policy/seed that grants it, and keeps the authorization surface auditable in one place.
+- **Correct:**
+```csharp
+// Domain/src/Permissions.cs
+namespace TodoSample.Domain;
+
+public static class Permissions
+{
+    public const string TodosRead = "todos:read";
+    public const string TodosUpdate = "todos:update";
+}
+
+// Application/src/Todos/UpdateTodoCommand.cs
+public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
+{
+    public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosUpdate];
+    // ...
+}
+```
+- **Incorrect:**
+```csharp
+// ❌ Magic string at the call site, no shared constant.
+public IReadOnlyList<string> RequiredPermissions { get; } = ["todos:update"];
+
+// ❌ Permission constants living in Application or Api (wrong layer).
+```
+- **Reference:** See `Domain/src/Permissions.cs` and its consumers in `Application/src/Todos/`.
+
 ### Build layer-by-layer and compile between layers
 
 - **Rule:** 🔴 MUST implement Domain → Application → Acl → Api → Tests, running `dotnet build` between layers and `dotnet test` after tests are added.
@@ -421,10 +481,13 @@ public class TodosController : ControllerBase
     [HttpGet("{id}")]
     public async ValueTask<ActionResult<TodoResponse>> GetById(TodoId id, CancellationToken cancellationToken) =>
         await _sender.Send(new GetTodoByIdQuery(id), cancellationToken)
-            .ToActionResultAsync(
-                this,
-                todo => RepresentationMetadata.WithStrongETag(todo.ETag),
-                TodoResponse.From);
+            .ToHttpResponseAsync(
+                TodoResponse.From,
+                opts => opts
+                    .WithETag(t => EntityTagValue.Strong(t.ETag))
+                    .WithLastModified(t => t.LastModified)
+                    .EvaluatePreconditions())
+            .AsActionResultAsync<TodoResponse>();
 
     /// <summary>
     /// Create a new todo item.
@@ -462,72 +525,83 @@ public async Task<TodoItem> GetById(Guid id, CancellationToken cancellationToken
 - **Rationale:** Skipping the precondition on body-overwriting mutations lets concurrent clients silently overwrite each other (lost-update race). On body-less guarded transitions there is no body to overwrite — the state machine is the precondition. The full decision table (full-update PUT, partial PATCH, DELETE, additive set ops, resource creation) lives in `.github/trellis-api-cookbook.md` Recipe 23.
 - **Correct (body-carrying PUT — `RequireETag`):**
 ```csharp
-// Application/src/Todos/UpdateTodoCommand.cs
-public sealed class UpdateTodoCommand : ICommand<Result<Todo>>
+// Application/src/Todos/UpdateTodoCommand.cs  (record + handler colocated)
+public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
 {
-    public UpdateTodoCommand(TodoId id, Title title, EntityTagValue[]? ifMatchETags = null)
-    {
-        Id = id;
-        Title = title;
-        IfMatchETags = ifMatchETags;
-    }
-
-    public TodoId Id { get; }
+    public TodoId TodoId { get; }
     public Title Title { get; }
-    public EntityTagValue[]? IfMatchETags { get; }
+    public DueDate DueDate { get; }
+    public Maybe<Tag> Tag { get; }
+    public EntityTagValue[]? IfMatchETags { get; }   // the If-Match precondition this rule is about
+    public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosUpdate];
+    // private ctor + static TryCreate(...) omitted — see the colocation rule for the full always-valid command
 }
 
-internal sealed class UpdateTodoCommandHandler(ITodoRepository repository)
-    : ICommandHandler<UpdateTodoCommand, Result<Todo>>
+public sealed class UpdateTodoCommandHandler : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
 {
-    public Task<Result<Todo>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
-        repository.FindByIdAsync(command.Id, cancellationToken)
-            .ToResult(Error.NotFound.For<Todo>(command.Id))
-            .RequireETag(command.IfMatchETags)
-            .Bind(todo => todo.Rename(command.Title))
-            .Tap(repository.Update)
-            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+    private readonly ITodoRepository _repository;
+
+    public UpdateTodoCommandHandler(ITodoRepository repository) => _repository = repository;
+
+    // The unit-of-work commits on handler success; there is no repository Save/Update call.
+    public async ValueTask<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
+        await _repository.FindByIdAsync(command.TodoId, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .RequireETagAsync(command.IfMatchETags)
+            .BindAsync(todo => todo.Update(command.Title, command.DueDate, command.Tag));
 }
 
-// Api/src/{version}/Controllers/TodosController.cs
-[HttpPut("{id:guid}")]
+// Api/src/{version}/Controllers/TodosController.cs — always-valid command via TryCreate; If-Match parsed from the request
+[HttpPut("{id}")]
 [Consumes("application/json")]
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
 [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-public Task<IActionResult> Update(TodoId id, [FromBody] UpdateTodoRequest body, CancellationToken cancellationToken)
+public Task<ActionResult<TodoResponse>> Update(TodoId id, [FromBody] UpdateTodoRequest request, CancellationToken cancellationToken)
 {
     var ifMatchETags = ETagHelper.ParseIfMatch(Request);
-    return _sender.Send(new UpdateTodoCommand(id, body.Title, ifMatchETags), cancellationToken)
-        .ToActionResultAsync(this, t => RepresentationMetadata.WithStrongETag(t.ETag), TodoResponse.From);
+    return UpdateTodoCommand.TryCreate(id, request.Title, request.DueDate, request.Tag, ifMatchETags)
+        .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+        .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
+        .AsActionResultAsync<TodoResponse>();
 }
 ```
 - **Correct (body-less state-transition POST — no `If-Match`):**
 ```csharp
-// Application/src/Todos/CompleteTodoCommand.cs
-public sealed record CompleteTodoCommand(TodoId Id) : ICommand<Result<Todo>>;
-
-internal sealed class CompleteTodoCommandHandler(ITodoRepository repository)
-    : ICommandHandler<CompleteTodoCommand, Result<Todo>>
+// Application/src/Todos/CompleteTodoCommand.cs  (record + handler colocated)
+public sealed record CompleteTodoCommand(TodoId TodoId) : ICommand<Result<TodoItem>>, IAuthorize
 {
-    public Task<Result<Todo>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
-        repository.FindByIdAsync(command.Id, cancellationToken)
-            .ToResult(Error.NotFound.For<Todo>(command.Id))
-            .Bind(todo => todo.Complete(DateTime.UtcNow))  // state machine guards the transition
-            .Tap(repository.Update)
-            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+    public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosComplete];
+}
+
+public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCommand, Result<TodoItem>>
+{
+    private readonly ITodoRepository _repository;
+    private readonly TimeProvider _timeProvider;
+
+    public CompleteTodoCommandHandler(ITodoRepository repository, TimeProvider timeProvider)
+    {
+        _repository = repository;
+        _timeProvider = timeProvider;
+    }
+
+    public async ValueTask<Result<TodoItem>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
+        await _repository.FindByIdAsync(command.TodoId, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .CheckAsync(todo => todo.Complete(_timeProvider));  // state machine guards the transition
 }
 
 // Api/src/{version}/Controllers/TodosController.cs
-[HttpPost("{id:guid}/complete")]
+[HttpPost("{id}/complete")]
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-public Task<IActionResult> Complete(TodoId id, CancellationToken cancellationToken) =>
+public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
     _sender.Send(new CompleteTodoCommand(id), cancellationToken)
-        .ToActionResultAsync(this, t => RepresentationMetadata.WithStrongETag(t.ETag), TodoResponse.From);
+        .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
+        .AsActionResultAsync<TodoResponse>();
 ```
 - **Incorrect:** PUT/PATCH/DELETE handler that calls `new UpdateXyzCommand(id, body)` without `ETagHelper.ParseIfMatch(Request)` and omits `.RequireETag(...)`. Returns `200` even when the client supplied a stale (or missing) `If-Match`, silently overwriting a concurrent change.
-- **Reference:** See `.github/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `CompleteTodoCommand.cs`, `DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.github/trellis-api-core.md §RequireETag` for the framework primitive.
+- **Reference:** See `.github/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.github/trellis-api-core.md §RequireETag` for the framework primitive.
 
 ### Use namespace-based API versioning
 
