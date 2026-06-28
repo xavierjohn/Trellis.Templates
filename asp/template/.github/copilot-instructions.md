@@ -225,13 +225,12 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
 internal sealed class UpdateTodoCommandHandler(ITodoRepository repository)
     : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
 {
-    public Task<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
-        repository.FindByIdAsync(command.TodoId, cancellationToken)
-            .ToResult(Error.NotFound.For<TodoItem>(command.TodoId))
-            .RequireETag(command.IfMatchETags)
-            .Bind(todo => todo.Rename(command.Title))
-            .Tap(repository.Update)
-            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+    // The unit-of-work commits on handler success; the handler only loads + mutates.
+    public async ValueTask<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
+        await repository.FindByIdAsync(command.TodoId, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .RequireETagAsync(command.IfMatchETags)
+            .BindAsync(todo => todo.Update(command.Title, command.DueDate, command.Tag));
 }
 ```
 - **Incorrect:** `UpdateTodoCommand.cs` holding only the record, with `UpdateTodoCommandHandler.cs` in a separate `Handlers/` folder.
@@ -538,13 +537,12 @@ public sealed class UpdateTodoCommand : ICommand<Result<Todo>>
 internal sealed class UpdateTodoCommandHandler(ITodoRepository repository)
     : ICommandHandler<UpdateTodoCommand, Result<Todo>>
 {
-    public Task<Result<Todo>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
-        repository.FindByIdAsync(command.Id, cancellationToken)
-            .ToResult(Error.NotFound.For<Todo>(command.Id))
-            .RequireETag(command.IfMatchETags)
-            .Bind(todo => todo.Rename(command.Title))
-            .Tap(repository.Update)
-            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+    // The unit-of-work commits on handler success; there is no repository Save/Update call.
+    public async ValueTask<Result<Todo>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
+        await repository.FindByIdAsync(command.Id, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<Todo>(command.Id))
+            .RequireETagAsync(command.IfMatchETags)
+            .BindAsync(todo => todo.Rename(command.Title));
 }
 
 // Api/src/{version}/Controllers/TodosController.cs
@@ -568,12 +566,11 @@ public sealed record CompleteTodoCommand(TodoId Id) : ICommand<Result<Todo>>;
 internal sealed class CompleteTodoCommandHandler(ITodoRepository repository)
     : ICommandHandler<CompleteTodoCommand, Result<Todo>>
 {
-    public Task<Result<Todo>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
-        repository.FindByIdAsync(command.Id, cancellationToken)
-            .ToResult(Error.NotFound.For<Todo>(command.Id))
-            .Bind(todo => todo.Complete(DateTime.UtcNow))  // state machine guards the transition
-            .Tap(repository.Update)
-            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+    // The unit-of-work commits on handler success; there is no repository Save/Update call.
+    public async ValueTask<Result<Todo>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
+        await repository.FindByIdAsync(command.Id, cancellationToken)
+            .ToResultAsync(Error.NotFound.For<Todo>(command.Id))
+            .CheckAsync(todo => todo.Complete(DateTime.UtcNow));  // state machine guards the transition
 }
 
 // Api/src/{version}/Controllers/TodosController.cs
