@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <!-- The *.Api.Tests WebApplicationFactory suites run hermetically by default: in-memory SQLite, a
+           neutralized broker, and a test auth scheme. Set this to true to run those SAME suites against the
+           real configured SQL Server + Azure Service Bus instead (e.g. a gated CI lane). The cross-service
+           eventing test is ALWAYS hermetic (in-memory broker) and ignores this flag. -->
+      <USE_REAL_SERVICES>false</USE_REAL_SERVICES>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

@@ -10,10 +10,10 @@ internal sealed partial class TodoCreatedLoggingHandler(ILogger<TodoCreatedLoggi
     {
         LogTodoCreated(
             logger,
-            domainEvent.TodoId.Value,
+            domainEvent.TodoId,
             domainEvent.CreatedByActorId,
             domainEvent.OccurredAt,
-            domainEvent.Title.Value);
+            domainEvent.Title);
 
         return ValueTask.CompletedTask;
     }

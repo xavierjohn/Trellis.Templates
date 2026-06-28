@@ -1,18 +1,63 @@
 ﻿<Solution>
+  <Folder Name="/AppHost/">
+    <Project Path="AppHost/src/AppHost.csproj" />
+    <File Path="AppHost/src/ProjectTrackerTemplate.http" />
+  </Folder>
+  <Folder Name="/Gateway/">
+    <Project Path="Gateway/src/Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Members/" />
+  <Folder Name="/Members/Domain/">
+    <Project Path="Members/Domain/src/Members.Domain.csproj" />
+    <Project Path="Members/Domain/tests/Members.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Members/Application/">
+    <Project Path="Members/Application/src/Members.Application.csproj" />
+    <Project Path="Members/Application/tests/Members.Application.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Members/Acl/">
+    <Project Path="Members/Acl/src/Members.Acl.csproj" />
+    <Project Path="Members/Acl/tests/Members.Acl.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Members/Api/">
+    <Project Path="Members/Api/src/Members.Api.csproj" />
+    <Project Path="Members/Api/tests/Members.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/" />
+  <Folder Name="/Projects/Domain/">
+    <Project Path="Projects/Domain/src/Projects.Domain.csproj" />
+    <Project Path="Projects/Domain/tests/Projects.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Application/">
+    <Project Path="Projects/Application/src/Projects.Application.csproj" />
+    <Project Path="Projects/Application/tests/Projects.Application.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Acl/">
+    <Project Path="Projects/Acl/src/Projects.Acl.csproj" />
+    <Project Path="Projects/Acl/tests/Projects.Acl.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projects/Api/">
+    <Project Path="Projects/Api/src/Projects.Api.csproj" />
+    <Project Path="Projects/Api/tests/Projects.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/ServiceDefaults/">
+    <Project Path="ServiceDefaults/src/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/SharedKernel/">
+    <Project Path="SharedKernel/src/SharedKernel.csproj" />
+    <Project Path="SharedKernel/tests/SharedKernel.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Eventing.Tests/Eventing.Tests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
-    <File Path="AppHost/ProjectTrackerTemplate.http" />
     <File Path="README.md" />
     <File Path="UBIQUITOUS-LANGUAGE.md" />
     <File Path=".editorconfig" />
+    <File Path=".runsettings" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="global.json" />
     <File Path="nuget.config" />
   </Folder>
-  <Project Path="Gateway/Gateway.csproj" />
-  <Project Path="Projects/Projects.csproj" />
-  <Project Path="Members/Members.csproj" />
-  <Project Path="AppHost/AppHost.csproj" />
-  <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
-  <Project Path="SharedKernel/SharedKernel.csproj" />
 </Solution>
