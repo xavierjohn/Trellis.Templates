@@ -58,6 +58,7 @@ using Trellis;
 using Trellis.Asp;
 using Trellis.Asp.ApiVersioning;
 using Trellis.Asp.Idempotency;
+using Trellis.Primitives;
 using Trellis.ServiceLevelIndicators;
 
 public static class MemberEndpoints
