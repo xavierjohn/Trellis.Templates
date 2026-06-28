@@ -145,7 +145,7 @@ public IReadOnlyList<string> RequiredPermissions => ["members:invite"];
 
 ### Keep each command/query and its handler in one file
 
-- **Rule:** 🔴 MUST colocate a command/query record and its handler class in the **same file**, named after the message (e.g. `InviteMemberCommand.cs` contains both `InviteMemberCommand` and `InviteMemberHandler`). Do not split the handler into a separate `*Handler.cs`.
+- **Rule:** 🔴 MUST colocate a command/query record and its handler class in the **same file**, named after the message (e.g. `Members/Application/src/InviteMemberCommand.cs` contains both `InviteMemberCommand` and `InviteMemberHandler`). Do not split the handler into a separate `*Handler.cs`.
 - **Rationale:** A command and its handler are one feature slice; reading or changing the behaviour means reading both. One file per feature keeps the slice cohesive, makes the message-to-handler mapping obvious, and avoids a parallel folder of handlers that drifts out of step with its messages.
 - **Correct:**
 ```csharp
@@ -175,8 +175,8 @@ public sealed class InviteMemberHandler(
     }
 }
 ```
-- **Incorrect:** `InviteMemberCommand.cs` holding only the record, with `InviteMemberHandler.cs` in a separate `Handlers/` folder.
-- **Reference:** See `Members/Application/src/InviteMemberCommand.cs`, `GetMemberQuery.cs`, `Projects/Application/src/ListProjectsQuery.cs`, `UpdateProjectCommand.cs`, `GetProjectQuery.cs`.
+- **Incorrect:** `Members/Application/src/InviteMemberCommand.cs` holding only the record, with `InviteMemberHandler.cs` in a separate `Handlers/` folder.
+- **Reference:** See `Members/Application/src/InviteMemberCommand.cs`, `Members/Application/src/GetMemberQuery.cs`, `Projects/Application/src/ListProjectsQuery.cs`, `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`.
 
 ### Keep `Program.cs` thin; register each layer with an `Add{Service}{Layer}` extension
 
@@ -244,7 +244,7 @@ if (maybe.HasNoValue) return Error.NotFound.For<Project>(command.Id);
 maybe.Value.Update(command.Title, command.Description);
 return new(Result.Ok(maybe.Value));
 ```
-- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `GetProjectQuery.cs`, `.github/trellis-api-core.md`, `.github/trellis-api-mediator.md`.
+- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `.github/trellis-api-core.md`, `.github/trellis-api-mediator.md`.
 
 ### Eliminate primitive obsession; model domain enums as `RequiredEnum<T>`
 
@@ -365,7 +365,7 @@ public sealed record UpdateProjectCommand(ProjectId Id, ProjectTitle Title, Proj
 }
 ```
 - **Incorrect:** Ownership/tenant `if` checks inside the handler, or loading the aggregate a second time in the handler.
-- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `GetProjectQuery.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/DependencyInjection.cs` (`HideExistence<Member>()`), `.github/trellis-api-authorization.md`.
+- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/DependencyInjection.cs` (`HideExistence<Member>()`), `.github/trellis-api-authorization.md`.
 
 ### Require `If-Match` on body-overwriting mutations
 
@@ -448,16 +448,16 @@ Study these files before adding a service or feature.
 | Endpoint folder, hoisted group conventions, versioned routes | `Members/Api/src/MemberEndpoints.cs`, `Projects/Api/src/ProjectEndpoints.cs`, `Projects/Api/src/TeamEndpoints.cs` |
 | Thin host + per-layer DI extensions | `*/Api/src/Program.cs`, `*/Application/src/DependencyInjection.cs`, `*/Acl/src/DependencyInjection.cs` |
 | Permissions in Domain + `IAuthorize` | `*/Domain/src/Permissions.cs`, `Members/Application/src/InviteMemberCommand.cs` |
-| Command/query + handler colocated, ROP body | `Members/Application/src/InviteMemberCommand.cs`, `Projects/Application/src/UpdateProjectCommand.cs`, `GetProjectQuery.cs` |
+| Command/query + handler colocated, ROP body | `Members/Application/src/InviteMemberCommand.cs`, `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs` |
 | Server-derived tenant | `*/Application/src/ActorProviderExtensions.cs` |
 | Resource authorization + loader | `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/MemberResourceLoader.cs` |
-| Aggregate with value objects + `RequiredEnum` | `Members/Domain/src/Member.cs`, `Role.cs`, `MemberId.cs`, `Projects/Domain/src/Project.cs` |
+| Aggregate with value objects + `RequiredEnum` | `Members/Domain/src/Member.cs`, `Members/Domain/src/Role.cs`, `Members/Domain/src/MemberId.cs`, `Projects/Domain/src/Project.cs` |
 | Repository (`Maybe<T>`, stages only) | `Members/Application/src/IMemberRepository.cs`, `Members/Acl/src/EfMemberRepository.cs` |
 | Outbox producer (domain event → integration event) | `Members/Domain/src/MemberInvited.cs`, `Members/Application/src/MemberInvitedTranslator.cs`, `Members/Acl/src/ServiceBusIntegrationEventPublisher.cs` |
 | Published-language contract + deterministic id | `SharedKernel/src/MemberInvitedIntegrationEvent.cs`, `Members/Application/src/DeterministicEventId.cs` |
-| Inbox consumer + read model | `Projects/Acl/src/MemberEventsConsumer.cs`, `MemberInvitedHandler.cs`, `Projects/Application/src/IKnownMemberDirectory.cs` |
+| Inbox consumer + read model | `Projects/Acl/src/MemberEventsConsumer.cs`, `Projects/Acl/src/MemberInvitedHandler.cs`, `Projects/Application/src/IKnownMemberDirectory.cs` |
 | Aspire orchestration, gateway, defaults | `AppHost/src/Program.cs`, `Gateway/src/Program.cs`, `ServiceDefaults/src/Extensions.cs` |
-| End-to-end eventing test | `tests/Eventing.Tests/MemberInvitedEventingTests.cs`, `InMemoryBroker.cs` |
+| End-to-end eventing test | `tests/Eventing.Tests/MemberInvitedEventingTests.cs`, `tests/Eventing.Tests/InMemoryBroker.cs` |
 
 ## Architecture and Layout
 
