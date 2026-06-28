@@ -210,6 +210,64 @@ public Result<Order> Approve() =>
 ```
 - **Reference:** See `.github/trellis-api-core.md`, `.github/trellis-api-cookbook.md`.
 
+### Keep each command/query and its handler in one file
+
+- **Rule:** 🔴 MUST colocate a command/query and its handler in the **same file**, named after the message (e.g. `Application/src/Todos/UpdateTodoCommand.cs` contains both `UpdateTodoCommand` and `UpdateTodoCommandHandler`). Do not split the handler into a separate `*Handler.cs`. (Domain-event subscribers such as `TodoCreatedLoggingHandler` are not command handlers and keep their own file.)
+- **Rationale:** A command and its handler are one feature slice — reading or changing the behaviour means reading both. One file per feature keeps the slice cohesive, makes the message-to-handler mapping obvious, and avoids a parallel folder of handlers that drifts out of step with its messages.
+- **Correct:**
+```csharp
+// Application/src/Todos/UpdateTodoCommand.cs — record and handler together
+public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
+{
+    // ... value-object properties, private ctor + TryCreate, RequiredPermissions ...
+}
+
+internal sealed class UpdateTodoCommandHandler(ITodoRepository repository)
+    : ICommandHandler<UpdateTodoCommand, Result<TodoItem>>
+{
+    public Task<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
+        repository.FindByIdAsync(command.TodoId, cancellationToken)
+            .ToResult(Error.NotFound.For<TodoItem>(command.TodoId))
+            .RequireETag(command.IfMatchETags)
+            .Bind(todo => todo.Rename(command.Title))
+            .Tap(repository.Update)
+            .Bind(_ => repository.SaveChangesResultUnitAsync(cancellationToken).Map(_ => _));
+}
+```
+- **Incorrect:** `UpdateTodoCommand.cs` holding only the record, with `UpdateTodoCommandHandler.cs` in a separate `Handlers/` folder.
+- **Reference:** See `Application/src/Todos/UpdateTodoCommand.cs`, `CompleteTodoCommand.cs`, `DeleteTodoCommand.cs`, `GetTodoByIdQuery.cs`.
+
+### Declare permissions as constants in the Domain layer
+
+- **Rule:** 🔴 MUST declare permission scopes as `public const string` members of a `public static class Permissions` in the **Domain** project, and reference them from commands/queries via `IAuthorize.RequiredPermissions` (e.g. `[Permissions.TodosUpdate]`). Never hard-code permission strings at the call site, and never put the constants in the Application or Api layer.
+- **Rationale:** Permissions are a domain vocabulary (what the service allows), so they belong with the domain. Centralizing them as typed constants prevents string drift between the command that requires a permission and the policy/seed that grants it, and keeps the authorization surface auditable in one place.
+- **Correct:**
+```csharp
+// Domain/src/Permissions.cs
+namespace TodoSample.Domain;
+
+public static class Permissions
+{
+    public const string TodosRead = "todos:read";
+    public const string TodosUpdate = "todos:update";
+}
+
+// Application/src/Todos/UpdateTodoCommand.cs
+public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
+{
+    public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosUpdate];
+    // ...
+}
+```
+- **Incorrect:**
+```csharp
+// ❌ Magic string at the call site, no shared constant.
+public IReadOnlyList<string> RequiredPermissions { get; } = ["todos:update"];
+
+// ❌ Permission constants living in Application or Api (wrong layer).
+```
+- **Reference:** See `Domain/src/Permissions.cs` and its consumers in `Application/src/Todos/`.
+
 ### Build layer-by-layer and compile between layers
 
 - **Rule:** 🔴 MUST implement Domain → Application → Acl → Api → Tests, running `dotnet build` between layers and `dotnet test` after tests are added.
