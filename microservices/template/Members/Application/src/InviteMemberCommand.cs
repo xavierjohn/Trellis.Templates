@@ -36,13 +36,9 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
 
     public async ValueTask<Result<Member>> Handle(InviteMemberCommand command, CancellationToken cancellationToken)
     {
-        // The actor and its tenant_id are guaranteed by the time the handler runs: IAuthorize ran the
-        // static-permission gate first, and the actor provider's RequiredAttributes fails a missing
-        // tenant_id closed at the JWT boundary. GetValueOrThrow makes that guarantee explicit.
-        var actor = (await _actorProvider.GetCurrentActorAsync(cancellationToken))
-            .GetValueOrThrow("Actor must be present; the IAuthorize pipeline guarantees it.");
-        var tenantId = actor.GetRequiredAttribute<TenantId>("tenant_id")
-            .GetValueOrThrow("tenant_id is a required actor attribute; the actor provider guarantees it.");
+        // The new member always lands in the actor's OWN tenant (server-side; the wire format carries no
+        // tenant_id), so derive it from the actor rather than trusting the request body.
+        var tenantId = await _actorProvider.GetCurrentTenantIdAsync(cancellationToken);
 
         // Mint a TENANT-SCOPED MemberId from "{tenantId}-{localPart}". The tenant prefix prevents
         // cross-tenant collisions by construction — without it, an attacker could invite
