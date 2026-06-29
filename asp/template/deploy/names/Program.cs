@@ -65,6 +65,10 @@ if (!string.IsNullOrWhiteSpace(regionShort))
     json["regionShortName"] = regionShort;
     json["resourceGroup"] = context.ResourceGroupName();
     json["appServiceName"] = context.AppServiceName();
+    // App Service plans are not in the shipped catalog; a local spec keeps the plan name
+    // convention-derived and length-checked (plans cap at 40 chars, below the App Service limit).
+    json["appServicePlanName"] = context.Name(
+        new ResourceTypeSpec("plan", 1, 40, NameSeparator.Dash, IsDnsGlobal: false), region: regionShort);
     json["managedIdentityName"] = context.ManagedIdentityName();
     json["keyVaultName"] = context.KeyVaultName();
     json["keyVaultUri"] = context.KeyVaultUri().ToString();
@@ -98,10 +102,12 @@ static Dictionary<string, string> ParseArgs(string[] argv)
             continue;
 
         var key = argv[i][2..];
-        var value = i + 1 < argv.Length && !argv[i + 1].StartsWith("--", StringComparison.Ordinal)
-            ? argv[++i]
-            : "true";
-        result[key] = value;
+        // Every argument this tool accepts takes a value; a bare --key (followed by another flag or the
+        // end of the list) is a mistake, not a boolean switch, so fail rather than use a wrong value.
+        if (i + 1 >= argv.Length || argv[i + 1].StartsWith("--", StringComparison.Ordinal))
+            throw new ArgumentException($"Argument --{key} requires a value.");
+
+        result[key] = argv[++i];
     }
 
     return result;

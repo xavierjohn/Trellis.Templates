@@ -160,6 +160,7 @@ try {
             '--parameters',
             "location=$($region.Name)",
             "appServiceName=$($names.appServiceName)",
+            "appServicePlanName=$($names.appServicePlanName)",
             "managedIdentityName=$($names.managedIdentityName)",
             "keyVaultName=$($names.keyVaultName)",
             "logAnalyticsName=$($names.logAnalyticsName)",

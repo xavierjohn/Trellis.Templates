@@ -14,6 +14,9 @@ param location string
 @description('App Service name (convention: tdo-app-prod-<region-short>-<hash>).')
 param appServiceName string
 
+@description('App Service plan name (convention: tdo-plan-prod-<region-short>).')
+param appServicePlanName string
+
 @description('User-assigned managed identity name (convention: tdo-id-prod-<region-short>).')
 param managedIdentityName string
 
@@ -74,7 +77,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     }
     tenantId: tenant().tenantId
     enableRbacAuthorization: true
-    enableSoftDelete: true
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -91,9 +93,7 @@ resource keyVaultGrant 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  // App Service plans are not DNS-scoped and are not in the convention catalog; derive the name from
-  // the (convention-derived) app name so the pair stays together.
-  name: '${appServiceName}-plan'
+  name: appServicePlanName
   location: location
   tags: tags
   kind: 'linux'
