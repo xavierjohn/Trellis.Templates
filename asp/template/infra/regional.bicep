@@ -2,7 +2,7 @@
 //
 // deploy.ps1 loops the region list; for each region it computes the names (which carry the region
 // token, e.g. tdo-app-prod-usw3-<hash>) from the Trellis.ResourceNaming.Azure convention, creates
-// the regional resource group (rg-tdo-prod-<region>), and deploys this stack into it. The names are
+// the regional resource group (rg-tdo-prod-<region-short>), and deploys this stack into it. The names are
 // passed in — this template never invents one. Every region connects to the SAME global SQL server
 // (its name is region-less), so its FQDN is passed through from the global stack's output.
 
@@ -11,16 +11,16 @@ targetScope = 'resourceGroup'
 @description('Azure region for the regional resources.')
 param location string
 
-@description('App Service name (convention: tdo-app-prod-<region>-<hash>).')
+@description('App Service name (convention: tdo-app-prod-<region-short>-<hash>).')
 param appServiceName string
 
-@description('User-assigned managed identity name (convention: tdo-id-prod-<region>).')
+@description('User-assigned managed identity name (convention: tdo-id-prod-<region-short>).')
 param managedIdentityName string
 
-@description('Key Vault name (convention: tdo-kv-prod-<region>-<hash>).')
+@description('Key Vault name (convention: tdo-kv-prod-<region-short>-<hash>).')
 param keyVaultName string
 
-@description('Log Analytics workspace name (convention: tdo-log-prod-<region>).')
+@description('Log Analytics workspace name (convention: tdo-log-prod-<region-short>).')
 param logAnalyticsName string
 
 @description('FQDN of the global SQL server the app connects to (from the global stack).')

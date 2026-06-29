@@ -25,6 +25,14 @@ var scope = options.TryGetValue("scope", out var scopeRaw) && !string.IsNullOrWh
 options.TryGetValue("region", out var region);
 options.TryGetValue("region-short", out var regionShort);
 
+// --region and --region-short identify a regional stack and must be supplied together; one without the
+// other would silently fall back to the global stack while still setting the region on the context.
+if (string.IsNullOrWhiteSpace(region) != string.IsNullOrWhiteSpace(regionShort))
+{
+    throw new ArgumentException(
+        "Provide --region and --region-short together (both for a regional stack, neither for the global stack).");
+}
+
 var context = new DeployedEnvironmentOptions
 {
     System = Required(options, "system"),
