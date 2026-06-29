@@ -87,9 +87,11 @@ function Get-Names {
 
     $outFile = Join-Path $workDir "names-$([guid]::NewGuid().ToString('N')).json"
     $common = @('--system', $System, '--environment', $Environment, '--cloud', $Cloud, '--scope', $Scope)
-    dotnet run --project $namesProject -c Release --no-build -- @common @ExtraArgs --out $outFile *> $null
+    # Capture every stream so a failure (missing SDK, restore/build error, bad argument) surfaces the
+    # underlying message; on success the JSON is written to $outFile and the captured output is ignored.
+    $output = dotnet run --project $namesProject -c Release --no-build -- @common @ExtraArgs --out $outFile 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "names tool failed (args: $($ExtraArgs -join ' '))"
+        throw "names tool failed (args: $($ExtraArgs -join ' ')):`n$($output -join [Environment]::NewLine)"
     }
 
     return Get-Content -Raw -Path $outFile | ConvertFrom-Json
