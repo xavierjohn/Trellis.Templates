@@ -4,7 +4,8 @@
 // token, e.g. tdo-app-prod-usw3-<hash>) from the Trellis.ResourceNaming.Azure convention, creates
 // the regional resource group (rg-tdo-prod-<region-short>), and deploys this stack into it. The names are
 // passed in — this template never invents one. Every region connects to the SAME global SQL server
-// (its name is region-less), so its FQDN is passed through from the global stack's output.
+// (its name is region-less): deploy.ps1 supplies that server's FQDN, which the convention computes to
+// the same value the global stack provisioned.
 
 targetScope = 'resourceGroup'
 
@@ -23,7 +24,7 @@ param managedIdentityName string
 @description('Log Analytics workspace name (convention: tdo-log-prod-<region-short>).')
 param logAnalyticsName string
 
-@description('FQDN of the global SQL server the app connects to (from the global stack).')
+@description('FQDN of the global SQL server the app connects to (convention-computed; identical to the value the global stack provisions).')
 param sqlServerFqdn string
 
 @description('Database name on the global SQL server.')
