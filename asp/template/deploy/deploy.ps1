@@ -12,7 +12,7 @@
       * Global  (deployed ONCE)        : cloud-singletons with region-less names — the SQL server and
                                          database. Both regions connect to the SAME server.
       * Regional(deployed PER REGION)  : resources whose names carry the region token — the managed
-                                         identity, Key Vault, Log Analytics workspace, and App Service.
+                                         identity, Log Analytics workspace, and App Service.
 
     The names are computed by the C# convention (deploy/names) and passed into Bicep as parameters;
     no name is invented in Bicep or PowerShell. Re-running is safe: the global names are identical
@@ -164,7 +164,6 @@ try {
             "appServiceName=$($names.appServiceName)",
             "appServicePlanName=$($names.appServicePlanName)",
             "managedIdentityName=$($names.managedIdentityName)",
-            "keyVaultName=$($names.keyVaultName)",
             "logAnalyticsName=$($names.logAnalyticsName)",
             "sqlServerFqdn=$($global.sqlServerFqdn)",
             "sqlDatabaseName=$($global.sqlDatabaseName)",

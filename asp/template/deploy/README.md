@@ -24,13 +24,19 @@ The convention assigns each resource type either a **region-less** name (a cloud
 | Stack | When | Resources | Example name |
 |---|---|---|---|
 | **Global** | once per cloud | SQL server, SQL database | `tdo-sql-prod-nhm4y`, `tdo-sqldb-prod` |
-| **Regional** | once per region | Managed identity, Key Vault, Log Analytics, App Service | `tdo-app-prod-usw3-5yqp9`, `tdo-kv-prod-usw3-x8t3l` |
+| **Regional** | once per region | Managed identity, Log Analytics, App Service | `tdo-app-prod-usw3-5yqp9`, `tdo-id-prod-usw3` |
 
 Because the singleton names are identical in every region, every region's app connects to the **same**
 SQL server, and re-running a later region never recreates it. Because the regional names carry the
-region token, each region gets its own identity/vault/workspace/app. Deploying "one by one" is then
+region token, each region gets its own identity/workspace/app. Deploying "one by one" is then
 stateless: each wave just rebinds the region and recomputes — there is nothing to remember between
 waves.
+
+> **No Key Vault?** The sample is passwordless — SQL uses the app's managed identity
+> (`Authentication=Active Directory Default`), idempotency is in-memory, and auth is Entra/OIDC, so
+> there is no secret to store. Add a Key Vault (a `tdo-kv-prod-<region-short>-<hash>` regional resource)
+> only when your service has a secret that cannot use managed identity — a third-party API key, a
+> signing/TLS certificate, or a credential for a dependency that does not support Entra auth.
 
 > **Data tier note.** The convention currently models SQL as a single cloud-singleton (one writable
 > server). For active-active per-region SQL you would add a failover-group alias — tracked as a future
@@ -81,9 +87,8 @@ durable name).
 ## What this provisions — and what it does not
 
 `deploy.ps1` **provisions and configures the infrastructure**: the resource groups, SQL server +
-database (Entra-only auth), and per region a managed identity, Key Vault (with the identity granted
-*Key Vault Secrets User*), Log Analytics workspace, and an App Service wired with the
-`DeployedEnvironment:*` settings and a passwordless SQL connection string.
+database (Entra-only auth), and per region a managed identity, Log Analytics workspace, and an App
+Service wired with the `DeployedEnvironment:*` settings and a passwordless SQL connection string.
 
 To actually **serve traffic**, the sample needs a few app-side steps it intentionally leaves to you
 (it ships SQLite + a development actor provider for zero-setup local dev):
@@ -107,4 +112,4 @@ To actually **serve traffic**, the sample needs a few app-side steps it intentio
 | [`names/`](./names) | C# tool: `DeployedEnvironmentOptions` → resource-name JSON (the C# → IaC seam). |
 | [`deploy.ps1`](./deploy.ps1) | Orchestrates the global stack, then each regional wave. |
 | [`../infra/global.bicep`](../infra/global.bicep) | Cloud-singleton resources (SQL). |
-| [`../infra/regional.bicep`](../infra/regional.bicep) | Per-region resources (identity, Key Vault, Log Analytics, App Service). |
+| [`../infra/regional.bicep`](../infra/regional.bicep) | Per-region resources (identity, Log Analytics, App Service). |

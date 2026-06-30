@@ -58,7 +58,7 @@ var json = new JsonObject
 };
 
 // Regional resources — only when a region is supplied. Each carries the region token (and, for
-// globally DNS-scoped types like Key Vault, a region-specific uniqueness suffix).
+// globally DNS-scoped types like App Service, a region-specific uniqueness suffix).
 if (!string.IsNullOrWhiteSpace(regionShort))
 {
     json["region"] = region;
@@ -70,8 +70,6 @@ if (!string.IsNullOrWhiteSpace(regionShort))
     json["appServicePlanName"] = context.Name(
         new ResourceTypeSpec("plan", 1, 40, NameSeparator.Dash, IsDnsGlobal: false), region: regionShort);
     json["managedIdentityName"] = context.ManagedIdentityName();
-    json["keyVaultName"] = context.KeyVaultName();
-    json["keyVaultUri"] = context.KeyVaultUri().ToString();
     json["logAnalyticsName"] = context.LogAnalyticsName();
 }
 

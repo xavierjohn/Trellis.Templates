@@ -20,9 +20,6 @@ param appServicePlanName string
 @description('User-assigned managed identity name (convention: tdo-id-prod-<region-short>).')
 param managedIdentityName string
 
-@description('Key Vault name (convention: tdo-kv-prod-<region-short>-<hash>).')
-param keyVaultName string
-
 @description('Log Analytics workspace name (convention: tdo-log-prod-<region-short>).')
 param logAnalyticsName string
 
@@ -43,11 +40,8 @@ param deployedScope string = 'Shared'
 @description('Tags applied to every resource.')
 param tags object = {}
 
-// Built-in role: Key Vault Secrets User.
-var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
-
-// The app's identity: used for passwordless SQL access (Active Directory Default) and Key Vault
-// references. Its client id is surfaced to the app so DefaultAzureCredential picks this identity.
+// The app's identity: used for passwordless SQL access (Active Directory Default). Its client id is
+// surfaced to the app so DefaultAzureCredential picks this identity.
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
   location: location
@@ -63,32 +57,6 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
-  }
-}
-
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: keyVaultName
-  location: location
-  tags: tags
-  properties: {
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    tenantId: tenant().tenantId
-    enableRbacAuthorization: true
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-// Grant the app identity read access to secrets (RBAC, not access policies).
-resource keyVaultGrant 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, identity.id, keyVaultSecretsUserRoleId)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
   }
 }
 
@@ -119,7 +87,6 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
-    keyVaultReferenceIdentity: identity.id
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|10.0'
       ftpsState: 'Disabled'
