@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Deploy-time helper that prints the convention-derived Azure resource names as JSON.
+    Kept out of the solution (TrellisAspTemplate.slnx) on purpose: it is a deployment tool, not
+    part of the service, so it does not build with the app or run in CI. deploy.ps1 invokes it on
+    demand with `dotnet run`. It references Trellis.ResourceNaming.Azure with no version so Central
+    Package Management keeps it in lock-step with the version the service itself uses.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Trellis.ResourceNaming.Azure" />
+  </ItemGroup>
+
+</Project>
