@@ -106,7 +106,7 @@ try {
 
     if (-not $SqlAdminObjectId) {
         Write-Host 'Resolving the signed-in user as the SQL Entra administrator...'
-        $me = Invoke-Az ad signed-in-user show | ConvertFrom-Json
+        $me = Invoke-Az ad signed-in-user show --output json | ConvertFrom-Json
         $SqlAdminObjectId = $me.id
         if (-not $SqlAdminLogin) { $SqlAdminLogin = $me.userPrincipalName }
     }
