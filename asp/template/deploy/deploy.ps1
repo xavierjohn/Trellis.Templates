@@ -118,8 +118,10 @@ try {
     }
 
     Write-Host "Building the names tool ($namesProject)..."
-    dotnet build $namesProject -c Release --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Failed to build the names tool.' }
+    $buildOutput = dotnet build $namesProject -c Release --nologo 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to build the names tool:`n$($buildOutput -join [Environment]::NewLine)"
+    }
 
     $deployMode = @()
     if ($WhatIf) {

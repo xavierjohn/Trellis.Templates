@@ -41,6 +41,16 @@ param deployedScope string = 'Shared'
 @description('Tags applied to every resource.')
 param tags object = {}
 
+// The ASP.NET Core hosting environment, derived from the CAF lifecycle word so a -Environment
+// override (e.g. test/stage) stays consistent between the resource names and the running app.
+var aspNetCoreEnvironments = {
+  local: 'Development'
+  test: 'Staging'
+  stage: 'Staging'
+  prod: 'Production'
+}
+var aspNetCoreEnvironment = aspNetCoreEnvironments[?deployedEnvironment] ?? 'Production'
+
 // The app's identity: used for passwordless SQL access (Active Directory Default). Its client id is
 // surfaced to the app so DefaultAzureCredential picks this identity.
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -95,7 +105,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'
-          value: 'Production'
+          value: aspNetCoreEnvironment
         }
         // DeployedEnvironment:* — the single source the service binds for SLI region + resource
         // naming. These MUST match the values the names were computed from, or the running service
