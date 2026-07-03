@@ -494,10 +494,17 @@ public class TodosController : ControllerBase
     /// </summary>
     [HttpPost]
     [Consumes("application/json")]
-    public async Task<IActionResult> Create([FromBody] CreateTodoRequest request, CancellationToken cancellationToken) =>
-        await CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
+    public ValueTask<ActionResult<TodoResponse>> Create([FromBody] CreateTodoRequest request, CancellationToken cancellationToken) =>
+        CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
             .BindAsync(command => _sender.Send(command, cancellationToken))
-            .ToCreatedAtActionResultAsync(this, nameof(GetById), id => new { id }, TodoResponse.From);
+            .ToHttpResponseAsync(
+                TodoResponse.From,
+                opts => opts
+                    .CreatedAtRoute("Todos_GetById", t => new Microsoft.AspNetCore.Routing.RouteValueDictionary { ["id"] = (Guid)t.Id })
+                    .WithVersionedRoute()
+                    .WithETag(t => EntityTagValue.Strong(t.ETag))
+                    .WithLastModified(t => t.LastModified))
+            .AsActionResultAsync<TodoResponse>();
 }
 ```
 - **Incorrect:**
@@ -570,9 +577,17 @@ public ValueTask<ActionResult<TodoResponse>> Update(TodoId id, [FromBody] Update
 - **Correct (body-less state-transition POST — no `If-Match`):**
 ```csharp
 // Application/src/Todos/CompleteTodoCommand.cs  (record + handler colocated)
-public sealed record CompleteTodoCommand(TodoId TodoId) : ICommand<Result<TodoItem>>, IAuthorize
+public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
 {
+    public TodoId TodoId { get; }
+
     public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosComplete];
+
+    private CompleteTodoCommand(TodoId todoId) => TodoId = todoId;
+
+    public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
+        Result.Ensure(todoId is not null, Error.InvalidInput.ForField("id", "required", "Todo id is required."))
+            .Map(_ => new CompleteTodoCommand(todoId!));
 }
 
 public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCommand, Result<TodoItem>>

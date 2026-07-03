@@ -130,10 +130,12 @@ public static class Permissions
 }
 
 // Members/Application/src/InviteMemberCommand.cs
-public sealed record InviteMemberCommand(EmailAddress Email, Role Role)
-    : ICommand<Result<Member>>, IAuthorize
+public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
 {
+    public EmailAddress Email { get; }
+    public Role Role { get; }
     public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersInvite];
+    // Always-valid: private ctor + static TryCreate(...) omitted here — see the command-construction rule.
 }
 ```
 - **Incorrect:**
@@ -152,10 +154,23 @@ public IReadOnlyList<string> RequiredPermissions => ["members:invite"];
 - **Correct:**
 ```csharp
 // Members/Application/src/InviteMemberCommand.cs — record + handler together
-public sealed record InviteMemberCommand(EmailAddress Email, Role Role)
-    : ICommand<Result<Member>>, IAuthorize
+public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
 {
+    public EmailAddress Email { get; }
+    public Role Role { get; }
+
     public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersInvite];
+
+    private InviteMemberCommand(EmailAddress email, Role role)
+    {
+        Email = email;
+        Role = role;
+    }
+
+    public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
+        Result.Ensure(email is not null, Error.InvalidInput.ForField("email", "required", "Email is required."))
+            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField("role", "required", "Role is required.")))
+            .Map(_ => new InviteMemberCommand(email!, role!));
 }
 
 public sealed class InviteMemberHandler(
@@ -352,10 +367,29 @@ services.AddTrellisOutbox<MembersDbContext>();
 - **Rationale:** Centralizing authorization in the pipeline keeps handlers domain-focused, guarantees the resource is loaded exactly once, and makes the 403-vs-404 disclosure decision explicit per resource type.
 - **Correct:**
 ```csharp
-public sealed record UpdateProjectCommand(ProjectId Id, ProjectTitle Title, ProjectDescription Description, EntityTagValue[]? IfMatchETags)
-    : ICommand<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
+public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
+    public ProjectId Id { get; }
+    public ProjectTitle Title { get; }
+    public ProjectDescription Description { get; }
+    public EntityTagValue[]? IfMatchETags { get; }
+
     public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsWrite];
+
+    private UpdateProjectCommand(ProjectId id, ProjectTitle title, ProjectDescription description, EntityTagValue[]? ifMatchETags)
+    {
+        Id = id;
+        Title = title;
+        Description = description;
+        IfMatchETags = ifMatchETags;
+    }
+
+    public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
+        Result.Ensure(id is not null, Error.InvalidInput.ForField("id", "required", "Project id is required."))
+            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
+            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField("description", "required", "Description is required.")))
+            .Map(_ => new UpdateProjectCommand(id!, title!, description!, ifMatchETags));
+
     public ProjectId GetResourceId() => Id;
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
         Result.Ensure(
