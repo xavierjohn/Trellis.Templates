@@ -98,9 +98,10 @@ builder.Services.AddServiceLevelIndicator(options => options.LocationId = locati
 // One call fuses the strict internal-JWT bearer profile with the actor provider so the issuer,
 // audience, and scheme cannot drift apart. It re-applies the non-negotiable validation invariants
 // (RS256-only, MapInboundClaims=false, iss/aud/lifetime/signature checks) in a PostConfigure that a
-// later Configure cannot weaken, and fails closed at startup if one is. configureJwtBearer carries
-// only deployment-specific bits — gated on IsDevelopment so a copy/paste into a production
-// composition root keeps RequireHttpsMetadata=true and does not leak validation-failure reasons.
+// later Configure cannot weaken, failing closed at startup if one does. The configureJwtBearer
+// callback carries only deployment-specific bits — gated on IsDevelopment so a copy/paste into a
+// production composition root keeps RequireHttpsMetadata=true and does not leak validation-failure
+// reasons.
 builder.Services.AddTrellisInternalJwtBearer(
     issuer: "TEMPLATE_GATEWAY_ISSUER_URL",
     audience: "members",
