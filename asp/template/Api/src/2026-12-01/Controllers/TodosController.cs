@@ -1,4 +1,4 @@
-namespace TodoSample.Api.v2026_12_01.Controllers;
+﻿namespace TodoSample.Api.v2026_12_01.Controllers;
 
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
@@ -61,11 +61,11 @@ public class TodosController : ControllerBase
     [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public Task<ActionResult<TodoResponse>> Create(
+    public ValueTask<ActionResult<TodoResponse>> Create(
         [FromBody] CreateTodoRequest request,
         CancellationToken cancellationToken) =>
         CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
-            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+            .BindAsync(command => _sender.Send(command, cancellationToken))
             .ToHttpResponseAsync(
                 todo => TodoResponse.From(todo, _timeProvider.GetUtcNow().UtcDateTime),
                 opts => opts
@@ -147,14 +147,14 @@ public class TodosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-    public Task<ActionResult<TodoResponse>> Update(
+    public ValueTask<ActionResult<TodoResponse>> Update(
         [CustomerResourceId] TodoId id,
         [FromBody] UpdateTodoRequest request,
         CancellationToken cancellationToken)
     {
         var ifMatchETags = ETagHelper.ParseIfMatch(Request);
         return UpdateTodoCommand.TryCreate(id, request.Title, request.DueDate, request.Tag, ifMatchETags)
-            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+            .BindAsync(command => _sender.Send(command, cancellationToken))
             .MapAsync(t => (WriteOutcome<TodoItem>)new WriteOutcome<TodoItem>.Updated(
                 t,
                 Metadata: RepresentationMetadata.Create()
@@ -182,11 +182,11 @@ public class TodosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public Task<ActionResult<TodoResponse>> Complete(
+    public ValueTask<ActionResult<TodoResponse>> Complete(
         [CustomerResourceId] TodoId id,
         CancellationToken cancellationToken) =>
         CompleteTodoCommand.TryCreate(id)
-            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+            .BindAsync(command => _sender.Send(command, cancellationToken))
             .ToHttpResponseAsync(
                 todo => TodoResponse.From(todo, _timeProvider.GetUtcNow().UtcDateTime),
                 opts => opts
@@ -235,13 +235,13 @@ public class TodosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-    public Task<Microsoft.AspNetCore.Http.IResult> Delete(
+    public ValueTask<Microsoft.AspNetCore.Http.IResult> Delete(
         [CustomerResourceId] TodoId id,
         CancellationToken cancellationToken)
     {
         var ifMatchETags = ETagHelper.ParseIfMatch(Request);
         return DeleteTodoCommand.TryCreate(id, ifMatchETags)
-            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+            .BindAsync(command => _sender.Send(command, cancellationToken))
             .ToHttpResponseAsync();
     }
 }

@@ -61,7 +61,7 @@ public static class MemberEndpoints
         // trips), plus the member representation and its ETag. [Idempotent] lets a caller safely retry.
         members.MapPost("/", (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
                 InviteMemberCommand.TryCreate(body.Email, body.Role)
-                    .BindAsync(command => mediator.Send(command, ct).AsTask())
+                    .BindAsync(command => mediator.Send(command, ct))
                     .ToHttpResponseAsync(
                         MemberResponse.From,
                         opts => opts

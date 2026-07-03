@@ -91,7 +91,7 @@ public static class MemberEndpoints
 
         members.MapPost("/", (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
                 InviteMemberCommand.TryCreate(body.Email, body.Role)
-                    .BindAsync(command => mediator.Send(command, ct).AsTask())
+                    .BindAsync(command => mediator.Send(command, ct))
                     .ToHttpResponseAsync(
                         MemberResponse.From,
                         opts => opts
@@ -410,7 +410,7 @@ public sealed record UpdateProjectCommand(ProjectId Id, ProjectTitle Title, Proj
 
 | Scenario | Use | Not |
 |---|---|---|
-| Command construction (required fields **and** cross-field rules) | Private ctor + static `TryCreate(...)` returning `Result<T>` — for **every** command; the endpoint does `XyzCommand.TryCreate(...).BindAsync(command => mediator.Send(command, ct).AsTask())` | `new XyzCommand(...)` at the call site; a public ctor that admits a null/`default` field |
+| Command construction (required fields **and** cross-field rules) | Private ctor + static `TryCreate(...)` returning `Result<T>` — for **every** command; the endpoint does `XyzCommand.TryCreate(...).BindAsync(command => mediator.Send(command, ct))` | `new XyzCommand(...)` at the call site; a public ctor that admits a null/`default` field |
 | Static permission gate | `IAuthorize` + `Permissions.*` constant | Handler-side permission `if` |
 | Per-resource ownership/tenant check | `IAuthorizeResource<T>` + `IIdentifyResource<T, TId>` + loader | Handler-side ownership checks |
 | Shared loader by id | `SharedResourceLoaderById<T, TId>` | Repeating per-command loader code |

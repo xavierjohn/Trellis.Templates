@@ -160,7 +160,7 @@ public enum OrderStatus
 - **Reference:** See `.github/trellis-api-primitives.md §RequiredEnum<TSelf>` and `.github/trellis-api-efcore.md §ModelConfigurationBuilderExtensions`.
 ### Make commands always-valid and time-testable
 
-- **Rule:** 🔴 MUST make commands receive value objects, always expose a **private constructor plus a static `TryCreate(...)` returning `Result<T>`** (which fails closed — 422 — on a missing/`null` required field and on any cross-field invariant, so the command is un-representable in an invalid state), and use `TimeProvider` instead of `DateTime.UtcNow` or `DateTimeOffset.UtcNow`. Controllers construct commands via `TryCreate(...).BindAsync(command => _sender.Send(command, ct).AsTask())`, never `new XyzCommand(...)`. (Queries stay plain records — their inputs are route/query-bound scalars already validated at the binder seam.)
+- **Rule:** 🔴 MUST make commands receive value objects, always expose a **private constructor plus a static `TryCreate(...)` returning `Result<T>`** (which fails closed — 422 — on a missing/`null` required field and on any cross-field invariant, so the command is un-representable in an invalid state), and use `TimeProvider` instead of `DateTime.UtcNow` or `DateTimeOffset.UtcNow`. Controllers construct commands via `TryCreate(...).BindAsync(command => _sender.Send(command, ct))`, never `new XyzCommand(...)`. (Queries stay plain records — their inputs are route/query-bound scalars already validated at the binder seam.)
 - **Rationale:** Command validity belongs at construction time, and time-dependent rules must remain testable.
 - **Correct:**
 ```csharp
@@ -496,7 +496,7 @@ public class TodosController : ControllerBase
     [Consumes("application/json")]
     public async Task<IActionResult> Create([FromBody] CreateTodoRequest request, CancellationToken cancellationToken) =>
         await CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
-            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+            .BindAsync(command => _sender.Send(command, cancellationToken))
             .ToCreatedAtActionResultAsync(this, nameof(GetById), id => new { id }, TodoResponse.From);
 }
 ```
@@ -558,11 +558,11 @@ public sealed class UpdateTodoCommandHandler : ICommandHandler<UpdateTodoCommand
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
 [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-public Task<ActionResult<TodoResponse>> Update(TodoId id, [FromBody] UpdateTodoRequest request, CancellationToken cancellationToken)
+public ValueTask<ActionResult<TodoResponse>> Update(TodoId id, [FromBody] UpdateTodoRequest request, CancellationToken cancellationToken)
 {
     var ifMatchETags = ETagHelper.ParseIfMatch(Request);
     return UpdateTodoCommand.TryCreate(id, request.Title, request.DueDate, request.Tag, ifMatchETags)
-        .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+        .BindAsync(command => _sender.Send(command, cancellationToken))
         .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
         .AsActionResultAsync<TodoResponse>();
 }
@@ -596,9 +596,9 @@ public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCom
 [HttpPost("{id}/complete")]
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-public Task<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
+public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
     CompleteTodoCommand.TryCreate(id)
-        .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
+        .BindAsync(command => _sender.Send(command, cancellationToken))
         .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
         .AsActionResultAsync<TodoResponse>();
 ```

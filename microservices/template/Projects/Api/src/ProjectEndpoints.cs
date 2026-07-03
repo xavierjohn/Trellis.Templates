@@ -66,7 +66,7 @@ public static class ProjectEndpoints
             {
                 var ifMatch = ETagHelper.ParseIfMatch(request);
                 return UpdateProjectCommand.TryCreate(id, body.Title, body.Description, ifMatch)
-                    .BindAsync(command => mediator.Send(command, ct).AsTask())
+                    .BindAsync(command => mediator.Send(command, ct))
                     .MapAsync(p => (WriteOutcome<Project>)new WriteOutcome<Project>.Updated(
                         p,
                         Metadata: RepresentationMetadata.Create()
