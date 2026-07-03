@@ -50,7 +50,8 @@ public static class MemberEndpoints
                     MemberResponse.From,
                     opts => opts
                         .WithETag(m => EntityTagValue.Strong(m.ETag))
-                        .WithLastModified(m => m.LastModified)))
+                        .WithLastModified(m => m.LastModified)
+                        .EvaluatePreconditions()))
             .WithName("Members_GetById");
 
         // POST /api/members: invite a new member into the actor's tenant. The request body carries value

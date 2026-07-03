@@ -7,6 +7,7 @@ using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
 using Trellis;
 using Trellis.Asp;
+using Trellis.Asp.ApiVersioning;
 using Trellis.ServiceLevelIndicators;
 
 // Versioned route group for the Projects API, extracted from Program.cs so it scales and so the
@@ -32,31 +33,48 @@ public static class ProjectEndpoints
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 
-        projects.MapGet("/", (IMediator mediator, CancellationToken ct) =>
-            mediator.Send(new ListProjectsQuery(), ct)
-                .ToHttpResponseAsync(items => items.Select(ProjectResponse.From).ToArray()));
+        // GET /api/projects: keyset-paginated list of the caller's tenant projects. Returns a
+        // PagedResponse envelope plus an RFC 8288 Link header (rel="next") when more pages exist;
+        // HttpContext.PageUrl builds the next-page URL and injects the active api-version. The route is
+        // NAMED so PageUrl can resolve it (self-referential pagination). A malformed cursor is a 422.
+        projects.MapGet("/", (string? cursor, int? limit, HttpContext http, IMediator mediator, CancellationToken ct) =>
+                mediator.Send(new ListProjectsQuery(cursor, limit ?? 0), ct)
+                    .ToHttpResponseAsync(
+                        nextUrlBuilder: http.PageUrl(
+                            "Projects_List",
+                            (c, applied) => new RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
+                        body: ProjectResponse.From))
+            .WithName("Projects_List");
 
+        // GET /api/projects/{id}: emits the aggregate's strong ETag + Last-Modified. EvaluatePreconditions
+        // honors RFC 9110 If-None-Match / If-Modified-Since, returning 304 Not Modified on a cache hit.
         projects.MapGet("/{id}", (ProjectId id, IMediator mediator, CancellationToken ct) =>
             mediator.Send(new GetProjectQuery(id), ct)
                 .ToHttpResponseAsync(
                     ProjectResponse.From,
                     opts => opts
                         .WithETag(p => EntityTagValue.Strong(p.ETag))
-                        .WithLastModified(p => p.LastModified)));
+                        .WithLastModified(p => p.LastModified)
+                        .EvaluatePreconditions()));
 
         // PUT /api/projects/{id}: edit a project. The body carries value objects, so a malformed title or
         // description is a 422 (.WithScalarValueValidation()). The write is conditional — If-Match is
-        // required (RFC 9110): a missing precondition is 428, a stale one is 412. On success it returns 200
-        // with the updated representation and the new ETag for the caller's next conditional write.
+        // required (RFC 9110): a missing precondition is 428, a stale one is 412. On success it maps to a
+        // WriteOutcome.Updated so HonorPrefer can serve RFC 7240 Prefer: return=minimal (204 No Content) or
+        // return=representation (200 + body), always emitting the new ETag for the caller's next write.
         projects.MapPut("/{id}", (ProjectId id, UpdateProjectRequest body, HttpRequest request, IMediator mediator, CancellationToken ct) =>
             {
                 var ifMatch = ETagHelper.ParseIfMatch(request);
                 return mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description, ifMatch), ct)
+                    .MapAsync(p => (WriteOutcome<Project>)new WriteOutcome<Project>.Updated(
+                        p,
+                        Metadata: RepresentationMetadata.Create()
+                            .SetStrongETag(p.ETag)
+                            .SetLastModified(p.LastModified)
+                            .Build()))
                     .ToHttpResponseAsync(
                         ProjectResponse.From,
-                        opts => opts
-                            .WithETag(p => EntityTagValue.Strong(p.ETag))
-                            .WithLastModified(p => p.LastModified));
+                        opts => opts.HonorPrefer());
             })
             .WithScalarValueValidation();
 

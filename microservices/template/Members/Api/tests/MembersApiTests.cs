@@ -82,6 +82,23 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
+    [Fact]
+    public async Task Get_member_with_a_matching_if_none_match_is_304()
+    {
+        var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersRead));
+
+        var read = await client.GetAsync($"/api/members/acme-alice?api-version={Version}", TestContext.Current.CancellationToken);
+        read.StatusCode.Should().Be(HttpStatusCode.OK);
+        read.Headers.ETag.Should().NotBeNull();
+
+        var conditional = new HttpRequestMessage(HttpMethod.Get, $"/api/members/acme-alice?api-version={Version}");
+        conditional.Headers.IfNoneMatch.Add(read.Headers.ETag!);
+
+        var response = await client.SendAsync(conditional, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotModified);
+    }
+
     private static Actor Actor(string id, string tenant, params string[] permissions) =>
         new(id, new HashSet<string>(permissions), new HashSet<string>(), new Dictionary<string, string> { ["tenant_id"] = tenant });
 

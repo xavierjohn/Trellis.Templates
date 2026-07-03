@@ -11,8 +11,10 @@ namespace ProjectTrackerTemplate.Projects.Application;
 //
 // Compare with GetProjectQuery, which checks tenant_id at the resource boundary
 // (because a single Id could belong to any tenant).
-public sealed record ListProjectsQuery
-    : IQuery<Result<IReadOnlyList<Project>>>, IAuthorize
+// Cursor is an opaque continuation token echoed verbatim from the previous page's `next` link (the
+// framework encodes it via CursorCodec); Limit is the client-requested page size, clamped server-side.
+public sealed record ListProjectsQuery(string? Cursor, int Limit)
+    : IQuery<Result<Page<Project>>>, IAuthorize
 {
     public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsRead];
 }
@@ -24,8 +26,11 @@ public sealed record ListProjectsQuery
 //
 // Does NOT trigger the per-id projects.resource_loads counter because it
 // doesn't call FindByIdAsync — the load-once counter is intentionally per-id only.
-public sealed class ListProjectsHandler : IQueryHandler<ListProjectsQuery, Result<IReadOnlyList<Project>>>
+public sealed class ListProjectsHandler : IQueryHandler<ListProjectsQuery, Result<Page<Project>>>
 {
+    private const int MaxLimit = 100;
+    private const int DefaultLimit = 20;
+
     private readonly IProjectRepository _repository;
     private readonly IActorProvider _actorProvider;
 
@@ -35,11 +40,15 @@ public sealed class ListProjectsHandler : IQueryHandler<ListProjectsQuery, Resul
         _actorProvider = actorProvider;
     }
 
-    public async ValueTask<Result<IReadOnlyList<Project>>> Handle(ListProjectsQuery query, CancellationToken cancellationToken)
+    public async ValueTask<Result<Page<Project>>> Handle(ListProjectsQuery query, CancellationToken cancellationToken)
     {
         var tenantId = await _actorProvider.GetCurrentTenantIdAsync(cancellationToken);
 
-        var projects = await _repository.ListByTenantAsync(tenantId, cancellationToken);
-        return Result.Ok(projects);
+        var pageSize = PageSize.FromRequested(query.Limit <= 0 ? DefaultLimit : query.Limit, MaxLimit);
+        var cursor = string.IsNullOrEmpty(query.Cursor) ? (Cursor?)null : new Cursor(query.Cursor);
+
+        // The repository delegates to EF Core's ToPageAsync, which decodes the opaque cursor, applies the
+        // keyset seek, over-fetches, and slices the page — a malformed cursor becomes 422, never a throw.
+        return await _repository.ListByTenantAsync(tenantId, pageSize, cursor, cancellationToken);
     }
 }

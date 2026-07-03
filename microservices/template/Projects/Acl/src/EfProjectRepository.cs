@@ -1,4 +1,3 @@
-﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
@@ -29,11 +28,17 @@ internal sealed partial class EfProjectRepository : RepositoryBase<Project, Proj
         return await base.FindByIdAsync(id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Project>> ListByTenantAsync(TenantId tenantId, CancellationToken cancellationToken) =>
-        await DbSet
+    // ToPageAsync owns the OrderBy(keySelector), cursor decode, the seek WHERE, the Take(Applied + 1)
+    // over-fetch, and the Page slice — we supply the tenant-filtered query and the sort-key projection.
+    // ProjectId (a stable, unique PK) is the keyset key.
+    public Task<Result<Page<Project>>> ListByTenantAsync(
+        TenantId tenantId,
+        PageSize pageSize,
+        Cursor? cursor,
+        CancellationToken cancellationToken) =>
+        DbSet
             .Where(p => p.TenantId == tenantId)
-            .OrderBy(p => p.Id)
-            .ToListAsync(cancellationToken);
+            .ToPageAsync(pageSize, cursor, p => (string)p.Id, cancellationToken: cancellationToken);
 
     [LoggerMessage(
         EventId = 1,
