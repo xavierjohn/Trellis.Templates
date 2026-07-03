@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
 using ProjectTrackerTemplate.Members.Acl;
 using ProjectTrackerTemplate.Members.Api;
 using ProjectTrackerTemplate.Members.Application;
@@ -97,42 +95,30 @@ builder.Services.AddServiceLevelIndicator(options => options.LocationId = locati
 
 // === Trust-boundary layer =================================================
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o =>
+// One call fuses the strict internal-JWT bearer profile with the actor provider so the issuer,
+// audience, and scheme cannot drift apart. It re-applies the non-negotiable validation invariants
+// (RS256-only, MapInboundClaims=false, iss/aud/lifetime/signature checks) in a PostConfigure that a
+// later Configure cannot weaken, and fails closed at startup if one is. configureJwtBearer carries
+// only deployment-specific bits — gated on IsDevelopment so a copy/paste into a production
+// composition root keeps RequireHttpsMetadata=true and does not leak validation-failure reasons.
+builder.Services.AddTrellisInternalJwtBearer(
+    issuer: "TEMPLATE_GATEWAY_ISSUER_URL",
+    audience: "members",
+    configureActor: o =>
+    {
+        // Project the tenant_id ABAC claim into Actor.Attributes AND require it, so a missing
+        // tenant_id fails closed at the actor-provider boundary (401) before any handler runs.
+        o.AttributeClaimMap["tenant_id"] = "tenant_id";
+        o.RequiredAttributes = ["tenant_id"];
+    },
+    configureJwtBearer: o =>
     {
         var isDev = builder.Environment.IsDevelopment();
-
-        o.Authority = "TEMPLATE_GATEWAY_ISSUER_URL";
-        o.Audience = "members";
         o.RequireHttpsMetadata = !isDev;
         o.IncludeErrorDetails = isDev;
-        o.MapInboundClaims = false;
-        o.SaveToken = false;
-        o.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = "TEMPLATE_GATEWAY_ISSUER_URL",
-            ValidateAudience = true,
-            ValidAudience = "members",
-            ValidateLifetime = true,
-            RequireExpirationTime = true,
-            RequireSignedTokens = true,
-            ValidateIssuerSigningKey = true,
-            ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
-            ClockSkew = TimeSpan.FromSeconds(30),
-            TryAllIssuerSigningKeys = false,
-        };
     });
 
 builder.Services.AddAuthorization();
-
-builder.Services.AddTrellisInternalJwtActorProvider(o =>
-{
-    o.ExpectedIssuer = "TEMPLATE_GATEWAY_ISSUER_URL";
-    o.ExpectedAudience = "members";
-    o.AttributeClaimMap["tenant_id"] = "tenant_id";
-    o.RequiredAttributes = ["tenant_id"];
-});
 
 // === Application + anti-corruption layers ================================
 //
