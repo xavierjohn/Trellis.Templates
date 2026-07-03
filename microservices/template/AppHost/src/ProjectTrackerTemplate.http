@@ -39,6 +39,7 @@
 ###
 
 ### 1. alice reads her own project — 200 OK
+# @name readOwnProject
 GET {{gateway}}/api/projects/acme-p1?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
@@ -50,9 +51,13 @@ X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"At
 GET {{gateway}}/api/projects/globex-p1?api-version={{version}}
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
-### 4. alice updates her own project — 204 No Content
+### 4. alice updates her own project (conditional write) — 204 No Content
+###    Requires If-Match (RFC 9110), captured from request #1's ETag — run #1 first.
+###    Prefer: return=minimal (RFC 7240) makes success a 204 instead of 200 + body.
 PUT {{gateway}}/api/projects/acme-p1?api-version={{version}}
 Content-Type: application/json
+If-Match: {{readOwnProject.response.headers.ETag}}
+Prefer: return=minimal
 X-Test-Actor: {"Id":"alice","Permissions":["projects:read","projects:write"],"Attributes":{"tenant_id":"acme"}}
 
 {
