@@ -139,6 +139,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
+        firstPage.Next.Href.Should().Contain($"api-version={Version}", "PageUrl must inject the api-version so the next-page link resolves");
 
         var secondPage = await client.GetFromJsonAsync<PagedProjects>(
             $"/api/projects?cursor={firstPage.Next.Cursor}&limit=1&api-version={Version}",

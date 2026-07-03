@@ -1,6 +1,5 @@
-﻿namespace TodoSample.Api.v2026_03_26.Controllers;
+namespace TodoSample.Api.v2026_03_26.Controllers;
 
-using System.Globalization;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 using Trellis;
@@ -57,10 +56,11 @@ public class TodosController : ControllerBase
     [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public ValueTask<ActionResult<TodoResponse>> Create(
+    public Task<ActionResult<TodoResponse>> Create(
         [FromBody] CreateTodoRequest request,
         CancellationToken cancellationToken) =>
-        _sender.Send(new CreateTodoCommand(request.Title, request.DueDate, request.Tag), cancellationToken)
+        CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
+            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
             .ToHttpResponseAsync(
                 TodoResponse.From,
                 opts => opts
@@ -109,7 +109,7 @@ public class TodosController : ControllerBase
     /// <param name="cursor">Opaque continuation token from the previous page's <c>next</c> link.</param>
     /// <param name="limit">Page size requested by the client; the server clamps to its maximum.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    [HttpGet("overdue")]
+    [HttpGet("overdue", Name = "Todos_GetOverdue_v2026_03_26")]
     [ProducesResponseType(typeof(PagedResponse<TodoResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -119,9 +119,9 @@ public class TodosController : ControllerBase
         CancellationToken cancellationToken) =>
         _sender.Send(new GetOverdueTodosQuery(cursor, limit), cancellationToken)
             .ToHttpResponseAsync(
-                nextUrlBuilder: (c, applied) =>
-                    $"{Request.Scheme}://{Request.Host}{Request.PathBase}/api/Todos/overdue" +
-                    $"?cursor={c.Token}&limit={applied.ToString(CultureInfo.InvariantCulture)}&api-version=2026-03-26",
+                nextUrlBuilder: HttpContext.PageUrl(
+                    "Todos_GetOverdue_v2026_03_26",
+                    (c, applied) => new Microsoft.AspNetCore.Routing.RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
                 body: TodoResponse.From)
             .AsActionResultAsync<PagedResponse<TodoResponse>>();
 
@@ -177,10 +177,11 @@ public class TodosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public ValueTask<ActionResult<TodoResponse>> Complete(
+    public Task<ActionResult<TodoResponse>> Complete(
         [CustomerResourceId] TodoId id,
         CancellationToken cancellationToken) =>
-        _sender.Send(new CompleteTodoCommand(id), cancellationToken)
+        CompleteTodoCommand.TryCreate(id)
+            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
             .ToHttpResponseAsync(
                 TodoResponse.From,
                 opts => opts
@@ -229,12 +230,13 @@ public class TodosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-    public ValueTask<Microsoft.AspNetCore.Http.IResult> Delete(
+    public Task<Microsoft.AspNetCore.Http.IResult> Delete(
         [CustomerResourceId] TodoId id,
         CancellationToken cancellationToken)
     {
         var ifMatchETags = ETagHelper.ParseIfMatch(Request);
-        return _sender.Send(new DeleteTodoCommand(id, ifMatchETags), cancellationToken)
+        return DeleteTodoCommand.TryCreate(id, ifMatchETags)
+            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
             .ToHttpResponseAsync();
     }
 }

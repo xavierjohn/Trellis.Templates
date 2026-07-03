@@ -6,27 +6,52 @@ using TodoSample.Domain;
 using Trellis.Authorization;
 
 /// <summary>
-/// Creates a new todo item.
+/// Creates a new todo item. Always-valid at construction via <see cref="TryCreate"/>.
 /// </summary>
-public sealed record CreateTodoCommand(
-    Title Title,
-    DueDate DueDate,
-    Maybe<Tag> Tag) : ICommand<Result<TodoItem>>, IAuthorize
+public sealed record CreateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
 {
+    /// <summary>Title of the todo.</summary>
+    public Title Title { get; }
+
+    /// <summary>Due date for the todo.</summary>
+    public DueDate DueDate { get; }
+
+    /// <summary>Optional categorization tag.</summary>
+    public Maybe<Tag> Tag { get; }
+
     /// <inheritdoc />
     public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosCreate];
+
+    private CreateTodoCommand(Title title, DueDate dueDate, Maybe<Tag> tag)
+    {
+        Title = title;
+        DueDate = dueDate;
+        Tag = tag;
+    }
+
+    /// <summary>
+    /// Creates an always-valid command. A missing required field — <paramref name="title"/> or
+    /// <paramref name="dueDate"/> bind to <c>null</c> when the JSON omits them — fails closed as
+    /// validation (422) here, rather than surfacing later as a <see cref="NullReferenceException"/> (500).
+    /// The tag is optional (<see cref="Maybe{T}"/>).
+    /// </summary>
+    public static Result<CreateTodoCommand> TryCreate(Title? title, DueDate? dueDate, Maybe<Tag> tag) =>
+        Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required."))
+            .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField("dueDate", "required", "Due date is required.")))
+            .Map(_ => new CreateTodoCommand(title!, dueDate!, tag));
 }
 
 /// <summary>
-/// FluentValidation example for command-level rules over already-validated value objects.
+/// FluentValidation showcase. Construction-time invariants (required fields, cross-field rules) live in
+/// <see cref="CreateTodoCommand.TryCreate"/>; this validator is the seam for command rules that need
+/// injected services or async I/O — which a pure, synchronous <c>TryCreate</c> cannot express.
 /// </summary>
 public sealed class CreateTodoCommandValidator : AbstractValidator<CreateTodoCommand>
 {
     public CreateTodoCommandValidator()
     {
-        // Wiring placeholder: add command-level or cross-field rules here after value objects are built.
-        RuleFor(command => command.Title).NotNull();
-        RuleFor(command => command.DueDate).NotNull();
+        // Example (DI/async rule that TryCreate cannot do):
+        //   RuleFor(command => command.Title).MustAsync((title, ct) => _policy.IsAllowedAsync(title, ct));
     }
 }
 

@@ -60,6 +60,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.OriginalString.Should().Contain($"api-version={Version}", "WithVersionedRoute must inject the api-version so the created resource's Location resolves");
         var body = await response.Content.ReadFromJsonAsync<MemberBody>(TestContext.Current.CancellationToken);
         body!.Id.Should().Be("acme-newhire");
         body.TenantId.Should().Be("acme");

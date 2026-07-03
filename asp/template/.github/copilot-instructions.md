@@ -160,7 +160,7 @@ public enum OrderStatus
 - **Reference:** See `.github/trellis-api-primitives.md §RequiredEnum<TSelf>` and `.github/trellis-api-efcore.md §ModelConfigurationBuilderExtensions`.
 ### Make commands always-valid and time-testable
 
-- **Rule:** 🔴 MUST make commands receive value objects, use a private constructor plus `TryCreate` when cross-field validation exists, and use `TimeProvider` instead of `DateTime.UtcNow` or `DateTimeOffset.UtcNow`.
+- **Rule:** 🔴 MUST make commands receive value objects, always expose a **private constructor plus a static `TryCreate(...)` returning `Result<T>`** (which fails closed — 422 — on a missing/`null` required field and on any cross-field invariant, so the command is un-representable in an invalid state), and use `TimeProvider` instead of `DateTime.UtcNow` or `DateTimeOffset.UtcNow`. Controllers construct commands via `TryCreate(...).BindAsync(command => _sender.Send(command, ct).AsTask())`, never `new XyzCommand(...)`. (Queries stay plain records — their inputs are route/query-bound scalars already validated at the binder seam.)
 - **Rationale:** Command validity belongs at construction time, and time-dependent rules must remain testable.
 - **Correct:**
 ```csharp
@@ -494,8 +494,9 @@ public class TodosController : ControllerBase
     /// </summary>
     [HttpPost]
     [Consumes("application/json")]
-    public async ValueTask<IActionResult> Create([FromBody] CreateTodoRequest request, CancellationToken cancellationToken) =>
-        await _sender.Send(new CreateTodoCommand(request.Title), cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateTodoRequest request, CancellationToken cancellationToken) =>
+        await CreateTodoCommand.TryCreate(request.Title, request.DueDate, request.Tag)
+            .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
             .ToCreatedAtActionResultAsync(this, nameof(GetById), id => new { id }, TodoResponse.From);
 }
 ```
@@ -595,8 +596,9 @@ public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCom
 [HttpPost("{id}/complete")]
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
-    _sender.Send(new CompleteTodoCommand(id), cancellationToken)
+public Task<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
+    CompleteTodoCommand.TryCreate(id)
+        .BindAsync(command => _sender.Send(command, cancellationToken).AsTask())
         .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
         .AsActionResultAsync<TodoResponse>();
 ```
@@ -700,7 +702,7 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 
 | Scenario | Use | Not |
 |---|---|---|
-| Cross-field command validation | Private constructor + `TryCreate(...)` | Mutable command + later validation |
+| Command construction (required fields **and** cross-field rules) | Private constructor + static `TryCreate(...)` returning `Result<T>` — for **every** command | Public ctor / `new XyzCommand(...)` at the call site; mutable command + later validation |
 | Validation that cannot happen in `TryCreate` | `IValidate.Validate()` returning `IResult` | Late handler-only validation |
 | Permission-based authorization | `IAuthorize` | Handler-side permission `if` statements |
 | Resource-based authorization | `IAuthorizeResource<TResource>` + loader | Handler-side ownership checks |
