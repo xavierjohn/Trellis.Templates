@@ -60,7 +60,8 @@ public static class MemberEndpoints
         // at the new member (CreatedAtRoute + WithVersionedRoute injects the api-version so the URL round-
         // trips), plus the member representation and its ETag. [Idempotent] lets a caller safely retry.
         members.MapPost("/", (InviteMemberRequest body, IMediator mediator, CancellationToken ct) =>
-                mediator.Send(new InviteMemberCommand(body.Email, body.Role), ct)
+                InviteMemberCommand.TryCreate(body.Email, body.Role)
+                    .BindAsync(command => mediator.Send(command, ct))
                     .ToHttpResponseAsync(
                         MemberResponse.From,
                         opts => opts

@@ -16,10 +16,30 @@ namespace ProjectTrackerTemplate.Projects.Application;
 //
 // Anyone failing either check gets 403. The handler then reads the SAME instance
 // via IAuthorizedResource<TCommand, Project> — no second repository roundtrip.
-public sealed record UpdateProjectCommand(ProjectId Id, ProjectTitle Title, ProjectDescription Description, EntityTagValue[]? IfMatchETags)
-    : ICommand<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
+public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthorize, IAuthorizeResource<Project>, IIdentifyResource<Project, ProjectId>
 {
+    public ProjectId Id { get; }
+    public ProjectTitle Title { get; }
+    public ProjectDescription Description { get; }
+    public EntityTagValue[]? IfMatchETags { get; }
+
     public IReadOnlyList<string> RequiredPermissions => [Permissions.ProjectsWrite];
+
+    private UpdateProjectCommand(ProjectId id, ProjectTitle title, ProjectDescription description, EntityTagValue[]? ifMatchETags)
+    {
+        Id = id;
+        Title = title;
+        Description = description;
+        IfMatchETags = ifMatchETags;
+    }
+
+    // Always-valid: a missing title/description (null when the JSON omits them) fails closed as validation
+    // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
+    public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
+        Result.Ensure(id is not null, Error.InvalidInput.ForField("id", "required", "Project id is required."))
+            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
+            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField("description", "required", "Description is required.")))
+            .Map(_ => new UpdateProjectCommand(id!, title!, description!, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
 

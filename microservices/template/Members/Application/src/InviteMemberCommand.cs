@@ -10,10 +10,25 @@ namespace ProjectTrackerTemplate.Members.Application;
 // the actor's tenant (server-side decision; the wire format does NOT accept
 // a tenant_id parameter so a malicious caller cannot drop a member into a
 // different tenant). The command embeds only the public-facing fields.
-public sealed record InviteMemberCommand(EmailAddress Email, Role Role)
-    : ICommand<Result<Member>>, IAuthorize
+public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
 {
+    public EmailAddress Email { get; }
+    public Role Role { get; }
+
     public IReadOnlyList<string> RequiredPermissions => [Permissions.MembersInvite];
+
+    private InviteMemberCommand(EmailAddress email, Role role)
+    {
+        Email = email;
+        Role = role;
+    }
+
+    // Always-valid: a missing email/role (null when the JSON omits them) fails closed as validation
+    // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
+    public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
+        Result.Ensure(email is not null, Error.InvalidInput.ForField("email", "required", "Email is required."))
+            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField("role", "required", "Role is required.")))
+            .Map(_ => new InviteMemberCommand(email!, role!));
 }
 
 // Mints a new MemberId, materializes the aggregate, and pushes it into the

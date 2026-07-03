@@ -22,13 +22,13 @@ public class CompleteTodoCommandTests
     public async Task Complete_own_todo_succeeds()
     {
         var createResult = await _sender.Send(
-            new CreateTodoCommand(Title.Create("My todo"), DueDate.Create(DateTime.UtcNow.AddDays(1)), Maybe<Tag>.None),
+            CreateTodoCommand.TryCreate(Title.Create("My todo"), DueDate.Create(DateTime.UtcNow.AddDays(1)), Maybe<Tag>.None).Unwrap(),
             TestContext.Current.CancellationToken);
         createResult.Should().BeSuccess();
         var created = createResult.Unwrap();
 
         var result = await _sender.Send(
-            new CompleteTodoCommand(created.Id),
+            CompleteTodoCommand.TryCreate(created.Id).Unwrap(),
             TestContext.Current.CancellationToken);
 
         result.Should().BeSuccess();
@@ -42,13 +42,13 @@ public class CompleteTodoCommandTests
     {
         await using var _ = _actorProvider.WithActor("user-1", Permissions.TodosCreate, Permissions.TodosComplete);
         var createResult = await _sender.Send(
-            new CreateTodoCommand(Title.Create("User1 todo"), DueDate.Create(DateTime.UtcNow.AddDays(1)), Maybe<Tag>.None),
+            CreateTodoCommand.TryCreate(Title.Create("User1 todo"), DueDate.Create(DateTime.UtcNow.AddDays(1)), Maybe<Tag>.None).Unwrap(),
             TestContext.Current.CancellationToken);
         createResult.Should().BeSuccess();
         var created = createResult.Unwrap();
 
         await using var scope = _actorProvider.WithActor("user-2", Permissions.TodosComplete);
-        var result = await _sender.Send(new CompleteTodoCommand(created.Id), TestContext.Current.CancellationToken);
+        var result = await _sender.Send(CompleteTodoCommand.TryCreate(created.Id).Unwrap(), TestContext.Current.CancellationToken);
 
         result.Should().BeFailureOfType<Error.Forbidden>();
     }

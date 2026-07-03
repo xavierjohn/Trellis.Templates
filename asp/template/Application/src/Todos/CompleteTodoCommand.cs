@@ -19,10 +19,17 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
 {
     public TodoId TodoId { get; }
 
-    public CompleteTodoCommand(TodoId todoId)
+    private CompleteTodoCommand(TodoId todoId)
     {
         TodoId = todoId;
     }
+
+    /// <summary>
+    /// Creates an always-valid command. A null id fails closed as validation (422).
+    /// </summary>
+    public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
+        Result.Ensure(todoId is not null, Error.InvalidInput.ForField("id", "required", "Todo id is required."))
+            .Map(_ => new CompleteTodoCommand(todoId!));
 
     /// <inheritdoc />
     public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosComplete];

@@ -65,7 +65,8 @@ public static class ProjectEndpoints
         projects.MapPut("/{id}", (ProjectId id, UpdateProjectRequest body, HttpRequest request, IMediator mediator, CancellationToken ct) =>
             {
                 var ifMatch = ETagHelper.ParseIfMatch(request);
-                return mediator.Send(new UpdateProjectCommand(id, body.Title, body.Description, ifMatch), ct)
+                return UpdateProjectCommand.TryCreate(id, body.Title, body.Description, ifMatch)
+                    .BindAsync(command => mediator.Send(command, ct))
                     .MapAsync(p => (WriteOutcome<Project>)new WriteOutcome<Project>.Updated(
                         p,
                         Metadata: RepresentationMetadata.Create()

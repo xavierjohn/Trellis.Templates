@@ -40,7 +40,8 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     }
 
     /// <summary>
-    /// Creates a valid UpdateTodoCommand. Validates that DueDate is in the future.
+    /// Creates an always-valid command. A missing (null) required field fails closed as validation
+    /// (422); when present, <paramref name="dueDate"/> must be in the future.
     /// </summary>
     /// <param name="todoId">The todo to update.</param>
     /// <param name="title">New title.</param>
@@ -48,10 +49,13 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     /// <param name="tag">New optional tag.</param>
     /// <param name="ifMatchETags">Optional ETags from the <c>If-Match</c> header for conditional update.</param>
     /// <param name="timeProvider">Optional time provider for testability. Defaults to <see cref="TimeProvider.System"/>.</param>
-    public static Result<UpdateTodoCommand> TryCreate(TodoId todoId, Title title, DueDate dueDate, Maybe<Tag> tag, EntityTagValue[]? ifMatchETags = null, TimeProvider? timeProvider = null) =>
-        Result.Ensure(dueDate > (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
+    public static Result<UpdateTodoCommand> TryCreate(TodoId? todoId, Title? title, DueDate? dueDate, Maybe<Tag> tag, EntityTagValue[]? ifMatchETags = null, TimeProvider? timeProvider = null) =>
+        Result.Ensure(todoId is not null, Error.InvalidInput.ForField("id", "required", "Todo id is required."))
+            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
+            .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField("dueDate", "required", "Due date is required.")))
+            .Ensure(_ => dueDate! > (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
                 Error.InvalidInput.ForField("dueDate", "out_of_range", "Due date must be in the future."))
-            .Map(_ => new UpdateTodoCommand(todoId, title, dueDate, tag, ifMatchETags));
+            .Map(_ => new UpdateTodoCommand(todoId!, title!, dueDate!, tag, ifMatchETags));
 }
 
 /// <summary>

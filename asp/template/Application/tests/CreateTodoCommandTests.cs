@@ -19,10 +19,10 @@ public class CreateTodoCommandTests
     [Fact]
     public async Task Create_valid_todo_returns_success()
     {
-        var command = new CreateTodoCommand(
+        var command = CreateTodoCommand.TryCreate(
             Title.Create("Buy groceries"),
             DueDate.Create(DateTime.UtcNow.AddDays(7)),
-            Maybe<Tag>.None);
+            Maybe<Tag>.None).Unwrap();
 
         var result = await _sender.Send(command, TestContext.Current.CancellationToken);
 
@@ -36,10 +36,10 @@ public class CreateTodoCommandTests
     public async Task Create_todo_with_tag_preserves_tag()
     {
         var tag = Tag.Create("work");
-        var command = new CreateTodoCommand(
+        var command = CreateTodoCommand.TryCreate(
             Title.Create("Finish report"),
             DueDate.Create(DateTime.UtcNow.AddDays(3)),
-            Maybe.From(tag));
+            Maybe.From(tag)).Unwrap();
 
         var result = await _sender.Send(command, TestContext.Current.CancellationToken);
 
@@ -50,10 +50,10 @@ public class CreateTodoCommandTests
     [Fact]
     public async Task Create_todo_is_persisted_in_repository()
     {
-        var command = new CreateTodoCommand(
+        var command = CreateTodoCommand.TryCreate(
             Title.Create("Persisted todo"),
             DueDate.Create(DateTime.UtcNow.AddDays(5)),
-            Maybe<Tag>.None);
+            Maybe<Tag>.None).Unwrap();
 
         var result = await _sender.Send(command, TestContext.Current.CancellationToken);
 
