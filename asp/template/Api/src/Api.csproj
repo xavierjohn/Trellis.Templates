@@ -4,6 +4,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.OpenApi" />
+    <!-- Forces the patched Microsoft.OpenApi (see Directory.Packages.props) over the vulnerable
+         2.0.0 pulled transitively by Microsoft.AspNetCore.OpenApi / Asp.Versioning.OpenApi. -->
+    <PackageReference Include="Microsoft.OpenApi" />
     <PackageReference Include="Trellis.Asp" />
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />

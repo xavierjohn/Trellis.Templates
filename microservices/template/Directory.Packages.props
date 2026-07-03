@@ -8,8 +8,8 @@
        TrellisVersion              -> xavierjohn/Trellis (framework)
        TrellisMicroservicesVersion -> xavierjohn/Trellis.Microservices -->
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.425</TrellisVersion>
-    <TrellisMicroservicesVersion>0.1.0-alpha.36</TrellisMicroservicesVersion>
+    <TrellisVersion>3.0.0-alpha.428</TrellisVersion>
+    <TrellisMicroservicesVersion>0.1.0-alpha.66</TrellisMicroservicesVersion>
     <TrellisSliVersion>10.0.0-preview.25</TrellisSliVersion>
   </PropertyGroup>
 
@@ -19,6 +19,11 @@
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.0.0-rc.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <!-- Pin the transitive Microsoft.OpenApi up to the patched 2.7.x (GHSA-v5pm-xwqc-g5wc / NU1903);
+         Microsoft.AspNetCore.OpenApi 10.x and Asp.Versioning.OpenApi still pull the vulnerable 2.0.0.
+         Stay on the 2.x line the ASP.NET Core OpenApi packages target (a direct reference in each Api
+         project forces the override). Remove once those packages bump their pin. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.6" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
