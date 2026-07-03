@@ -21,7 +21,7 @@ audience: [llm]
 
 - **Required upstream docs (load from xavierjohn/Trellis):**
   - [`trellis-api-authorization.md`](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-authorization.md) — `Actor`, `IActorProvider`, `IAuthorize`, `IAuthorizeResource<>` (every minted JWT hydrates back into an `Actor`)
-  - [`trellis-api-asp.md`](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-asp.md) — `ClaimsActorProvider`, `EntraActorProvider` (the gateway-side actor sources that feed `AddTrellisActorForwarding`)
+  - [`trellis-api-asp.md`](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-asp.md) — `ClaimsActorProvider`, `EntraActorProvider`, `EasyAuthClaimsActorProvider` (the gateway-side actor sources that feed `AddTrellisActorForwarding`; `EasyAuthClaimsActorProvider` + `AddEasyAuth()` — introduced upstream in Trellis `3.0.0-alpha.426` — hydrate the actor from Azure App Service / Container Apps "Easy Auth" principal headers)
   - [`trellis-api-servicedefaults.md`](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-servicedefaults.md) — `AddTrellis`, `TrellisServiceBuilder` (the composition root; for the internal-JWT consumer call `services.AddTrellisInternalJwtActorProvider(...)` directly — the `UseTrellisInternalJwtActor` slot was removed in v3 when the implementation moved to this repo)
   - [`trellis-api-cookbook.md` Recipe 7](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-cookbook.md#recipe-7--authorization-iactorprovider--iauthorize--resource-based-auth) — the 3-path microservices framing (this repo implements Path B)
   - [`trellis-api-cookbook.md` Recipe 32](https://github.com/xavierjohn/Trellis/blob/main/docs/docfx_project/api_reference/trellis-api-cookbook.md#recipe-32--hide-existence-with-authfailureexposurepolicyhideasnotfound) — `AuthFailureExposurePolicy.HideAsNotFound` (orthogonal Mediator behavior that pairs naturally with this repo's tenant-isolation pattern)
@@ -103,6 +103,16 @@ Known non-APIs and corrected assumptions:
 **Problem.** Recipe 7's Path B (Trellis internal JWT) selects the `TrellisInternalJwtActorProvider` (registered via `services.AddTrellisInternalJwtActorProvider(...)`) to hydrate the `Actor` from a gateway-minted internal JWT, but `Trellis.Asp` deliberately does **not** take a hard `Microsoft.AspNetCore.Authentication.JwtBearer` dependency — the actor provider's job is claim-shape contract enforcement, not transport-level token validation. That makes JWT validation the consumer's responsibility, and most production failures of the internal-JWT pattern come from a too-loose `AddJwtBearer(...)` profile (default 5-minute `ClockSkew`, no `ValidAlgorithms` pin, no `RequireSignedTokens`, no signing-key resolver pinned to the gateway), not from the actor provider itself.
 
 **Fix.** Two strict validation profiles paired with `AddTrellisInternalJwtActorProvider` and a few defense-in-depth checks that the gateway claim alone cannot guarantee.
+
+**Recommended — one call.** `AddTrellisInternalJwtBearer(issuer, audience, configureActor?)` applies Profile A's strict settings *and* registers the actor provider in a single call, re-applying the security-critical invariants **after** any `configureJwtBearer` so a consumer cannot weaken them. The profiles below remain the source of truth for what it configures — and the hand-written path for an algorithm or posture the helper does not cover.
+
+```csharp
+builder.Services.AddTrellisInternalJwtBearer("https://gateway.internal", "incidents-service", c =>
+{
+    c.RequiredAttributes = ["tenant_id"];        // fail closed on missing tenant
+    c.AttributeClaimMap["tenant_id"] = "tid";
+});
+```
 
 ### Profile A — JWKS-discovery (default; gateway exposes a JWKS endpoint)
 
@@ -248,6 +258,8 @@ Pair this with [Recipe 32 (upstream)](https://github.com/xavierjohn/Trellis/blob
 ### Key-rotation runbook (overlapping JWKS window)
 
 The internal JWT lifetime should be short (Trellis-recommended: 5 minutes). Rotation must cover any token already in flight, so the overlap window is `token_lifetime + ClockSkew + safety_margin`. With 5-minute lifetime + 30-second skew + 30-second safety = **~6 minutes minimum** to retire the previous key.
+
+**Gateway mechanics — how the "add `K_new` / flip signer" steps happen.** With the default static configuration, the gateway performs these steps by *redeploying*: add `K_new` to `PreviousSigningKeys` (pre-publish), then in a later deploy set it as the active `SigningCredentials` (flip), then drop `K_old`. To rotate **without a redeploy**, register a custom [`ITrellisSigningKeyProvider`](trellis-api-yarp.md#itrellissigningkeyprovider-signing-key-rotation-seam): a background rotator adds `K_new` to the ring's `ValidationKeys` (pre-publish), then swaps `Current` to `K_new` (flip) once the warm-up probe confirms fleet convergence. Either mechanism preserves the JWKS overlap window below, and every ring the provider returns is re-validated fail-closed (a structurally invalid ring falls back to the last known-good rather than taking the gateway down). Fleet note: no gateway instance may flip `Current` to `K_new` until every instance publishes `K_new`.
 
 Profile A (JWKS-discovery):
 

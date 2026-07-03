@@ -1,9 +1,9 @@
 ﻿---
 package: Trellis.Microservices.AspNetCore
 namespaces: [Trellis.Microservices.AspNetCore]
-types: [TrellisInternalJwtActorOptions, TrellisInternalJwtActorProvider, TrellisInternalJwtActorOptionsValidator, ServiceCollectionExtensions]
+types: [TrellisInternalJwtActorOptions, TrellisInternalJwtActorProvider, TrellisInternalJwtActorOptionsValidator, ServiceCollectionExtensions, AllowMissingActorAttributesAttribute, AllowMissingActorAttributesEndpointExtensions]
 version: v1
-last_verified: 2026-06-05
+last_verified: 2026-06-22
 audience: [llm]
 ---
 # Trellis.Microservices.AspNetCore — API Reference (consumer-side internal JWT)
@@ -23,9 +23,11 @@ audience: [llm]
 
 | Goal | Canonical API / action | See |
 |---|---|---|
+| One-call strict consumer setup (strict `AddJwtBearer` profile + actor provider) | `services.AddTrellisInternalJwtBearer(issuer, audience, configureActor?)` | [`ServiceCollectionExtensions`](#servicecollectionextensions) |
 | Register the actor provider | `services.AddTrellisInternalJwtActorProvider(o => ...)` (direct `IServiceCollection` extension; no `TrellisServiceBuilder` slot — the previous `UseTrellisInternalJwtActor` slot in upstream `Trellis.ServiceDefaults` was removed in v3 when the implementation moved to this package) | [`ServiceCollectionExtensions`](#servicecollectionextensions) |
 | Map an ABAC attribute from a JWT claim | `options.AttributeClaimMap["tenant_id"] = "tenant_id"` | [`TrellisInternalJwtActorOptions`](#trellisinternaljwtactoroptions) |
 | Require an attribute on every request | `options.RequiredAttributes = ["tenant_id"]` (entry MUST also be in `AttributeClaimMap`) | [`TrellisInternalJwtActorOptions`](#trellisinternaljwtactoroptions) |
+| Let a bootstrap / pre-tenant endpoint run without a required attribute | `app.MapPost("/tenants", ...).AllowMissingActorAttributes("tenant_id")` or `[AllowMissingActorAttributes("tenant_id")]` | [Bootstrap actor mode](#bootstrap-actor-mode) |
 | Cross-check the JWT issuer / audience defense-in-depth | `options.ExpectedIssuer = "..."`, `options.ExpectedAudience = "..."` | [`TrellisInternalJwtActorOptions`](#trellisinternaljwtactoroptions) |
 | Surface the upstream IdP issuer as an actor attribute (multi-IdP gateways) | `options.AttributeClaimMap["external_iss"] = "external_iss"` then read via `actor.Attributes["external_iss"]` | [Recipe 2 — Multi-IdP namespacing](trellis-api-microservices-cookbook.md#recipe-2--microservices-behind-yarp-end-to-end) |
 | Drop the strict-shape guard (NOT recommended) | `options.StrictClaimShape = false` | [`TrellisInternalJwtActorOptions`](#trellisinternaljwtactoroptions) |
@@ -63,7 +65,7 @@ Controls how `TrellisInternalJwtActorProvider` translates a verified internal-ne
 | `PermissionsClaim` | `string` | `"permissions"` (= `TrellisInternalJwtClaimNames.Permissions`) | Multi-valued claim — each instance contributes one permission to `Actor.Permissions`. |
 | `ForbiddenPermissionsClaim` | `string` | `"forbidden_permissions"` (= `TrellisInternalJwtClaimNames.ForbiddenPermissions`) | Multi-valued claim — each instance contributes one deny to `Actor.ForbiddenPermissions`. |
 | `AttributeClaimMap` | `Dictionary<string, string>` | empty | Map from logical attribute names (the keys exposed via `Actor.Attributes`) to underlying JWT claim types. Only attributes explicitly mapped flow into `Actor.Attributes`. |
-| `RequiredAttributes` | `IReadOnlyList<string>` | empty | Attribute names that MUST be present and non-empty on every request. Each name must also be a key in `AttributeClaimMap` (startup-validated). Missing / empty / duplicated → `Maybe<Actor>.None`. |
+| `RequiredAttributes` | `IReadOnlyList<string>` | empty | Attribute names that MUST be present and non-empty on every request. Each name must also be a key in `AttributeClaimMap` (startup-validated). Missing / empty / duplicated → `Maybe<Actor>.None`. A specific bootstrap / pre-tenant endpoint may waive the GENUINE ABSENCE of a named attribute via [bootstrap actor mode](#bootstrap-actor-mode); present-but-empty / duplicated / strict-shape values are still rejected. |
 | `ExpectedIssuer` | `string` | `""` | When non-empty, the provider runtime-checks the JWT's `iss` claim ordinal-equal to this value and fails closed on mismatch. **Defense-in-depth complement to `JwtBearerOptions.TokenValidationParameters.ValidIssuer`, NOT a substitute.** |
 | `ExpectedAudience` | `string` | `""` | When non-empty, the provider requires at least one `aud` claim ordinal-equal to this value. Defense-in-depth complement to `ValidAudience`. |
 | `StrictClaimShape` | `bool` | `true` | When `true`, permission / forbidden-permission / mapped-attribute values containing commas or starting with `[` / `{` are rejected (these shapes indicate a gateway-side bug that comma-joined a set or serialized JSON into a single claim value). |
@@ -107,6 +109,7 @@ public static class ServiceCollectionExtensions
 | Signature | Returns | Description |
 | --- | --- | --- |
 | `public static IServiceCollection AddTrellisInternalJwtActorProvider(this IServiceCollection services, Action<TrellisInternalJwtActorOptions>? configure = null)` | `IServiceCollection` | Adds `IHttpContextAccessor`, configures and startup-validates `TrellisInternalJwtActorOptions`, and **replaces** the `IActorProvider` registration with a scoped `TrellisInternalJwtActorProvider`. For microservices that consume internal-network JWTs minted by a trusted gateway (typically `Trellis.Yarp` or an equivalent third-party gateway implementing the same sentinel + count claim contract). Hydrates the FULL `Actor` surface (id + permissions + forbidden permissions + ABAC attributes). The companion `IValidateOptions<TrellisInternalJwtActorOptions>` validator runs via `ValidateOnStart()` and rejects misconfigurations before the first request. |
+| `[RequiresUnreferencedCode] [RequiresDynamicCode] public static IServiceCollection AddTrellisInternalJwtBearer(this IServiceCollection services, string issuer, string audience, Action<TrellisInternalJwtActorOptions>? configureActor = null, Action<JwtBearerOptions>? configureJwtBearer = null, string authenticationScheme = "Bearer")` | `IServiceCollection` | One-call composition of the strict `AddJwtBearer` profile (Recipe 1) **and** `AddTrellisInternalJwtActorProvider`, wired to the same `issuer`/`audience`/`authenticationScheme` so they cannot drift. Closes the loose-profile footgun **by construction**: the non-negotiable invariants are applied in a `PostConfigure<JwtBearerOptions>` (so they survive `configureJwtBearer` **and** any later `services.Configure<JwtBearerOptions>`) — `MapInboundClaims = false`, `TokenValidationParameters.TryAllIssuerSigningKeys = false`, `RequireSignedTokens`, `ValidateIssuer`/`ValidateAudience`/`ValidateLifetime`/`RequireExpirationTime`/`ValidateIssuerSigningKey`, `ValidIssuer = issuer`, `ValidAudience = audience`, `ValidAlgorithms = ["RS256"]` — and the plural `ValidIssuers`/`ValidAudiences` plus every bypass validator/resolver delegate (issuer/audience/lifetime/algorithm/signing-key validators and resolvers, the signature validator, the token reader), `RequireAudience`, and scheme forwarding are forced/cleared, so a consumer cannot weaken them. A startup `IValidateOptions<JwtBearerOptions>` then asserts the resolved profile is still strict and **fails closed** (host start throws) if a later `PostConfigure` or a replaced `TokenHandlers` list weakened it. `ClockSkew` is capped at 30 s (a tighter value via `configureJwtBearer` is preserved; a looser one is forced down, and a later widening past 30 s fails closed). The actor provider's scheme/`ExpectedIssuer`/`ExpectedAudience` are likewise forced via `PostConfigure` after `configureActor`. `configureJwtBearer` adjusts only deployment-specific bits (`Authority`/`MetadataAddress`, `RequireHttpsMetadata`, air-gapped `IssuerSigningKeys`, a tighter `ClockSkew`). `Authority` defaults to `issuer`. **Not trim/AOT-safe** (pulls in JwtBearer) — annotated accordingly; the package stays AOT-compatible for `AddTrellisInternalJwtActorProvider`. |
 
 > **Replacement semantics.** Calling `AddTrellisInternalJwtActorProvider` Replace-registers the `IActorProvider` slot — the previous registration is removed and exactly one descriptor remains. Calling multiple `Add*ActorProvider` helpers leaves the last one wins; chained `AddCachingActorProvider<TrellisInternalJwtActorProvider>()` will wrap this provider for per-scope actor caching.
 
@@ -131,6 +134,28 @@ builder.Services.AddTrellis(b => b
 
 The `IActorProvider` slot is shared between this extension and `services.AddTrellis(...)` because both resolve into the same `IServiceCollection`; the call order doesn't matter, and the single-slot enforcement runs at host start.
 
+**One-call setup.** `AddTrellisInternalJwtBearer` bundles the strict `AddJwtBearer` profile (Recipe 1) with the actor provider so the two cannot drift apart:
+
+```csharp
+builder.Services.AddTrellisInternalJwtBearer(
+    issuer: "https://gateway.internal",          // forced ValidIssuer; default Authority for JWKS discovery
+    audience: "orders-api",                       // forced ValidAudience
+    configureActor: o =>
+    {
+        o.AttributeClaimMap["tenant_id"] = "tid";
+        o.RequiredAttributes = ["tenant_id"];     // fail closed on a missing tenant claim
+    });
+
+// Air-gapped key ring (no JWKS endpoint): supply the keys via configureJwtBearer.
+//   configureJwtBearer: o =>
+//   {
+//       o.Authority = null;                                          // disable discovery
+//       o.TokenValidationParameters.IssuerSigningKeys = keyRing.Values;
+//   }
+```
+
+The forced invariants (`MapInboundClaims = false`, `TryAllIssuerSigningKeys = false`, the RS256 pin, and `iss`/`aud`/`lifetime` validation) are re-applied **after** `configureJwtBearer`, so they cannot be weakened. For an asymmetric algorithm other than RS256, register `AddJwtBearer` yourself and pair it with `AddTrellisInternalJwtActorProvider`.
+
 ---
 
 ## `TrellisInternalJwtActorOptionsValidator`
@@ -154,6 +179,38 @@ Registered automatically by `AddTrellisInternalJwtActorProvider` and gated by `V
 | A reserved JWT claim name (`iss`/`aud`/`exp`/`nbf`/`iat`/`jti`/`sub`) is used as `PermissionsClaim` / `ForbiddenPermissionsClaim` / any `AttributeClaimMap` value | The registered claim would be reinterpreted as a permission / attribute — high-blast-radius misconfiguration. Override only with `UnsafeAllowRegisteredClaimNames = true` and documented rationale. |
 
 Fail-closed posture: the validator runs at startup and throws `OptionsValidationException`. There is no runtime fallback that "tries best-effort" — the host refuses to start.
+
+---
+
+## Bootstrap actor mode
+
+`RequiredAttributes` enforces a claim such as `tenant_id` on **every** request the provider authenticates. A pre-tenant / bootstrap endpoint — "create my first tenant", "accept invitation" — has no `tenant_id` to present yet, so it cannot run under that provider. `[AllowMissingActorAttributes]` is the per-endpoint escape hatch that names exactly which required attributes the endpoint may operate without.
+
+```csharp
+using Trellis.Microservices.AspNetCore;
+
+// Minimal API — fluent helper:
+app.MapPost("/tenants", CreateFirstTenant)
+   .AllowMissingActorAttributes("tenant_id");
+
+// Controllers / any endpoint — attribute form (method- or class-level):
+[AllowMissingActorAttributes("tenant_id")]
+public Task<IResult> CreateFirstTenant() { /* ... */ }
+```
+
+Semantics — security-tier, fail-closed and minimal:
+
+- **Absence-only.** A named required attribute that is *genuinely missing* is waived. A **present-but-empty** value, a **duplicated** claim, or a **strict-claim-shape** violation is still rejected — the endpoint cannot use the exemption to smuggle a malformed tenant assertion.
+- **Scoped — no blanket mode.** Each attribute is named explicitly (`"tenant_id"`). There is deliberately no "skip all required attributes" switch, so a later-added required attribute (for example `mfa`) is never silently exempted on an existing bootstrap endpoint. The constructor rejects an empty name list.
+- **Everything else is enforced unchanged.** Authentication of the configured scheme, the contract-version sentinel, the permission / forbidden count claims, the actor id, `ExpectedIssuer` / `ExpectedAudience`, and every *other* required attribute apply exactly as on any other endpoint. The exemption relaxes only the named attribute's absence; the actor is hydrated without that attribute key.
+- **Fail-closed by default.** An endpoint without the attribute behaves exactly as before. If the provider runs with no matched endpoint (`HttpContext.GetEndpoint()` is `null`), no exemption applies.
+- **Combinable.** Method- and class-level instances are unioned (`AllowMultiple = true`, `Inherited = true`).
+- **Audited.** When the exemption actually waives an absent attribute the provider logs an `Information` event carrying only the scheme and the attribute **name** (configuration, not data) — never claim values, the actor id, or the request path.
+
+| Member | Signature / notes |
+|---|---|
+| `AllowMissingActorAttributesAttribute(params string[] attributeNames)` | Endpoint metadata (`AttributeTargets.Method \| Class`, `AllowMultiple`, `Inherited`). Requires at least one non-empty name; names are ordinal-deduplicated and exposed via `AttributeNames`. |
+| `IEndpointConventionBuilder.AllowMissingActorAttributes(params string[] attributeNames)` | Minimal-API convenience extension that adds the metadata to the endpoint and returns the builder for chaining. |
 
 ---
 

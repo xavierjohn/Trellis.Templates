@@ -107,6 +107,44 @@ public class TodosControllerTests
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
+    // A MISSING (omitted) required value object is a distinct case from a malformed one: the JSON
+    // property is absent, so the value-object binder never runs and Title binds to null. The guard is
+    // CreateTodoCommandValidator.NotNull() running in the FluentValidation pipeline behavior BEFORE the
+    // handler — so a null Title fails closed as business validation (422), never a NullReferenceException
+    // (500) from `new TodoItem(null, ...)`.
+    [Fact]
+    public async Task Create_todo_with_missing_title_returns_422_not_500()
+    {
+        var client = CreateClient("user-1", "todos:create");
+        var body = new { dueDate = DateTime.UtcNow.AddDays(3) };
+
+        var response = await client.PostJsonIdempotentAsync(BaseUrl, body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task Create_todo_with_explicit_null_title_returns_422_not_500()
+    {
+        var client = CreateClient("user-1", "todos:create");
+        var body = new { title = (string?)null, dueDate = DateTime.UtcNow.AddDays(3) };
+
+        var response = await client.PostJsonIdempotentAsync(BaseUrl, body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task Create_todo_with_missing_due_date_returns_422_not_500()
+    {
+        var client = CreateClient("user-1", "todos:create");
+        var body = new { title = "No due date" };
+
+        var response = await client.PostJsonIdempotentAsync(BaseUrl, body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
     [Fact]
     public async Task GetById_existing_todo_returns_200()
     {
