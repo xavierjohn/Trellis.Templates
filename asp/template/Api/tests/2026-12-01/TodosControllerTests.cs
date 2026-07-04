@@ -109,9 +109,9 @@ public class TodosControllerTests
 
     // A MISSING (omitted) required value object is a distinct case from a malformed one: the JSON
     // property is absent, so the value-object binder never runs and Title binds to null. The guard is
-    // CreateTodoCommandValidator.NotNull() running in the FluentValidation pipeline behavior BEFORE the
-    // handler — so a null Title fails closed as business validation (422), never a NullReferenceException
-    // (500) from `new TodoItem(null, ...)`.
+    // CreateTodoCommand.TryCreate(...), which fails closed as business validation (422) before the
+    // handler runs — so a null Title never reaches `new TodoItem(null, ...)` as a
+    // NullReferenceException (500).
     [Fact]
     public async Task Create_todo_with_missing_title_returns_422_not_500()
     {
