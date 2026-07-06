@@ -18,10 +18,10 @@ own control plane, fully isolated (no cross-cloud data sharing). Within a cloud 
 - *Extension for the microservices template:* the `CloudType` enum + endpoint-suffix map gains the
   team's sovereign clouds (US/EU/SG) alongside the stock `AzureCloud`/`USGov`/`China`.
 
-## CloudScope — two modes, default = Isolated
-- **Isolated** (default): air-gapped / Azure Stack Hub / dedicated sovereign / single-tenant stamp.
+## CloudScope — two modes, default = Shared
+- **Isolated**: air-gapped / Azure Stack Hub / dedicated sovereign / single-tenant stamp.
   DNS namespaces are your own → **no global suffix**. Region-scoped tokens carry uniqueness.
-- **Shared**: commercial or shared sovereign Azure. The types CAF marks **Global** name-scope
+- **Shared** (default): commercial or shared sovereign Azure. The types CAF marks **Global** name-scope
   (st, kv, sbns, evhns, cosmos, sql, app, cr — PaaS with a public DNS name) compete provider-wide →
   append a 5-char deterministic suffix `{u5}` to **those types only**. `{u5}` is computed by SHA-256 hashing
   a canonical `|`-joined seed of the resource's identity — system, service, type, the full CAF environment

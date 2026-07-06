@@ -1,5 +1,6 @@
 ﻿namespace AntiCorruptionLayer.Tests;
 
+using Trellis.ResourceNaming;
 using Trellis.ResourceNaming.Azure;
 using Xunit;
 
@@ -7,6 +8,8 @@ using Xunit;
 // DeployedEnvironmentOptions — replacing the template's former hand-rolled EnvironmentOptions.
 public class ResourceNamingLibraryTests
 {
+    // These examples assert clean, readable names, so they pin Isolated explicitly.
+    // (DeployedEnvironmentOptions.Scope defaults to Shared, which adds a {u5} suffix to DNS-global types.)
     private static readonly DeployedEnvironmentOptions Env = new()
     {
         System = "tdo",
@@ -14,6 +17,7 @@ public class ResourceNamingLibraryTests
         Region = "westus3",
         RegionShortName = "usw3",
         Cloud = KnownClouds.AzureCloud,
+        Scope = CloudScope.Isolated,
     };
 
     [Fact]
@@ -44,6 +48,7 @@ public class ResourceNamingLibraryTests
             System = "tdo",
             Environment = "prod",
             Cloud = KnownClouds.AzureUSGovernment,
+            Scope = CloudScope.Isolated,
         };
 
         usGov.BlobUrl().AbsoluteUri.Should().Be("https://tdostprod.blob.core.usgovcloudapi.net/");
