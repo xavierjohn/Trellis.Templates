@@ -1,4 +1,4 @@
----
+﻿---
 package: Trellis.ServiceLevelIndicators.Asp.ApiVersioning
 namespaces: [Trellis.ServiceLevelIndicators]
 types: [ServiceLevelIndicatorServiceCollectionExtensions, ApiVersionEnrichment]
