@@ -8,9 +8,9 @@
        TrellisVersion              -> xavierjohn/Trellis (framework)
        TrellisMicroservicesVersion -> xavierjohn/Trellis.Microservices -->
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.428</TrellisVersion>
-    <TrellisMicroservicesVersion>0.1.0-alpha.66</TrellisMicroservicesVersion>
-    <TrellisSliVersion>10.0.0-preview.25</TrellisSliVersion>
+    <TrellisVersion>3.0.0-alpha.432</TrellisVersion>
+    <TrellisMicroservicesVersion>0.1.0-alpha.68</TrellisMicroservicesVersion>
+    <TrellisSliVersion>10.0.0-preview.26</TrellisSliVersion>
   </PropertyGroup>
 
   <!-- Runtime -->
@@ -36,18 +36,18 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.1" />
     <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.19.1" />
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.1" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.3" />
-    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.16.3" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.10" />
+    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.16.10" />
     <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
   <!-- Aspire AppHost + OpenTelemetry -->
   <ItemGroup>
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.5" />
-    <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.4.5" />
-    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.4.5" />
-    <PackageVersion Include="Aspire.Azure.Messaging.ServiceBus" Version="13.4.5" />
-    <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.5" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Azure.Messaging.ServiceBus" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.6" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
