@@ -4,7 +4,7 @@
     "content": [
       {
         "files": [ "**/*.{md,yml}" ],
-        "exclude": [ "_site/**", "obj/**", "**/bin/**", "api_reference/**" ]
+        "exclude": [ "_site/**", "obj/**", "**/bin/**" ]
       }
     ],
     "resource": [

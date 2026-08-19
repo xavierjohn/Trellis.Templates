@@ -96,6 +96,9 @@ flows, always-valid commands, EF conventions — instead of guessing.
   value objects, DDD primitives, ASP.NET / EF Core / Mediator integration
 - **Microservices packages:** [`xavierjohn/Trellis.Microservices`](https://github.com/xavierjohn/Trellis.Microservices) —
   YARP gateway integration + consumer-side actor provider for multi-tenant ABAC
+- **Resource naming:** [`xavierjohn/Trellis.ResourceNaming`](https://github.com/xavierjohn/Trellis.ResourceNaming) —
+  deterministic, CAF-aligned Azure resource names and endpoints; consumed by both templates as a
+  published package
 
 ---
 
