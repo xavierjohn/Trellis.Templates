@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using Azure.Messaging.ServiceBus;
-using Trellis;
 using Trellis.Mediator;
 
 namespace ProjectTrackerTemplate.Members.Acl;
@@ -21,29 +20,39 @@ internal sealed class ServiceBusIntegrationEventPublisher : IIntegrationEventPub
     public ServiceBusIntegrationEventPublisher(ServiceBusClient client) =>
         _sender = client.CreateSender(MemberEventsChannel.QueueName);
 
-    public async ValueTask PublishAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken)
+    public async ValueTask PublishAsync(OutboundIntegrationMessage message, CancellationToken cancellationToken)
     {
         // This service publishes exactly one contract. Fail fast on anything else: because this adapter
         // REPLACES the in-process publisher globally, silently returning would let the outbox mark the row
         // processed and drop the event. A throw is recorded as a relay failure (retried, then parked with
         // the error visible) so a missing mapping surfaces instead of vanishing.
-        if (integrationEvent is not MemberInvitedIntegrationEvent invited)
+        if (message.Event is not MemberInvitedIntegrationEvent invited)
             throw new NotSupportedException(
-                $"No Service Bus mapping for integration event '{integrationEvent.GetType().Name}'. " +
+                $"No Service Bus mapping for integration event '{message.Event.GetType().Name}'. " +
                 "Add one here when this service starts publishing a new contract.");
 
         var json = JsonSerializer.Serialize(invited, IntegrationEventSerialization.Options);
-        var message = new ServiceBusMessage(json)
+        var busMessage = new ServiceBusMessage(json)
         {
             Subject = MemberInvitedIntegrationEvent.MessageType,
             ContentType = "application/json",
-            // Carry the dedup identity as the broker-native MessageId too — a best-effort first line of
-            // defence (Service Bus duplicate detection, when enabled) ahead of the inbox's authoritative
-            // (ConsumerId, MessageId) guard on the consumer.
+            // Deliberately the deterministic EventId, NOT message.MessageId (the outbox row id).
+            //
+            // Trellis' default guidance is to stamp message.MessageId verbatim, because a consumer that
+            // dedupes on the transport id needs redeliveries of one row to share an id. This template
+            // dedupes on a different, stronger key: MemberEventsConsumer builds its IntegrationEnvelope
+            // from the payload's EventId, which DeterministicEventId derives from the business key.
+            //
+            // That distinction matters because the outbox produces two classes of duplicate. Redelivering
+            // one row repeats the row id AND the EventId, so either key collapses it. But a retried domain
+            // row re-runs the translator and stages a genuinely NEW outbox row — a new row id carrying the
+            // same business event. Only the deterministic EventId collapses that second class, so it is
+            // the identity that travels on the wire and the one Service Bus native duplicate detection
+            // sees. Switching this to message.MessageId would silently reintroduce duplicate invitations.
             MessageId = invited.EventId.ToString("N"),
         };
 
-        await _sender.SendMessageAsync(message, cancellationToken);
+        await _sender.SendMessageAsync(busMessage, cancellationToken);
     }
 
     public ValueTask DisposeAsync() => _sender.DisposeAsync();

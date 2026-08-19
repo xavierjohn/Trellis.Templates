@@ -8,6 +8,8 @@ audience: [llm]
 ---
 # Trellis.Analyzers — API Reference
 
+> **Requires `Trellis.Analyzers`.** Every `TRLS###` rule below is enforced only while the consuming project holds a `PackageReference` to `Trellis.Analyzers`. Referencing `Trellis.Core` alone leaves all of them silent. This file is delivered by `Trellis.Core`, so its presence in `.github/` does **not** mean the analyzers are active — check the `.csproj`. Where the reference is absent, treat every rule here as advice you must apply by hand, because nothing will catch you.
+
 - **Package:** `Trellis.Analyzers`
 - **Namespace:** `Trellis.Analyzers`
 - **Purpose:** Roslyn analyzers and code fixes that enforce correct Trellis `Result<T>`, `Maybe<T>`, EF Core, and value-object usage.
@@ -69,14 +71,14 @@ In test projects, `TRLS001` and `TRLS015` are the rules most likely to need tuni
 | `TRLS008` | Info | Consider using Result.Combine | When combining multiple Result<T> values, Result.Combine() or .Combine() chaining provides a cleaner and more maintainable approach than manually checking IsSuccess on each result. |
 | `TRLS009` | Warning | Use async method variant for async lambda | When using async work with Map, Bind, Tap, or Ensure, use the async variant (MapAsync, BindAsync, etc.) and await the returned async pipeline. The code fix is only offered for simple, locally safe await insertions; convert synchronous void, value-returning, chained, nested, or delegate-changing scopes manually before applying it. |
 | `TRLS010` | Warning | Don't throw exceptions in Result chains | Throwing exceptions inside Bind, Map, Tap, or Ensure lambdas defeats the purpose of Railway Oriented Programming. Return Result.Fail<T>() to signal errors and keep the error on the failure track. |
-| `TRLS013` | Warning | Unsafe access to Maybe.Value in LINQ projection | `.Value` on `Maybe<T>` inside Select-family LINQ projections (`Select`/`SelectMany`/`OrderBy*`/`ThenBy*`/`GroupBy`/`ToDictionary`/`ToLookup`) throws for None elements unless an earlier `.Where(...)` lambda mentions `HasValue`. Suppression is **keyword-presence based**: predicate-shape verification (e.g., distinguishing `.Where(x => x.HasValue)` from `.Where(x => !x.HasValue)`) is a known limitation. For EF Core IQueryable predicates over a `Maybe<T>` property, either register `AddTrellisInterceptors()` (which rewrites `.HasValue`/`.Value`/`GetValueOrDefault(d)` into `EF.Property`/null-checks/`COALESCE`) or use `Trellis.EntityFrameworkCore.MaybeQueryableExtensions` (`WhereHasValue`/`WhereNone`/`WhereEquals`/`WhereLessThan`/`WhereLessThanOrEqual`/`WhereGreaterThan`/`WhereGreaterThanOrEqual`) explicitly. |
-| `TRLS014` | Error | Combine chain exceeds maximum supported tuple size | Combine supports up to 9 elements. Downstream methods (Bind, Map, Tap, Match) also only support tuples up to 9 elements. Group related fields into intermediate value objects or sub-results, then combine those groups. |
+| `TRLS013` | Warning | Unsafe access to Maybe.Value in LINQ projection | `.Value` on `Maybe<T>` inside System.Linq `Enumerable` / `Queryable` Select-family LINQ projections (`Select`/`SelectMany`/`OrderBy*`/`ThenBy*`/`GroupBy`/`ToDictionary`/`ToLookup`) throws for None elements unless an earlier `.Where(...)` lambda mentions `HasValue`. Suppression is **keyword-presence based**: predicate-shape verification (e.g., distinguishing `.Where(x => x.HasValue)` from `.Where(x => !x.HasValue)`) is a known limitation. For EF Core IQueryable predicates over a `Maybe<T>` property, either register `AddTrellisInterceptors()` (which rewrites `.HasValue`/`.Value`/`GetValueOrDefault(d)` into `EF.Property`/null-checks/`COALESCE`) or use `Trellis.EntityFrameworkCore.MaybeQueryableExtensions` (`WhereHasValue`/`WhereNone`/`WhereEquals`/`WhereLessThan`/`WhereLessThanOrEqual`/`WhereGreaterThan`/`WhereGreaterThanOrEqual`) explicitly. |
+| `TRLS014` | Error | Combine chain exceeds maximum supported tuple size | Trellis `Result.Combine` / `CombineAsync` supports up to 9 elements. Downstream methods (Bind, Map, Tap, Match) also only support tuples up to 9 elements. Group related fields into intermediate value objects or sub-results, then combine those groups. User-defined `Combine` methods are ignored. |
 | `TRLS015` | Warning | Use SaveChangesResultAsync instead of SaveChangesAsync | In non-UoW contexts, direct SaveChanges/SaveChangesAsync calls bypass the Result pipeline and turn database errors into unhandled exceptions; use `SaveChangesResultAsync` (returns `Result<int>`) or `SaveChangesResultUnitAsync` (returns `Result<Unit>`). Under `AddTrellisUnitOfWork<TContext>` the `TransactionalCommandBehavior` owns commit — repositories should stage changes via DbContext APIs (Add/Update/Remove) and not invoke SaveChanges at all. |
 | `TRLS016` | Warning | HasIndex references a Maybe<T> property | HasIndex with a Maybe<T> property silently fails to create the index because MaybeConvention maps Maybe<T> via generated storage members, so the CLR property is invisible to EF Core's index builder. Prefer HasTrellisIndex so regular properties stay strongly typed and Maybe<T> properties resolve to their mapped storage automatically. If needed, you can also use string-based HasIndex with the storage member name directly. Examples: builder.HasTrellisIndex(e => new { e.Status, e.SubmittedAt }); or builder.HasIndex("Status", "_submittedAt"). |
 | `TRLS018` | Warning | Result<T> deconstruction reads value without success gate | Reading the value position of a `Result<T>` deconstruction (`var (success, value, error) = result;`) without first checking `success`/`error` returns the default value when the result is in failure. Gate the read with the success bool, an `error is null` check, or an early return on failure. |
 | `TRLS019` | Warning | Avoid `default(Result)`, `default(Result<T>)`, and `default(Maybe<T>)` | `default(Result)` and `default(Result<T>)` are typed failures carrying the `new Error.Unexpected("default_initialized")` sentinel — never silent successes. `default(Maybe<T>)` equals `Maybe<T>.None` but the explicit literal obscures intent. Construct via `Result.Ok(...)` / `Result.Fail(...)` or `Maybe<T>.None` / `Maybe.From(...)`. Suppress with `[SuppressMessage("Trellis", TrellisDiagnosticIds.DefaultResultOrMaybe)]` or `#pragma warning disable TRLS019` for sanctioned sentinel/test-helper sites. |
 | `TRLS020` | Warning | Composite value object DTO property is not safely deserializable | Composite `[OwnedEntity]` value objects exposed through request/response DTO surfaces need a supported transport. Bare composite properties require `[JsonConverter(typeof(CompositeValueObjectJsonConverter<T>))]` on the value-object type; `Maybe<TComposite>` DTO properties are not supported and should use a nullable transport (`TComposite?`) plus `Maybe.From(...)` at the endpoint/API seam. |
-| `TRLS021` | Warning | EF configuration duplicates Trellis conventions | Flags `HasConversion`, `OwnsOne`, and `Ignore` calls on `Maybe<T>` or `[OwnedEntity]` properties when `ApplyTrellisConventions(...)` / `ApplyTrellisConventionsFor<TContext>()` is wired. Remove the manual mapping and let Trellis conventions own the property. |
+| `TRLS021` | Warning | EF configuration duplicates Trellis conventions | Flags `HasConversion`, `OwnsOne`, and `Ignore` calls on `Maybe<T>` or `[OwnedEntity]` properties when the relevant `DbContext` wires `ApplyTrellisConventions(...)` / `ApplyTrellisConventionsFor<TContext>()`. Remove the manual mapping and let Trellis conventions own the property. |
 | `TRLS022` | Warning | `[OwnedEntity]` property uses init-only setter | Flags `{ get; init; }` properties on classes annotated with `[OwnedEntity]`. EF Core materializes owned entities through a generator-emitted private parameterless constructor; init-only setters are not covered by Trellis tests today and round-trip behavior is not guaranteed. Use `{ get; private set; }`. |
 | `TRLS023` | Warning | Location route is missing the api-version route value | Flags `HttpResponseOptionsBuilder<T>.CreatedAtRoute(...)`, `HttpResponseOptionsBuilder<T>.CreatedAtAction(...)`, and `HttpResponseOptionsBuilder<T>.WithLocation(...)` calls inside `[ApiVersion]`-decorated controllers when the chain is not followed by `.WithVersionedRoute(...)` (or the underlying primitive `.WithRouteValueResolver("api-version", httpContext => ...)` on `HttpResponseOptionsBuilder<T>`, matched case-insensitively) and the route values dictionary literal does not include an `"api-version"` key. Without that key, the generated `Location` header omits the version under query/header API versioning and a follow-up `GET` to the dereferenced URL returns 404. The code fix appends `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` and adds `using Trellis.Asp.ApiVersioning;` when missing. The analyzer matches `["api-version"]` keys case-insensitively (matching `RouteValueDictionary`'s runtime semantics) and resolves const-string identifiers via the semantic model. Recognises and warns on the anonymous-object ctor shape (`new RouteValueDictionary(new { id = ... })`) since C# property names cannot contain `"-"`, and on the single-id overloads (`CreatedAtRoute(routeName, idSelector)` / `WithLocation(routeName, idSelector)`) which construct a single-key dictionary internally. Does not walk attribute base-type chains (`[ApiVersion]` is `Inherited = false`). |
 | `TRLS054` | Warning | Use operators instead of Maybe.Equals/object.Equals in IQueryable expressions | Flags `Maybe<T>.Equals(...)` and `object.Equals(...)` over `Maybe<T>` values inside `System.Linq.Queryable` LINQ lambdas. `MaybeExpressionRewriter` supports `==` / `!=` operator comparisons but cannot translate these opaque method-call shapes, so use operators or `MaybeQueryableExtensions.WhereEquals(...)`. In-memory `IEnumerable<T>` LINQ is not flagged. |
@@ -96,6 +98,7 @@ In test projects, `TRLS001` and `TRLS015` are the rules most likely to need tuni
 | `TRLS056` | Error | Required generated member conflicts with user declaration | Emitted by `RequiredPartialClassGenerator` when a `Required*<TSelf>` partial class declares a member that Trellis would generate (`TryCreate`, `Create`, `Parse`, `TryParse`, GUID factories, conversion operator, constructor, or validation hook). The generator skips the conflicting member so the user declaration wins and reports this diagnostic at the user member declaration. Remove the redundant member, or change the base class if custom semantics are required. |
 | `TRLS057` | Error | `[Trim]` on a non-string Required base | Emitted by `RequiredPartialClassGenerator` when `[Trim]` is applied to a Required base other than `RequiredString`. `[Trim]` only affects string trimming; on any other base it is silently ignored, so the generator refuses to emit code. Remove the attribute. |
 | `TRLS058` | Error | `[NotDefault]` on a sentinel-less Required base | Emitted by `RequiredPartialClassGenerator` when `[NotDefault]` is applied to `RequiredBool` or `RequiredEnum`. Those bases have no meaningful default sentinel to reject (every value is valid), so the attribute is a no-op. Remove the attribute. |
+| `TRLS059` | Warning | `JsonSerializerContext` has `[GenerateScalarValueConverters]` but no `[JsonSerializable]` | Emitted by `ScalarValueJsonConverterGenerator` (Trellis.AspSourceGenerator) when a context marked `[GenerateScalarValueConverters]` declares no `[JsonSerializable]` of its own. System.Text.Json's source generator only observes attributes present in the original compilation, so it skips such a context entirely and never emits the abstract members `JsonSerializerContext` requires — failing the build with two CS0534 errors that give no hint about the cause. Trellis cannot supply the attribute on your behalf, because source generators cannot observe one another's output. Add at least one `[JsonSerializable(typeof(...))]`. |
 
 ## Constants — `TrellisDiagnosticIds`
 
@@ -151,6 +154,7 @@ Every `public const string` field on `TrellisDiagnosticIds`, the diagnostic ID i
 | `GeneratedRequiredMemberCollision` | `TRLS056` | `RequiredPartialClassGenerator` (Trellis.Core.Generator) |
 | `TrimOnNonStringBase` | `TRLS057` | `RequiredPartialClassGenerator` (Trellis.Core.Generator) |
 | `NotDefaultOnSentinellessBase` | `TRLS058` | `RequiredPartialClassGenerator` (Trellis.Core.Generator) |
+| `SerializerContextHasNoJsonSerializable` | `TRLS059` | `ScalarValueJsonConverterGenerator` (Trellis.AspSourceGenerator) |
 
 ## Descriptors — `DiagnosticDescriptors`
 
@@ -218,10 +222,28 @@ public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
   - `TryGetValue` branches, including negated forms
   - `maybe.HasValue && maybe.Value ...` short-circuit
   - early-return / guard-clause exits — `if (!maybe.HasValue) return;` (also `throw` / `break` / `continue`, and the `maybe.HasNoValue`, `maybe.HasValue == false`, and `maybe.HasValue != true` forms, with the literal on either side) followed by `maybe.Value` in a later statement, when the receiver is not reassigned between the guard and the access
+  - property patterns over a single subpattern — `maybe is { HasValue: true }`, `maybe is { HasNoValue: false }`, and their negations `maybe is not { HasValue: true }` — in `if` branches, ternary arms, early-return guards, and `&&` short-circuits. Multi-subpattern forms such as `maybe is { HasValue: true, Value.Length: > 0 }` are deliberately not recognized, because negating a conjunction does not prove absence and both branches must be exact.
   - safe lambda parameters inside Trellis Maybe APIs such as `Bind`, `Map`, `Tap`, `Ensure`, `Match`
   - prior assignment from `Maybe.From(...)` when `T` is a non-nullable value type and the variable is not reassigned
 - **Inside `Expression<Func<...>>` lambdas (EF Core, Specifications, FluentValidation):** the rule is *not* relaxed. The analyzer recognizes the immediate short-circuit shape `e.SubmittedAt.HasValue && e.SubmittedAt.Value < cutoff`; when the `Maybe<T>` check is part of a longer predicate, keep that pair parenthesized or prefer an analyzer-clean sentinel form such as `e.SubmittedAt.GetValueOrDefault(DateTime.MaxValue) < cutoff`. For ad-hoc EF `IQueryable<T>` queries, prefer the `MaybeQueryableExtensions.WhereXxx` helpers when one matches the predicate.
 - Code fix: `AddResultGuardCodeFixProvider`.
+
+##### Synthesized fallback return
+
+When the guarded statements end the method with a `return`, the wrapped code no longer returns on every path, so the fix appends a fallback:
+
+| Declared return type | Fix emits | Rationale |
+|---|---|---|
+| Value type (`int`, `DateTime`, …) | `return default;` | `default` is a real value. |
+| `Result<T>` | `return default;` | `default(Result<T>)` is a failure carrying the `default_initialized` sentinel. |
+| `Maybe<T>` | `return default;` | `default(Maybe<T>)` is `None`. |
+| Unconstrained generic `T` | `return default;` | `default(T)` is valid for any substitution. |
+| Nullable reference (`string?`) | `return default;` | `null` is in the type's domain. |
+| **Non-nullable reference (`string`, `Task<T>`)** | **nothing** | `default` would be `null`. Omitting the return raises **CS0161** ("not all code paths return a value"), which cannot be ignored, instead of CS8603 (a warning that may be suppressed) or a silent `null` where the type system says one is impossible. Replace the missing branch with a real value or a `throw`. |
+
+`async` methods are judged on the awaited type, so `async Task<int>` gets `return default;` while `async Task<string>` does not. A non-`async` method declared to return `Task<T>` is treated as a non-nullable reference type, because `default` there is a `null` task that would throw on `await`.
+
+`default!` is deliberately not emitted: it silences the compiler while planting a `null` the type system claims cannot exist.
 
 > **Result accessors:** The `UnsafeValueAccessAnalyzer` previously also covered `Result<T>.Value` and `Result<T>.Error`. Both branches were deleted because (a) `Result<T>.Value` no longer exists, and (b) `Result<T>.Error` is now `Error?`, so unsafe access is caught natively by C# nullable-reference-type analysis.
 
@@ -280,7 +302,7 @@ public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
 - No code fix.
 
 #### `UnsafeValueInLinqAnalyzer` — `TRLS013`, `TRLS054`, `TRLS055`
-- Flags `.Value` inside LINQ projection/order/grouping lambdas for:
+- Flags `.Value` inside System.Linq `Enumerable` / `Queryable` projection/order/grouping lambdas for:
   - `Select`
   - `SelectMany`
   - `ToDictionary`
@@ -295,11 +317,13 @@ public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
 - For EF Core IQueryable predicates over a `Maybe<T>` property, either register `AddTrellisInterceptors()` (which rewrites `.HasValue`/`.Value`/`GetValueOrDefault(d)` into `EF.Property`/null-checks/`COALESCE`) or use `Trellis.EntityFrameworkCore.MaybeQueryableExtensions` (`WhereHasValue`/`WhereNone`/`WhereEquals`/`WhereLessThan`/`WhereLessThanOrEqual`/`WhereGreaterThan`/`WhereGreaterThanOrEqual`) explicitly. Note: this analyzer only fires on Select-family methods today; coverage of `.Where`/`.Any`/`.First` etc. is tracked as a follow-up.
 - `TRLS054`: inside `System.Linq.Queryable` lambdas, flags `Maybe<T>.Equals(...)` and `object.Equals(...)` when a `Maybe<T>` operand is involved. Use the natural `==` / `!=` operators (which `MaybeExpressionRewriter` understands) or `MaybeQueryableExtensions.WhereEquals(...)`.
 - `TRLS055`: inside `System.Linq.Queryable` lambdas, flags `HasValueWhere(...)` when the predicate argument is not an inline lambda. Captured `Func<T, bool>` variables, method groups, and member delegates cannot be inspected by the EF Core rewriter.
+- User-defined methods named `Select`, `GroupBy`, `OrderBy`, etc. are ignored unless the invocation resolves to `System.Linq.Enumerable` or `System.Linq.Queryable`.
 - No code fix.
 
 #### `CombineLimitAnalyzer` — `TRLS014`
-- Flags the outermost `.Combine(...)` or `.CombineAsync(...)` chain when the resulting tuple would exceed 9 elements.
+- Flags the outermost Trellis `.Combine(...)` or `.CombineAsync(...)` chain when the resulting tuple would exceed 9 elements.
 - Counts tuple width semantically, so chains continued through intermediate variables are still measured correctly.
+- User-defined methods or extension methods named `Combine` / `CombineAsync` are ignored unless they resolve to the Trellis combine extension containers.
 - No code fix.
 
 ### Error, EF Core, and value-object rules
@@ -354,7 +378,8 @@ public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
 
 #### `RedundantEfConfigurationAnalyzer` — `TRLS021`
 - Activates only when the compilation references `Trellis.EntityFrameworkCore.MaybeConvention`.
-- Reports only when the source also wires Trellis conventions via `ApplyTrellisConventions(...)` or generated `ApplyTrellisConventionsFor<TContext>()`.
+- Reports only when the relevant `DbContext` also wires Trellis conventions via `ApplyTrellisConventions(...)` or generated `ApplyTrellisConventionsFor<TContext>()`.
+- Manual configuration inside a `DbContext` subclass is correlated with that specific context, so a second context in the same compilation can keep manual mappings without being flagged. Standalone `IEntityTypeConfiguration<TEntity>` classes are attributed to contexts through `ApplyConfiguration(new TConfig())`, `ApplyConfigurationsFromAssembly(...)`, or matching `DbSet<TEntity>` properties. Configuration classes that cannot be associated with any context are not reported.
 - Flags manual EF configuration for convention-owned properties:
   - `builder.Property(e => e.MaybeProperty).HasConversion(...)`
   - `builder.OwnsOne(e => e.OwnedEntityValueObject)`
@@ -403,10 +428,10 @@ public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
 
 | Code fix provider | Fixes | Behavior |
 |---|---|---|
-| `AddResultGuardCodeFixProvider` | `TRLS003` | Wraps the current statement block in `if (maybe.HasValue)` and tracks consecutive statements that keep using the guarded value. |
+| `AddResultGuardCodeFixProvider` | `TRLS003` | Wraps the current statement block in `if (maybe.HasValue)` and tracks consecutive statements that keep using the guarded value. When the wrapped statements end the method with a `return`, it appends `return default;` only if `default` is a usable value for the declared return type; see [synthesized fallback return](#synthesized-fallback-return). |
 | `UseBindInsteadOfMapCodeFixProvider` | `TRLS002` | Replaces `Map` with `Bind` and `MapAsync` with `BindAsync`. |
 | `UseAsyncMethodVariantCodeFixProvider` | `TRLS009` | Replaces sync method names with async variants, awaits the rewritten call, and adds `async` to Task/ValueTask-returning methods when that is locally safe. It withholds the fix for chained/nested calls and scopes that require manual delegate, parameter, or return-flow changes. |
-| `UseSaveChangesResultCodeFixProvider` | `TRLS015` | Replaces `SaveChangesAsync` / `SaveChanges` with `SaveChangesResultAsync` or `SaveChangesResultUnitAsync`, adds `await`/`async` for sync `SaveChanges`, and adds `using Trellis.EntityFrameworkCore;` when needed. |
+| `UseSaveChangesResultCodeFixProvider` | `TRLS015` | Replaces `SaveChangesAsync` / `SaveChanges` with `SaveChangesResultAsync` or `SaveChangesResultUnitAsync`, adds `await`/`async` for sync `SaveChanges`, and adds `using Trellis.EntityFrameworkCore;` when needed. When the returned row count is *used*, the fix is offered only where the consuming context can rebind to `Result<int>` — an implicitly-typed (`var`) local. It is withheld for explicit `int` locals, assignments, conditions, arguments, and `return` statements, because the mechanical rename would produce `CS0029`/`CS0019`; restructure those call sites into the railway by hand. |
 | `CreatedAtRouteMissingApiVersionCodeFixProvider` | `TRLS023` | Appends `.WithVersionedRoute()` to the flagged `CreatedAtRoute(...)`, `CreatedAtAction(...)`, or `WithLocation(...)` call (so the chain becomes `<original>.WithVersionedRoute()`) and inserts `using Trellis.Asp.ApiVersioning;` in the same scope as existing usings (file-scoped namespace, block-scoped namespace, or top-level) when missing. |
 
 ## Compilable examples

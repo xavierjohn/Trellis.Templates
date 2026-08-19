@@ -3,7 +3,7 @@ package: Trellis.Core, Trellis.Primitives
 namespaces: [Trellis, Trellis.Primitives]
 types: [ValueObject, "ScalarValueObject<TSelf,T>", RequiredString<TSelf>, RequiredGuid<TSelf>, RequiredInt<TSelf>, RequiredLong<TSelf>, RequiredDecimal<TSelf>, RequiredBool<TSelf>, RequiredDateTime<TSelf>, RequiredDateTimeOffset<TSelf>, RequiredEnum<TSelf>, Maybe<T>]
 version: v3
-last_verified: 2026-06-16
+last_verified: 2026-08-18
 audience: [llm]
 ---
 # Trellis Value Object Taxonomy
@@ -45,7 +45,7 @@ This section is a **selection guide** — one or two distinguishing facts per ty
 
 ### `ValueObject`
 
-Base for **structured** value objects: override `GetEqualityComponents()` to define identity from multiple fields. Provides structural equality, hashing, and ordering (`IComparable`); yielded components must be `IComparable?` — use `MaybeComponent<T>(...)` to yield an optional field.
+Base for **structured** value objects: override `GetEqualityComponents(ref EqualityComponents)` to define identity from multiple fields. Provides structural equality, hashing, and ordering (`IComparable`); added components must be `IComparable?` — `components.Add(maybe)` (or `MaybeComponent<T>(...)`) adds an optional field.
 
 ### `ScalarValueObject<TSelf, T>`
 
@@ -93,7 +93,7 @@ Single-`DateTimeOffset` value object; prefer over `RequiredDateTime<TSelf>` when
 
 ### `RequiredEnum<TSelf>`
 
-**Symbolic** smart-enum that replaces a C# `enum`; members are `public static readonly` singletons. Identity is the string `Value` (equality is case-insensitive); ordering (`IComparable`) is by `Ordinal` = **declaration order**, like the underlying enum it replaces. String-backed in JSON and EF Core. Use `GetAll()` / `TryFromName(...)` for lookup and `[EnumValue("...")]` to override a member's external name. Stands apart from `ScalarValueObject<TSelf, T>`.
+**Symbolic** smart-enum that replaces a C# `enum`; members are `public static readonly` singletons. Identity is the string `Value` (equality is case-insensitive); ordering (`IComparable`) is by `Ordinal` = **declaration order**, like the underlying enum it replaces. String-backed in JSON and EF Core. Use `GetAll()` / `TryCreate(...)` for lookup and `[EnumValue("...")]` to override a member's external name. Stands apart from `ScalarValueObject<TSelf, T>` architecturally, but — like the scalar primitives — provides an implicit unwrap to its `string` `Value`.
 
 ### `MonetaryAmount`
 
@@ -134,7 +134,7 @@ Concrete **structured** value object (`Amount` + `Currency`) for multi-currency;
     - `Slug`
     - `Url`
 - **Symbolic value objects**
-  - `RequiredEnum<TSelf>` is separate from `ScalarValueObject<TSelf, T>` but still uses `Value` as its canonical public identity.
+  - `RequiredEnum<TSelf>` is separate from `ScalarValueObject<TSelf, T>` but still uses `Value` as its canonical public identity and implicitly unwraps to it.
 - **Structured value objects**
   - `Money` -> `ValueObject`
 - **Optionality wrappers**
@@ -142,7 +142,7 @@ Concrete **structured** value object (`Amount` + `Currency`) for multi-currency;
 
 ## Source-generated members
 
-For a `partial` `Required*<TSelf>` type the primitive generator emits the `IScalarValue<TSelf, T>` implementation, the `TryCreate` primitive and string factories (plus a culture-aware `IFormatProvider` overload for the numeric and date/time families), `Create`, `Parse` / `TryParse`, an explicit cast operator, and a `ValidateAdditional(...)` extension hook. `RequiredGuid<TSelf>` additionally gets `NewUniqueV4()` / `NewUniqueV7()`; `RequiredEnum<TSelf>` creation routes through `TryFromName`. See the per-type generated-member entries in [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) for the exact emitted signatures.
+For a `partial` `Required*<TSelf>` type the primitive generator emits the `IScalarValue<TSelf, T>` implementation, the `TryCreate` primitive and string factories (plus a culture-aware `IFormatProvider` overload for the numeric and date/time families), `Create`, `Parse` / `TryParse`, an explicit cast operator, and a `ValidateAdditional(...)` extension hook. `RequiredGuid<TSelf>` additionally gets `NewUniqueV4()` / `NewUniqueV7()`; `RequiredEnum<TSelf>` creation routes through `TryCreate`. See the per-type generated-member entries in [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) for the exact emitted signatures.
 
 ## Built-in primitives table
 
@@ -198,7 +198,7 @@ public static class Example
         var amount = MonetaryAmount.TryCreate("12.34", CultureInfo.InvariantCulture).Value;
 
         // Symbolic
-        var status = OrderStatus.TryFromName("awaiting-payment").Value;
+        var status = OrderStatus.TryCreate("awaiting-payment").Value;
         var isOpen = status.Is(OrderStatus.Draft, OrderStatus.AwaitingPayment);
 
         // Structured

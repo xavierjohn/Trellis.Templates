@@ -3,7 +3,7 @@ package: Trellis.EntityFrameworkCore
 namespaces: [Trellis.EntityFrameworkCore]
 types: [DbContextExtensions, DbContextIdempotencyExtensions, DbContextOptionsBuilderExtensions, DbContextRetryExtensions, DbExceptionClassifier, "EfUnitOfWork<TContext>", EntityTimestampInterceptor, IUnitOfWork, MaybeEntityTypeBuilderExtensions, MaybeModelExtensions, MaybePropertyMapping, MaybeQueryableExtensions, MaybeQueryInterceptor, MaybeUpdateExtensions, ModelConfigurationBuilderExtensions, OwnedEntityAttribute, QueryableExtensions, "RepositoryBase<TAggregate,TId>", ScalarValueQueryInterceptor, "TransactionalCommandBehavior<TMessage,TResponse>", TrellisPersistenceMappingException, "TrellisScalarConverter<TModel,TProvider>", UnitOfWorkServiceCollectionExtensions]
 version: v3
-last_verified: 2026-05-31
+last_verified: 2026-08-18
 audience: [llm]
 ---
 # Trellis.EntityFrameworkCore
@@ -258,8 +258,12 @@ return maybe
 ### `IUnitOfWork`
 
 ```csharp
+namespace Trellis; // Trellis.Persistence.Abstractions
+
 public interface IUnitOfWork
 ```
+
+> **Defined in `Trellis.Persistence.Abstractions`, not this package** — it is provider-neutral so non-EF stores can implement the same commit boundary. `Trellis.EntityFrameworkCore` references that package, so consumers get the interface transitively and need no extra `PackageReference`. The canonical contract lives in [`trellis-api-persistence-abstractions.md`](trellis-api-persistence-abstractions.md#iunitofwork); it is restated here because EF Core is where most consumers meet it.
 
 Abstraction over the commit boundary for staged changes. Repositories stage changes; calling `CommitAsync` persists them. In the standard Trellis pipeline, commit is handled automatically by `TransactionalCommandBehavior`. Inject `IUnitOfWork` directly only in non-pipeline scenarios (background jobs, integration tests).
 
@@ -289,17 +293,21 @@ Also implements [`ITrackedAggregateSource`](trellis-api-core.md#itrackedaggregat
 ### `TransactionalCommandBehavior<TMessage, TResponse>`
 
 ```csharp
+namespace Trellis.Mediator; // Trellis.Mediator
+
 public sealed class TransactionalCommandBehavior<TMessage, TResponse>
     : IPipelineBehavior<TMessage, TResponse>
     where TMessage : ICommand<TResponse>
     where TResponse : IResult, IFailureFactory<TResponse>
 ```
 
+> **Defined in `Trellis.Mediator`, not this package.** It depends only on `IUnitOfWork`, so it works over any store, not just EF Core; `AddTransactionalCommandBehavior()` in `Trellis.Mediator` is the provider-neutral registration, and `AddTrellisUnitOfWork<TContext>()` below is the EF-specific helper that calls it. `Trellis.EntityFrameworkCore` references `Trellis.Mediator`, so no extra `PackageReference` is needed. See [`trellis-api-mediator.md`](trellis-api-mediator.md#trellismediatortransactionalcommandbehaviorservicecollectionextensions) for the registration surface.
+
 Pipeline behavior that auto-commits staged changes after a successful command handler. Only applies to `ICommand<TResponse>` messages — queries are skipped at the type-constraint level and incur no overhead. If the handler returns a failure, no commit occurs and staged changes are discarded with the `DbContext`. EF Core wraps each `SaveChanges` call in an implicit transaction, so all staged changes within a single handler commit atomically.
 
 > **Persist-on-failure outcomes.** If `TResponse` implements `IPersistOnFailure` and the per-instance `PersistOnFailure` flag is `true` — the canonical producer is `Result.FailAfterCommit<T>(error)` — the commit step runs even though the result is a failure. This enables the worker-handler pattern of persisting a `permanently_failed` state row alongside the failure outcome. On commit failure for a persist-on-failure outcome, the commit error replaces the handler error in the returned response.
 
-> **Important:** This behavior is **not** registered by `Trellis.Mediator.ServiceCollectionExtensions.AddTrellisBehaviors()`. Consumers of `Trellis.EntityFrameworkCore` must register it explicitly via `AddTrellisUnitOfWork<TContext>()` (see below) **after** `AddTrellisBehaviors()` so it lands innermost — closest to the handler — and commit failures remain visible to outer logging/tracing/exception behaviors.
+> **Important:** This behavior is **not** registered by `Trellis.Mediator.ServiceCollectionExtensions.AddTrellisBehaviors()`. Consumers of `Trellis.EntityFrameworkCore` must register it explicitly via `AddTrellisUnitOfWork<TContext>()` (see below). Ordering is independent versus `AddTrellisBehaviors()` and domain-event dispatch helpers: the transaction behavior is rehomed innermost — closest to the handler — so commit failures remain visible to outer logging/tracing/exception behaviors.
 
 | Signature | Returns | Description |
 | --- | --- | --- |
@@ -319,7 +327,15 @@ public static class UnitOfWorkServiceCollectionExtensions
 
 ### Behavioral notes: `AddTrellisUnitOfWork<TContext>`
 
-`AddTrellisUnitOfWork<TContext>()` inserts `TransactionalCommandBehavior<,>` after the last existing `IPipelineBehavior<,>` registration, making it innermost in the mediator pipeline. It is idempotent for an existing open-generic `TransactionalCommandBehavior<,>`: a second call is a no-op. Call it **after** `AddTrellisBehaviors()` so that commit failures are visible to outer behaviors such as logging and tracing. It **throws `InvalidOperationException`** when a closed-generic `IPipelineBehavior<TMessage,TResponse> → TransactionalCommandBehavior<TMessage,TResponse>` is already registered, with or without an open-generic registration, because installing the open generic alongside would resolve both descriptors for matching commands and produce two commits per command. The exception message names the supported resolutions: remove the closed registration and let the helper install the open generic, or call `AddTrellisUnitOfWorkWithoutBehavior<TContext>()` to keep the explicit closed registrations and skip open-generic installation.
+`AddTrellisUnitOfWork<TContext>()` inserts `TransactionalCommandBehavior<,>` after the last existing `IPipelineBehavior<,>` registration, making it innermost in the mediator pipeline.
+
+| Situation | Result |
+|---|---|
+| An open-generic `TransactionalCommandBehavior<,>` is already registered | No-op — the helper is idempotent |
+| Called before or after `AddTrellisBehaviors()` or the domain-event dispatch helpers | Same canonical order either way: those helpers relocate pre-existing transaction descriptors, keeping commit failures visible to outer behaviors such as logging and tracing |
+| A **closed**-generic `IPipelineBehavior<TMessage,TResponse> → TransactionalCommandBehavior<TMessage,TResponse>` is already registered (with or without an open-generic registration) | Throws `InvalidOperationException` — installing the open generic alongside would resolve both descriptors for matching commands and commit twice per command |
+
+The exception message names the two supported resolutions: remove the closed registration and let the helper install the open generic, or call `AddTrellisUnitOfWorkWithoutBehavior<TContext>()` to keep the explicit closed registrations and skip open-generic installation.
 
 ### `EntityTimestampInterceptor`
 
@@ -437,6 +453,19 @@ public static class DbExceptionClassifier
 | `public static bool IsForeignKeyViolation(DbUpdateException ex)` | `bool` | Detects foreign-key violations across SQL Server (error 547), PostgreSQL (SQLSTATE 23503), SQLite (`FOREIGN KEY constraint failed`), MySQL/MariaDB (errors 1451/1452 or `Cannot add or update a child row` / `Cannot delete or update a parent row` message), and generic message-based fallbacks. Provider exception types are detected by name. The MySQL message-prefix detection runs unconditionally rather than gated on SQLSTATE 23000 (which is shared with duplicate-key violations and so is unreliable on its own). |
 | `public static string? ExtractConstraintDetail(DbUpdateException ex)` | `string?` | Returns a logging-oriented detail string such as the PostgreSQL constraint name or the provider message. |
 | `public static (string? ConstraintName, string? TableName) ExtractConstraintIdentity(DbUpdateException ex)` | `(string?, string?)` | Returns the constraint name and the qualified table the violated constraint belongs to, parsed from the inner provider exception. Typed extraction first for PostgreSQL (`Npgsql.PostgresException.ConstraintName` / `TableName` / `SchemaName` via reflection so the package stays provider-agnostic; output is `"schema.table"` when both are present), then message-based parsing for SQL Server 2627 / 2601 / FK 547 (both `FOREIGN KEY` and parent-side `REFERENCE` constraint forms), SQLite `UNIQUE constraint failed: <Table>.<Column>` / `PRIMARY KEY` (constraint name is `null` because SQLite does not name the constraint), and MySQL `Duplicate entry '...' for key '<table>.<key>'`. Returns `(null, null)` on any unexpected exception so telemetry extraction never breaks the caller. Used by `SaveChangesResultAsync`, `SaveChangesWithRetryAsync`, and `TryInsertUniqueAsync` to populate `Error.Conflict.ConstraintName` / `ConstraintTableName`. |
+
+> **Provider drift is guarded by tests, not by types.** Matching exceptions by name keeps the
+> package free of driver dependencies, but it fails open: a provider that renames its exception
+> type would silently turn a duplicate-key violation into an unhandled `DbUpdateException`.
+> `DbExceptionClassifierProviderContractTests` references the real drivers (test-only) and pins
+> the type names and the properties read by reflection, so a rename breaks the build instead.
+> PostgreSQL and SQLite are additionally classified end to end against real exception instances.
+>
+> Properties are resolved by walking the type hierarchy most-derived first rather than by name
+> alone, because a driver may shadow a base property with a different type — `MySqlConnector`'s
+> `MySqlException` re-declares `ErrorCode` as an enum over `ExternalException.ErrorCode`, and a
+> plain name lookup raises `AmbiguousMatchException`. These helpers run inside `catch` blocks, so
+> an escaping reflection failure would convert a `409 Conflict` into a `500`.
 
 ### `TrellisPersistenceMappingException`
 
@@ -599,7 +628,7 @@ public static string ToMaybeMappingDebugString(this DbContext dbContext)
 
 - `AggregateETagConvention` is internal. `ApplyTrellisConventions` uses it to mark `IAggregate.ETag` as a concurrency token and set `HasMaxLength(50)`.
 - `ScalarValueObjectPropertyConvention` is internal. It maps **constructor-bound** (get-only) Trellis value-object properties — both scalar value objects and symbolic enum (`RequiredEnum<T>`) value objects — the idiomatic aggregate/entity shape where the value object is supplied only through the constructor (e.g. `public CustomerId CustomerId { get; }` set in the constructor). EF Core discovers a *settable* value-object property through its setter, but a get-only one is not auto-discovered, so EF Core's constructor binding fails with `Cannot bind '<param>' in '<Type>(...)'`. This convention adds the matching property at entity-type-added time so the registered scalar converter applies and the constructor parameter binds — the automated equivalent of an explicit `builder.Property(x => x.CustomerId).HasConversion(...)` in `OnModelCreating`.
-- `AggregateETagInterceptor` is internal. `AddTrellisInterceptors()` uses it to generate new `Guid.NewGuid().ToString("N")` ETags for `Added` and `Modified` aggregates, promote `Unchanged` aggregate roots when loaded dependents are `Added`, `Modified`, or `Deleted`, and sync `OriginalValue` after save when `acceptAllChangesOnSuccess` is `false`.
+- `AggregateETagInterceptor` is internal. `AddTrellisInterceptors()` uses it to generate new `Guid.NewGuid().ToString("N")` ETags for `Added` and `Modified` aggregates, promote `Unchanged` aggregate roots when loaded dependents are `Added`, `Modified`, or `Deleted`, and sync `OriginalValue` after save when `acceptAllChangesOnSuccess` is `false` (including async post-commit hooks where cancellation is requested after the database commit is already durable).
 - `AggregateTransientPropertyConvention` is internal. It explicitly ignores `IAggregate.IsChanged`.
 - `MaybeConvention` is internal. It ignores the `Maybe<T>` CLR property, requires the generated `_camelCase` storage member, maps scalar `Maybe<T>` properties to nullable backing-field columns, and maps `Maybe<T>` where `T` is already owned as an optional ownership navigation.
 - `CompositeValueObjectConvention` is internal. It only registers composite value objects discovered in the assemblies passed to `ApplyTrellisConventions` (plus built-in Trellis primitives scanning for scalar value objects). For **required** composite owned types, the inner columns are mapped onto the parent table using the owner navigation name as the prefix (e.g., `ShippingAddress_City`). EF Core itself produces those names for owned-type table-splitting and explicit `OwnsOne` (it prepends `{navigation}_` per ownership level — see `RelationalPropertyExtensions.GetDefaultColumnName(property, storeObject)`), and applies the prefix automatically to any owned property with no explicit column-name annotation. The convention therefore defers to EF for plain scalars and only **removes** the bare name that `MaybeConvention` stamps on inner `Maybe<T>` scalar backing fields (which would otherwise bypass the prefix), and hands nested `Money` the chained prefix for `MoneyConvention` — keeping two same-type composites on one entity (e.g., `BillingAddress` + `ShippingAddress`) from colliding. This applies only to composites that **table-split into their owner**: a composite owned in its **own** table (an owned collection, an explicit `ToTable`, or the separate-table fallback below) is left untouched, because no navigation prefix applies there and `MaybeConvention`'s clean `{PropertyName}` is already the correct column (removing it would leak the raw `_camelCase` backing-field name). Removal uses the convention configuration source, so user-configured column names are preserved. For `Maybe<T>` composite owned types the navigation is a backing field (EF would prefix with the field name), so the convention instead sets the clean `{PropertyName}_` prefix explicitly and marks the columns nullable — but only when table-splitting is valid; it switches to a separate table named `{OwnerTypeName}_{PropertyName}` when nested owned navigations exist **or** when the owned type contains non-nullable value-type properties.
@@ -672,10 +701,10 @@ public partial class Address : ValueObject
     private static InputPointer Pointer(string? owner, string leaf) =>
         owner is null ? InputPointer.ForProperty(leaf) : new InputPointer($"/{owner}/{leaf}");
 
-    protected override IEnumerable<IComparable?> GetEqualityComponents()
+    protected override void GetEqualityComponents(ref EqualityComponents components)
     {
-        yield return Street;
-        yield return City;
+        components.Add(Street);
+        components.Add(City);
     }
 }
 

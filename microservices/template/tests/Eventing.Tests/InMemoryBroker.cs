@@ -24,11 +24,11 @@ public sealed class InMemoryBroker
 // this, which serializes each onto the broker exactly as the real adapter serializes onto Service Bus.
 internal sealed class InMemoryBrokerPublisher(InMemoryBroker broker) : IIntegrationEventPublisher
 {
-    public async ValueTask PublishAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken)
+    public async ValueTask PublishAsync(OutboundIntegrationMessage message, CancellationToken cancellationToken)
     {
-        if (integrationEvent is not MemberInvitedIntegrationEvent invited)
+        if (message.Event is not MemberInvitedIntegrationEvent invited)
             throw new NotSupportedException(
-                $"No broker mapping for integration event '{integrationEvent.GetType().Name}'. The real " +
+                $"No broker mapping for integration event '{message.Event.GetType().Name}'. The real " +
                 "ServiceBusIntegrationEventPublisher throws here too, so the outbox relay never marks an " +
                 "unmapped event processed and silently drops it.");
 

@@ -3,7 +3,7 @@ package: Trellis.Primitives
 namespaces: [Trellis, Trellis.Primitives]
 types: [Age, CountryCode, CurrencyCode, EmailAddress, Hostname, IpAddress, LanguageCode, MonetaryAmount, Money, Percentage, PhoneNumber, Slug, Url, CompositeValueObjectJsonConverter<T>, PrimitiveValueObjectTraceProviderBuilderExtensions]
 version: v3
-last_verified: 2026-06-03
+last_verified: 2026-08-18
 audience: [llm]
 ---
 # Trellis API Primitives
@@ -17,6 +17,12 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-1--crud-aggre
 > **Package scope.** The `Required*<TSelf>` base classes (`RequiredString`, `RequiredEnum`, `RequiredInt`, `RequiredLong`, `RequiredDecimal`, `RequiredGuid`, `RequiredBool`, `RequiredDateTime`, `RequiredDateTimeOffset`), validation attributes (`StringLengthAttribute`, `RangeAttribute`, `EnumValueAttribute`), opt-in behavior attributes (`NotDefaultAttribute`, `TrimAttribute`), numeric sign attributes (`PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, `NonPositiveAttribute`), `StringExtensions` (`NormalizeFieldName`, `ToCamelCase`, `ParseScalarValue`, `TryParseScalarValue`), `ParsableJsonConverter<T>`, `PrimitiveValueObjectTrace`, and `RequiredEnumJsonConverter<TRequiredEnum>` live in `Trellis.Core`. The base contracts (`IScalarValue<TSelf, TPrimitive>`, `IFormattableScalarValue<TSelf, TPrimitive>`) and base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`) also live in `Trellis.Core`. `Trellis.Primitives` ships the concrete VOs that build on those bases plus the composite JSON converter and OpenTelemetry registration extension listed below. See [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) for the base-type reference.
 >
 > The incremental generator that emits the `TryCreate`/`Create`/`Parse`/`TryParse`/`JsonConverter` partial bodies for `Required*<TSelf>` derivations (`Trellis.Core.Generator`) is bundled inside `Trellis.Core.nupkg` under `analyzers/dotnet/cs/`. `Trellis.Primitives` no longer references its own generator package — installing `Trellis.Core` (or transitively, `Trellis.Primitives` which depends on it) attaches the analyzer automatically.
+>
+> **Declaring `[JsonConverter]` yourself.** The generator normally emits `[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]` (or `RequiredEnumJsonConverter<TSelf>` for `RequiredEnum<TSelf>`) onto the generated partial. If your own declaration already carries a `[JsonConverter]` attribute, the generator detects it and emits none, so there is no CS0579 duplicate. This matters for System.Text.Json's source generator: it only observes attributes present in the original compilation, so a value object reachable from a `[JsonSerializable]` type must be annotated in your source or STJ will treat it as a POCO and emit a `new TSelf()` call that does not exist (CS1729). See [`trellis-api-anti-patterns.md`](trellis-api-anti-patterns.md#trls059--generatescalarvalueconverters-context-without-jsonserializable) under TRLS059.
+>
+> **Does this put serialization concerns in the domain?** No — and it is worth being precise, because the attribute is already there either way. Every `Required*<TSelf>` value object has carried `[JsonConverter(...)]` since long before this escape hatch existed; the generator emits it onto the generated partial, and it is present in the compiled metadata of any domain assembly. `ParsableJsonConverter<T>` itself lives in `Trellis.Core`, which the domain already references. Hand-writing the attribute does not add a dependency; it only moves an existing one from generated code into your source file.
+>
+> More importantly, **a layered solution never needs to write it.** The requirement applies only when the value object and the `JsonSerializerContext` are compiled together. Keep the domain in its own project — the arrangement DDD calls for anyway — and the generator-emitted attribute is already real metadata by the time System.Text.Json's generator reads the referenced assembly, so nothing is required in domain source. The only consumers who must hand-write it are single-project applications, which by construction have no separate domain layer to keep clean.
 
 ## Use this file when
 
@@ -192,7 +198,7 @@ public partial class EmailAddress : ScalarValueObject<EmailAddress, string>, ISc
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public static Result<EmailAddress> TryCreate(string? value, string? fieldName = null)` | `Result<EmailAddress>` | Regex-based email validation. |
+| `public static Result<EmailAddress> TryCreate(string? value, string? fieldName = null)` | `Result<EmailAddress>` | Regex-based email validation, bounded by the RFC 5321 limits: 254 characters overall and 64 for the local part. |
 | `public static EmailAddress Parse(string? s, IFormatProvider? provider)` | `EmailAddress` | Throws `FormatException` on failure. |
 | `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out EmailAddress result)` | `bool` | Safe parse helper. |
 
@@ -294,8 +300,17 @@ order the properties are declared.
 | `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes one JSON property per public instance property in declaration order, using the underlying primitive value for `IScalarValue<,>` properties. |
 
 Apply via `[JsonConverter(typeof(CompositeValueObjectJsonConverter<MyVo>))]` on the value object type.
-Reflection is performed once per generic instantiation and cached. **Not Native AOT compatible** — for AOT
-scenarios, hand-write a `JsonConverter<T>`.
+Reflection is performed once per generic instantiation and cached (lazily, so a configuration error surfaces
+its own actionable message rather than being buried inside a `TypeInitializationException`).
+
+**Native AOT / trimming.** The converter is AOT-usable, subject to two rooting requirements:
+
+| Requirement | Why |
+| --- | --- |
+| The **closed** converter type must be rooted — via the `[JsonConverter(typeof(CompositeValueObjectJsonConverter<MyVo>))]` attribute on the value object, or a source-generated `JsonSerializerContext`. | The generic instantiation must exist at compile time; nothing else references it. |
+| Each scalar value-object property must keep its `IScalarValue<TSelf, TPrimitive>` interface. | That interface is what reduces the property to a JSON primitive. The type parameter carries `[DynamicallyAccessedMembers(PublicMethods \| PublicProperties)]`, but the interface itself can still be trimmed if nothing else references it. |
+
+If trimming does remove the interface, the converter throws at first use naming the unreduced property types, rather than silently emitting a different JSON shape — so the failure is loud, but it is a *runtime* failure, which is why an AOT publish probe covering the composite path is worth having.
 
 > **Pattern reference.** For the full Domain + API JSON binding + EF Core ownership walkthrough on a multi-field VO (`ShippingAddress`-style), see [Cookbook Recipe 13](trellis-api-cookbook.md#recipe-13--composite-value-object-end-to-end-domain--api-json-binding--ef-core-ownership). Without this `[JsonConverter]` attribute on a request DTO's composite `[OwnedEntity]` property, model binding falls back to default construction and **silently bypasses `TryCreate`** — the inner-field validation never runs and an invalid payload propagates into the domain layer.
 
@@ -312,7 +327,8 @@ public class Money : ValueObject
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public static Result<Money> TryCreate(decimal amount, string currencyCode, string? fieldName = null)` | `Result<Money>` | Rejects negative amounts. Currency validation is delegated to [`CurrencyCode.TryCreate`](#currencycode) and is syntactic only — three ASCII letters (case-insensitive input; normalized to uppercase). Codes outside the ISO 4217 active list (`XXX`, `XTS`, `ZZZ`, etc.) are accepted because they satisfy the format. Layer an application-level allow-list when active-code enforcement is required. |
+| `public static Result<Money> TryCreate(decimal amount, string currencyCode, string? fieldName = null)` | `Result<Money>` | Rejects negative amounts. `fieldName` names the money value as a whole; component failures are reported at nested pointers beneath it (`/price/amount`, `/price/currency`), defaulting to `/amount` and `/currency`. Currency validation is delegated to [`CurrencyCode.TryCreate`](#currencycode) and is syntactic only — three ASCII letters (case-insensitive input; normalized to uppercase). Codes outside the ISO 4217 active list (`XXX`, `XTS`, `ZZZ`, etc.) are accepted because they satisfy the format. Layer an application-level allow-list when active-code enforcement is required. |
+| `public static Result<Money> TryCreate(decimal amount, string currencyCode, string? amountFieldName, string? currencyFieldName)` | `Result<Money>` | Flat-payload overload: names each component independently instead of nesting, for documents that carry amount and currency as siblings. Each argument accepts a simple property name or a full JSON Pointer, and falls back to `amount` / `currency` when null or empty. The last two parameters intentionally have no default values, which keeps this overload out of the set `CompositeValueObjectJsonConverter<Money>` resolves. |
 | `public static Money Create(decimal amount, string currencyCode)` | `Money` | Throwing factory. |
 | `public Result<Money> Add(Money other)` | `Result<Money>` | Requires matching currencies. Throws `ArgumentNullException` when `other` is null. Returns `Error.InvalidInput` on currency mismatch or addition overflow. |
 | `public Result<Money> Subtract(Money other)` | `Result<Money>` | Requires matching currencies and non-negative result. Throws `ArgumentNullException` when `other` is null. |
@@ -354,7 +370,9 @@ public class Percentage : ScalarValueObject<Percentage, decimal>, IScalarValue<P
 | `public static Percentage Parse(string? s, IFormatProvider? provider)` | `Percentage` | Throws `FormatException` on failure. |
 | `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Percentage result)` | `bool` | Safe parse helper. |
 | `public static explicit operator Percentage(decimal value)` | `Percentage` | Explicit cast using `Create(decimal)`. |
-| `public override string ToString()` | `string` | Appends `%` to `Value`. |
+| `public override string ToString()` | `string` | Appends `%` to `Value` formatted with `CultureInfo.InvariantCulture`. |
+
+> **`ToString()` is the wire format, not a display format.** It is deliberately invariant so it round-trips through `TryCreate(string?)` and `Parse`, which read with `CultureInfo.InvariantCulture`. Under a culture with a comma decimal separator, a culture-sensitive `ToString()` would emit `"1,5%"`, which the invariant reader re-parses as `15`. For user-facing display, format `Value` explicitly with the desired culture.
 
 ### `PhoneNumber`
 
@@ -438,6 +456,55 @@ The base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`, `RequiredString<
 | `PhoneNumber` | `Trellis.Primitives` | Scalar | JSON string | Normalized E.164 string. `GetCountryCode()` returns `Maybe<string>.None` when the prefix is not an assigned ITU-T calling code. |
 | `Slug` | `Trellis.Primitives` | Scalar | JSON string | Lowercase letters, digits, single hyphens. |
 | `Url` | `Trellis.Primitives` | Scalar | JSON string | Absolute HTTP/HTTPS URI. |
+
+## Default validation field names
+
+Every `TryCreate` overload takes an optional `fieldName`. When it is omitted, the failure `Error.InvalidInput.ForField(...)` uses the default below — which becomes the key in the `errors` dictionary of a 400 `ProblemDetails` response, and therefore the string a test asserts on. **Two defaults do not match the type name**, and are the usual source of a failing assertion:
+
+| Type | Default field name | Factory |
+| --- | --- | --- |
+| `Age` | `age` | `TryCreate` |
+| `CountryCode` | `countryCode` | `TryCreate` |
+| `CurrencyCode` | `currencyCode` | `TryCreate` |
+| `EmailAddress` | **`email`** — not `emailAddress` | `TryCreate` |
+| `Hostname` | `hostname` | `TryCreate` |
+| `IpAddress` | `ipAddress` | `TryCreate` |
+| `LanguageCode` | `languageCode` | `TryCreate` |
+| `MonetaryAmount` | **`amount`** — not `monetaryAmount` | `TryCreate` |
+| `Money` | `amount` for the amount, `currency` for the currency component | `TryCreate` |
+| `Percentage` | `percentage` | `TryCreate` |
+| `Percentage` | `fraction` | `FromFraction` |
+| `PhoneNumber` | `phoneNumber` | `TryCreate` |
+| `Slug` | `slug` | `TryCreate` |
+| `Url` | `url` | `TryCreate` |
+
+`EmailAddress` and `MonetaryAmount` keep the shorter defaults deliberately: `email` and `amount` are the names those values almost always carry in a payload, so the default is right more often than a type-derived `emailAddress` or `monetaryAmount` would be. Override with `fieldName` in the minority of cases where it isn't.
+
+Pass `fieldName` explicitly whenever the value object is bound to a differently-named request property, so the error key matches the client's payload shape rather than the primitive's own name:
+
+```csharp
+// Request property is "billingEmail", so the 400 must key the error on "billingEmail".
+var email = EmailAddress.TryCreate(request.BillingEmail, nameof(request.BillingEmail));
+```
+
+> **`Money` reports each component at its own JSON Pointer.** `Money` is the one structured primitive with two independently-validatable components, so `fieldName` names the *money value*, not a single error key, and component failures are reported beneath it — matching the serialized shape `{ "amount": …, "currency": … }`:
+>
+> ```csharp
+> Money.TryCreate(-1m, "USD", "price");      // → /price/amount
+> Money.TryCreate(10m, "INVALID", "price");  // → /price/currency
+> Money.TryCreate(-1m, "USD");               // → /amount
+> ```
+>
+> A `fieldName` that is already a JSON Pointer is composed onto rather than escaped, so `"/items/0/price"` yields `/items/0/price/amount`.
+>
+> When the amount and currency arrive as *siblings* of a flat payload — `{ "price": 10, "currency": "XX" }` — nesting would point at a location the document does not have. Use the four-argument overload to name each component independently:
+>
+> ```csharp
+> // → /price and /currency respectively
+> Money.TryCreate(request.Price, request.Currency, nameof(request.Price), nameof(request.Currency));
+> ```
+>
+> The four-argument overload deliberately has **no default values** on its last two parameters; that is what keeps it out of the overload set `CompositeValueObjectJsonConverter<Money>` resolves, which requires an unambiguous `TryCreate` whose trailing parameters are all optional.
 
 ## Code examples
 
