@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProjectTrackerTemplate.Projects.Domain;
 using Trellis;
+using Trellis.EntityFrameworkCore;
 
 namespace ProjectTrackerTemplate.Projects.Acl;
 
@@ -20,7 +21,8 @@ public static class ProjectsSeed
             NewProject("globex-p1", "carol", "globex", "Beta rollout", "Phase-3 beta to enterprise."),
             NewProject("globex-p2", "dave", "globex", "Annual audit", "Compliance audit prep."));
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesResultUnitAsync(cancellationToken)
+            .GetValueOrThrowAsync("seeding Projects must succeed");
     }
 
     private static Project NewProject(string id, string ownerId, string tenant, string title, string description) =>

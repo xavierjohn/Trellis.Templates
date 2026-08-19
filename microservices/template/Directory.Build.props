@@ -31,6 +31,10 @@
   <!-- Every project exposes its internals to its sibling test project (e.g. internal handlers). -->
   <ItemGroup>
     <InternalsVisibleTo Include="$(MSBuildProjectName).Tests" />
+    <!-- Trellis.Analyzers ships the TRLS diagnostics. It is referenced here rather than per-project
+         so every project in the generated solution is covered; PrivateAssets="All" keeps it out of
+         the build output and any downstream package. -->
+    <PackageReference Include="Trellis.Analyzers" PrivateAssets="All" />
   </ItemGroup>
 
   <!-- Test projects (name ends with .Tests) pull the shared xUnit v3 + Trellis.Testing wiring. -->

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis;
+using Trellis.EntityFrameworkCore;
 using Trellis.Primitives;
 
 namespace ProjectTrackerTemplate.Members.Acl;
@@ -24,7 +25,8 @@ public static class MembersSeed
             NewMember("globex-carol", "globex", "carol@globex.example", "owner"),
             NewMember("globex-dave", "globex", "dave@globex.example", "contributor"));
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesResultUnitAsync(cancellationToken)
+            .GetValueOrThrowAsync("seeding Members must succeed");
     }
 
     private static Member NewMember(string id, string tenant, string email, string role) =>
