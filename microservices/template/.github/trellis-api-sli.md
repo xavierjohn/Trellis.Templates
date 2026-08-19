@@ -1,4 +1,4 @@
-﻿---
+---
 package: Trellis.ServiceLevelIndicators
 namespaces: [Trellis.ServiceLevelIndicators]
 types: [ServiceLevelIndicator, ServiceLevelIndicatorOptions, MeasuredOperation, IEnrichmentContext, "IEnrichment<T>", ServiceLevelIndicatorMeterProviderBuilderExtensions]

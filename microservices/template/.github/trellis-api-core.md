@@ -1,7 +1,7 @@
 ﻿---
 package: Trellis.Core
 namespaces: [Trellis]
-types: [Result, "Result<T>", IResult, "IResult<TValue>", "IFailureFactory<TSelf>", IPersistOnFailure, "Maybe<T>", Maybe, MaybeInvariant, Error, ITransportFault, RetryAdvice, RetryClassification, ErrorRetryExtensions, Unit, "Page<T>", Page, Cursor, PageSize, CursorCodec, PageBuilder, "EquatableArray<T>", EquatableArray, ResourceRef, InputPointer, FieldViolation, RuleViolation, IAggregate, "Aggregate<TId>", IETagStampable, IReconstitutionStampable, IEntity, "Entity<TId>", IDomainEvent, IIntegrationEvent, ITrackedAggregateSource, ValueObject, "ScalarValueObject<TSelf,T>", "IScalarValue<TSelf,TPrimitive>", "IFormattableScalarValue<TSelf,TPrimitive>", "RequiredString<TSelf>", "RequiredInt<TSelf>", "RequiredLong<TSelf>", "RequiredDecimal<TSelf>", "RequiredBool<TSelf>", "RequiredGuid<TSelf>", "RequiredDateTime<TSelf>", "RequiredDateTimeOffset<TSelf>", "RequiredEnum<TSelf>", "RequiredEnumJsonConverter<T>", "ParsableJsonConverter<T>", ResultRequiresExplicitHttpMappingConverter, PrimitiveValueObjectTrace, "Specification<T>", TrellisJsonValidationException, RangeAttribute, StringLengthAttribute, NotDefaultAttribute, TrimAttribute, PositiveAttribute, NonNegativeAttribute, NegativeAttribute, NonPositiveAttribute, RailwayTrackAttribute, TrackBehavior, EnumValueAttribute, ResourceCollectionNameAttribute, ResultDebugSettings]
+types: [Result, "Result<T>", IResult, "IResult<TValue>", "IFailureFactory<TSelf>", IPersistOnFailure, "Maybe<T>", Maybe, MaybeInvariant, Error, ITransportFault, RetryAdvice, RetryClassification, ErrorRetryExtensions, Unit, "Page<T>", Page, Cursor, PageSize, CursorCodec, PageBuilder, "EquatableArray<T>", EquatableArray, ResourceRef, InputPointer, FieldViolation, RuleViolation, IAggregate, "Aggregate<TId>", IETagStampable, IReconstitutionStampable, IEntity, "Entity<TId>", IDomainEvent, IIntegrationEvent, IntegrationEventNameAttribute, ITrackedAggregateSource, ValueObject, "ScalarValueObject<TSelf,T>", "IScalarValue<TSelf,TPrimitive>", "IFormattableScalarValue<TSelf,TPrimitive>", "RequiredString<TSelf>", "RequiredInt<TSelf>", "RequiredLong<TSelf>", "RequiredDecimal<TSelf>", "RequiredBool<TSelf>", "RequiredGuid<TSelf>", "RequiredDateTime<TSelf>", "RequiredDateTimeOffset<TSelf>", "RequiredEnum<TSelf>", "RequiredEnumJsonConverter<T>", "ParsableJsonConverter<T>", ResultRequiresExplicitHttpMappingConverter, PrimitiveValueObjectTrace, "Specification<T>", TrellisJsonValidationException, RangeAttribute, StringLengthAttribute, NotDefaultAttribute, TrimAttribute, PositiveAttribute, NonNegativeAttribute, NegativeAttribute, NonPositiveAttribute, RailwayTrackAttribute, TrackBehavior, EnumValueAttribute, ResourceCollectionNameAttribute, ResultDebugSettings]
 version: v3
 last_verified: 2026-06-03
 audience: [llm]
@@ -59,6 +59,7 @@ Use this table before searching the long type catalog.
 | Page list responses | `new Page<T>(items, next, previous, requestedLimit, appliedLimit)` (or `Page.Empty<T>(...)` when there are no items), `Cursor` | [`Pagination`](#pagination) |
 | Model aggregates/entities/events | `Aggregate<TId>`, `Entity<TId>`, `IDomainEvent` | [`Domain-Driven Design`](#domain-driven-design) |
 | Define a stable published integration contract | `IIntegrationEvent` | [`IIntegrationEvent`](#iintegrationevent) |
+| Name an integration contract for the wire (cross-service) | `[IntegrationEventName]` | [`IntegrationEventNameAttribute`](#integrationeventnameattribute) |
 | Move reusable query predicates out of repositories | `Specification<T>` | [`Specification<T>`](#specificationt) |
 | Define custom required value objects | `partial class X : RequiredString<X>` / `RequiredGuid<X>` / other `Required*` bases | [`Primitive value object base classes`](#primitive-value-object-base-classes) |
 | Extract a success value or throw at a trust boundary (DTO → entity rehydration, JSON deserialization) | `result.GetValueOrThrow($"context message")` / `GetValueOrThrowAsync(...)` | [`GetValueOrThrowExtensions`](#extension-class-catalog-full-signatures) (entry in the extension catalog), [cookbook Recipe 30](trellis-api-cookbook.md#recipe-30--rehydrating-entities-from-persistence-fail-loud-vs-result-track) |
@@ -602,7 +603,7 @@ HTTP-specific supporting types (`AuthChallenge`, `EntityTagValue`, `RetryAfterVa
 
 | Type | Shape | Purpose |
 | --- | --- | --- |
-| `ResourceRef` | `readonly record struct (string Type, string? Id = null)` plus `ResourceRef.For(string type, object? id = null)` and `ResourceRef.For<TResource>(object? id = null)` | Aggregate identity. The `For(...)` helpers convert IDs with invariant formatting when possible. `For<TResource>` peels `Maybe<T>` wrappers and strips generic arity. |
+| `ResourceRef` | `readonly record struct (string Type, string? Id = null)` plus `ResourceRef.For(string type, object? id = null)` and `ResourceRef.For<TResource>(object? id = null)` | Aggregate identity. The `For(...)` helpers convert IDs with invariant formatting when possible. `For<TResource>` peels `Maybe<T>` wrappers and strips generic arity. `ResourceRef.FormatTypeName(Type)` exposes just the arity-stripping step — `typeof(List<int>)` → `"List"` — **without** the `Maybe<T>` peeling, which stays scoped to `For<TResource>` because that method owns the resource-naming contract. Use it when a component needs a type-derived identifier on the wire (AOT-generated converter fallback messages, for example). Throws `ArgumentNullException` for a null type. |
 | `InputPointer` | `readonly record struct` with `InputPointer(string Path)` | RFC 6901 JSON Pointer (for example `/email`). Construct simple property names via `InputPointer.ForProperty("email")`, or use `InputPointer.Root` for the document root. |
 | `FieldViolation` | `sealed record (InputPointer Field, string ReasonCode, ImmutableDictionary<string,string>? Args = null, string? Detail = null)` | Single per-field violation inside `InvalidInput.Fields`. `Equals` / `GetHashCode` compare `Args` by content. |
 | `RuleViolation` | `sealed record (string ReasonCode, EquatableArray<InputPointer> Fields = default, ImmutableDictionary<string,string>? Args = null, string? Detail = null)` | Multi-field invariant or object-level rule inside `InvalidInput.Rules`. `Equals` / `GetHashCode` compare `Args` by content. |
@@ -690,7 +691,7 @@ The per-operation tracing is essentially free when no listener is registered. `A
 | 10-step `Map` chain | ~115 ns, 0 B | ~2,227 ns, 4,000 B |
 | 10-step `Tap` chain | ~176 ns, 0 B | ~2,281 ns, 4,096 B |
 
-**No listener registered (default):** ~14–20 ns per `Bind`/`Map`/`Tap`, **0 bytes allocated**. The per-extension `using var activity = ActivitySource.StartActivity(...)` returns null almost immediately when no consumer has registered the `"Trellis.Core"` source, and the `Result<T>` constructor's `Activity.Current?.SetStatus(...)` updates the ambient activity in place without allocating (subsequent `SetTag` calls update the same dictionary entry; the steady-state allocation count is zero).
+**No listener registered (default):** ~14–20 ns per `Bind`/`Map`/`Tap`, **0 bytes allocated**. The per-extension `using var activity = ActivitySource.StartActivity(...)` returns null almost immediately when no consumer has registered the `"Trellis.Core"` source. Trellis does not set status or `result.error.code` on an ambient ASP.NET or Mediator activity from ROP operators unless that activity was started by the Trellis ROP `ActivitySource`.
 
 **With `AddResultsInstrumentation` registered:** each combinator costs ~200 ns and allocates ~400 B (the Activity object + name + tags). At 10 000 RPS with a 10-step pipeline that's ~22 ms/sec of CPU and ~40 MB/sec of GC pressure — material at high throughput.
 
@@ -1690,6 +1691,30 @@ Integration events are typically translated from domain events: a domain-event h
 | --- | --- | --- |
 | `OccurredAt` | `DateTimeOffset` | Timestamp (with explicit UTC offset) for when the business fact this integration event describes occurred. Use this as the single event timestamp. |
 
+### `IntegrationEventNameAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+public sealed class IntegrationEventNameAttribute(string name) : Attribute
+```
+
+Declares the stable, on-the-wire name of an `IIntegrationEvent` so producers and consumers in **different** services can agree on the type a message carries.
+
+```csharp
+[IntegrationEventName("orders.order-placed.v1")]
+public sealed record OrderPlaced(Guid OrderId, DateTimeOffset OccurredAt) : IIntegrationEvent;
+```
+
+In-process relaying identifies an event by `Type.AssemblyQualifiedName`, which is fine while producer and consumer share a process. On a message broker it is unusable: the consumer's assemblies differ from the producer's, and the string embeds an assembly version, so it can stop resolving after a routine version bump. A logical name is owned by the contract rather than by the CLR layout, so each side maps it to whatever local type it likes.
+
+**Choose a versioned name.** Once a message carrying the name exists on a queue or in another team's code, changing it is a breaking change. Include a version segment so an incompatible payload change can ship as a new name consumed side-by-side rather than as a silent break.
+
+Broker transports resolve the name through [`IntegrationEventNameMap`](trellis-api-mediator.md#integrationeventnamemap). Names compare with the **ordinal** comparer — casing is significant.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Name` | `string` | The stable wire name identifying this event's contract. |
+
 ### `ITrackedAggregateSource`
 
 ```csharp
@@ -1714,18 +1739,60 @@ public abstract class ValueObject : IComparable<ValueObject>, IComparable, IEqua
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `protected abstract IEnumerable<IComparable?> GetEqualityComponents()` | `IEnumerable<IComparable?>` | Returns the ordered components used for equality, comparison, and hash-code generation. |
-| `protected static IComparable? MaybeComponent<T>(Maybe<T> maybe) where T : notnull, IComparable` | `IComparable?` | Converts `Maybe<T>` to an equality component by returning the inner value or `null`. |
+| `protected abstract void GetEqualityComponents(ref EqualityComponents components)` | `void` | Appends the ordered components used for equality, comparison, and hash-code generation onto `components`. Components at the same position with different runtime types are ordered by type name before same-typed components use their native comparison. Allocation-free: the base class supplies stack storage for up to 8 components and rents from `ArrayPool<IComparable?>.Shared` beyond that. |
+| `protected static IComparable? MaybeComponent<T>(Maybe<T> maybe) where T : notnull, IComparable` | `IComparable?` | Converts `Maybe<T>` to an equality component by returning the inner value or `null`. Prefer `components.Add(maybe)`, which does the same conversion inline. |
 | `public override bool Equals(object? obj)` | `bool` | Delegates to `Equals(ValueObject? other)`. |
 | `public bool Equals(ValueObject? other)` | `bool` | Structural equality check against the same runtime type. |
 | `public override int GetHashCode()` | `int` | Computes and caches a hash code from the equality components. |
-| `public virtual int CompareTo(ValueObject? other)` | `int` | Compares equality components in order. |
+| `public virtual int CompareTo(ValueObject? other)` | `int` | Compares equality components in order. Null sorts before non-null (`value.CompareTo(null) > 0`). Throws `ArgumentException` for a non-null value object of a different runtime type. |
 | `public static bool operator ==(ValueObject? a, ValueObject? b)` | `bool` | Structural equality operator. |
 | `public static bool operator !=(ValueObject? a, ValueObject? b)` | `bool` | Structural inequality operator. |
-| `public static bool operator <(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`. |
-| `public static bool operator <=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`. |
-| `public static bool operator >(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`. |
-| `public static bool operator >=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`. |
+| `public static bool operator <(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator <=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator >(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator >=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+
+### `EqualityComponents`
+
+```csharp
+public ref struct EqualityComponents
+```
+
+The sink passed to `ValueObject.GetEqualityComponents(ref EqualityComponents)`. It is a `ref struct`, so it cannot be boxed, captured in a lambda, stored in a field, or used across an `await` — collect components and return.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public void Add(IComparable? component)` | `void` | Appends one component. Order is significant: equality compares positionally and `CompareTo` returns on the first differing position. |
+| `public void Add<T>(Maybe<T> component) where T : notnull, IComparable` | `void` | Appends an optional component, adding the inner value when present and `null` when empty. |
+| `public readonly int Count` | `int` | Number of components added so far. |
+
+```csharp
+public sealed class Address(string street, string city) : ValueObject
+{
+    public string Street { get; } = street;
+    public string City { get; } = city;
+    public Maybe<string> Apartment { get; private set; } = Maybe<string>.None;
+
+    protected override void GetEqualityComponents(ref EqualityComponents components)
+    {
+        components.Add(Street);
+        components.Add(City);
+        components.Add(Apartment);
+    }
+}
+```
+
+Derived types forward to their base before adding their own components, so base components keep the lower positions:
+
+```csharp
+protected override void GetEqualityComponents(ref EqualityComponents components)
+{
+    base.GetEqualityComponents(ref components);
+    components.Add(Country);
+}
+```
+
+> **Breaking change.** `GetEqualityComponents` previously returned `IEnumerable<IComparable?>` and was written with `yield return`. The iterator allocated on every `Equals`, `CompareTo`, and uncached `GetHashCode` call. Migrate by changing the signature to `protected override void GetEqualityComponents(ref EqualityComponents components)`, replacing each `yield return X;` with `components.Add(X);`, and replacing `foreach (var c in base.GetEqualityComponents()) yield return c;` with `base.GetEqualityComponents(ref components);`. Equality and ordering results are unchanged, and the hash combination algorithm is unchanged with one edge case: the hash cache now uses `0` as its "not yet computed" sentinel, so an instance whose components combine to exactly `0` caches and returns `1` instead. Equal instances still produce equal hash codes. `GetHashCode` values were never stable across processes (`HashCode.Combine` and `string.GetHashCode` are seeded per process), so they must not be persisted or asserted as literals.
 
 ### `ScalarValueObject<TSelf, T>`
 
@@ -1742,7 +1809,7 @@ where T : IComparable
 | Signature | Returns | Description |
 | --- | --- | --- |
 | `protected ScalarValueObject(T value)` | — | Stores the wrapped scalar value. |
-| `protected override IEnumerable<IComparable?> GetEqualityComponents()` | `IEnumerable<IComparable?>` | Default scalar equality uses only `Value`. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Default scalar equality uses only `Value`. |
 | `public override string ToString()` | `string` | Returns `Value?.ToString() ?? string.Empty`. |
 | `public static implicit operator T(ScalarValueObject<TSelf, T> valueObject)` | `T` | Unwraps the scalar value object to its primitive value. |
 | `public static TSelf Create(T value)` | `TSelf` | Calls `TSelf.TryCreate(value)` and throws `InvalidOperationException` on failure. This is the **concrete-type dispatch** entry point — invoked when the call site names a derived class (e.g. `EmailAddress.Create("…")`). The `IScalarValue<TSelf, TPrimitive>.Create(TPrimitive)` static-virtual member on the interface is the **generic-constraint dispatch** entry point used from generic code (`T.Create(value)` where `T : IScalarValue<T, P>`); the two methods coexist because C# does not route concrete-type calls through interface static-virtual defaults. |
@@ -2164,12 +2231,17 @@ public class ParsableJsonConverter<T> : JsonConverter<T>
     where T : IParsable<T>
 ```
 
-Core-owned JSON converter emitted by the `Required*<TSelf>` source generator for non-enum generated primitives. It reads JSON strings, numbers, and booleans; JSON `null` is routed to the generated parse path and fails because generated scalar value objects are non-nullable. Numeric scalar value objects write JSON numbers when their string representation parses invariantly as a decimal; all other values write JSON strings.
+Core-owned JSON converter emitted by the `Required*<TSelf>` source generator for non-enum generated primitives. It reads JSON strings, numbers, and booleans; JSON `null` is rejected outright with a `JsonException`, before any parse is attempted, because generated scalar value objects are non-nullable. Numeric scalar value objects write JSON numbers when their string representation parses invariantly as a decimal, `bool`-backed scalars write JSON `true`/`false`, and all other values write JSON strings.
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `T?` | Converts supported JSON token types to invariant strings and calls `T.Parse(raw, default)`. |
-| `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes numeric scalar primitives as numbers when possible; otherwise writes `value.ToString()` as a JSON string. |
+| `public override bool HandleNull => true` | `bool` | Opts the converter into receiving `null` tokens. Without it, `System.Text.Json` bypasses `Read` for a `null` token on a reference-type target and yields a null reference, silently violating the primitive's non-nullable contract. |
+| `public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `T?` | Converts supported JSON token types to invariant strings and calls `T.Parse(raw, CultureInfo.InvariantCulture)`. A parse or validation failure is wrapped in a `JsonException` whose `InnerException` is the original parse exception — a `FormatException` for the generated primitives, or an `ArgumentException` / `OverflowException` from a hand-written `IParsable<T>`. |
+| `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes numeric scalar primitives as numbers and `bool`-backed scalars as JSON booleans when possible; otherwise writes `value.ToString()` as a JSON string. |
+
+> **Failures surface as `JsonException`.** `Parse` itself still throws `FormatException` (the `IParsable<T>` contract), but deserialization wraps it so every converter failure — bad token type, `null` for a non-nullable target, malformed value, failed validation — reaches the caller as `JsonException`. This matters at HTTP boundaries: minimal APIs and `ReadFromJsonAsync` translate `JsonException` into a `400 Bad Request`, whereas an escaping `FormatException` becomes a `500`. Only `FormatException`, `ArgumentException`, and `OverflowException` are translated; any other exception from a custom `Parse` propagates unchanged.
+
+> **`null` is rejected, not silently accepted.** A JSON `null` — whether at the top level or in a property position such as `{"Number":null}` — throws `JsonException` rather than producing a null reference. This depends on `HandleNull` being `true`; a custom `JsonConverter<T>` for a non-nullable value object that omits that override will silently deserialize `null` into the reference, defeating the primitive's invariant. Serialization is unaffected: a null reference still writes JSON `null`.
 
 ### `PrimitiveValueObjectTrace`
 
@@ -2296,6 +2368,7 @@ static partial void ValidateAdditional(bool value, string fieldName, ref string?
 ```
 
 - Built-in validation: rejects `null` for nullable inputs; both `true` and `false` are valid. There is no strictness opt-out for `RequiredBool<TSelf>`.
+- JSON wire format: serializes as a JSON boolean (`true` / `false`). Deserialization accepts both JSON booleans and the JSON strings `"true"` / `"false"`.
 
 #### `RequiredDateTime<TSelf>`
 
@@ -2484,4 +2557,3 @@ var spec = new ExpiredSubscriptionSpec(DateTimeOffset.UtcNow)
 - [Trellis.Http.Abstractions API reference](trellis-api-http-abstractions.md#use-this-file-when) — `HttpError`, `EntityTagValue`, `RetryAfterValue`, `RepresentationMetadata`, `WriteOutcome<T>`, and `AggregateETagExtensions`
 - [Trellis.Primitives API reference](trellis-api-primitives.md#trellis-api-primitives) — built-in scalar and composite value objects that build on these DDD primitives
 - [Trellis.EntityFrameworkCore API reference](trellis-api-efcore.md#trellisentityframeworkcore) — EF Core conventions and interceptors for `IEntity`, `IAggregate`, `ValueObject`, and `Maybe<T>`
-

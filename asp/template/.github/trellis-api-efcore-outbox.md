@@ -3,7 +3,7 @@ package: Trellis.EntityFrameworkCore.Outbox
 namespaces: [Trellis.EntityFrameworkCore]
 types: [OutboxMessage, OutboxMessageKind, OutboxOptions, OutboxServiceCollectionExtensions, OutboxModelBuilderExtensions]
 version: v1
-last_verified: 2026-06-09
+last_verified: 2026-08-18
 audience: [llm]
 ---
 # Trellis.EntityFrameworkCore.Outbox
@@ -30,7 +30,7 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#trellis-cross-packag
 | Run the background relay that re-dispatches captured events after commit | `services.AddTrellisOutbox<TContext>(configure?)` or `trellis.UseOutbox<TContext>(configure?)` | [`OutboxServiceCollectionExtensions`](#outboxservicecollectionextensions), [`UseOutbox` builder slot](#useoutbox-builder-slot) |
 | Tune poll interval, batch size, or max attempts | `OutboxOptions` (via the `configure` delegate) | [`OutboxOptions`](#outboxoptions) |
 | Inspect a captured-but-not-yet-relayed message | Query `TContext.Set<OutboxMessage>()` (read-only; rows are produced by the interceptor) | [`OutboxMessage`](#outboxmessage) |
-| Understand why a failing handler does not re-deliver | At-least-once **delivery** semantics; handler exceptions are swallowed by the publisher | [Delivery semantics](#delivery-semantics) |
+| Understand what happens when a handler throws | The message stays pending and retries **only the failed handlers**, then parks after `MaxAttempts` | [Delivery semantics](#delivery-semantics) |
 | Decide how to shape an event so it round-trips | Use attribute-driven value objects; `Maybe<T>` members are supported (present → value, absent → `null`) | [Serialization](#serialization) |
 | Publish a stable external contract instead of raw domain events | Translate a domain event into an `IIntegrationEvent` via `IIntegrationEventCollector`; the relay routes it to `IIntegrationEventPublisher` | [Integration events](#integration-events) |
 
@@ -38,7 +38,8 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#trellis-cross-packag
 
 - **The interceptor and the model mapping are *not* optional extras.** `AddTrellisOutbox<TContext>()` only registers the relay. Without `optionsBuilder.AddTrellisOutboxInterceptor()` nothing is captured, and without `modelBuilder.AddTrellisOutbox()` the `TrellisOutboxMessages` table is unmapped. All three calls are required — see [Wiring: three required calls](#wiring-three-required-calls).
 - **The relay host must have the producing assemblies loaded.** The relay rehydrates each event from its assembly-qualified `EventType` via `Type.GetType`. If the worker process does not reference the assembly that declares the event, the message fails deserialization and parks after `MaxAttempts`.
-- **Handlers must be idempotent.** Delivery is at-least-once; a crash between dispatch and the relay's bookkeeping `SaveChanges` re-delivers the message on the next drain.
+- **Handlers must be idempotent.** Delivery is at-least-once; a crash between dispatch and the relay's bookkeeping `SaveChanges` re-delivers the message on the next drain. Per-handler progress tracking removes the *routine* duplicate (a sibling handler failing) but not this crash window.
+- **A failing handler now parks the message.** Handler exceptions are no longer swallowed on the relay path, so a permanently failing handler exhausts `MaxAttempts` and dead-letters. Alert on `OutboxRelay.MessageParked`, and add a migration for the `CompletedHandlers` column — see [Delivery semantics](#delivery-semantics).
 - **Caller-registered `JsonSerializerOptions` converters do not travel with the payload.** The outbox serializer round-trips `[JsonConverter]`-attributed value objects and `Maybe<T>` members; converters registered only on a caller's own options are not consulted — shape those members with attribute-driven types or nullable transports. See [Serialization](#serialization).
 - **`OutboxMessage` is read-only to application code.** Its constructor is private and its mutators are internal; rows are produced exclusively by the capture interceptor and advanced by the relay.
 - **Post-commit cancellation can defer the event-clear.** The capture interceptor clears aggregate events in `SavedChanges`, which runs *after* the commit. `AggregateETagInterceptor` (registered first by `AddTrellisInterceptors`) throws by design if the save's `CancellationToken` is cancelled in that post-commit window, and EF invokes `SavedChanges` interceptors in registration order, so the outbox clear can be skipped — leaving the aggregate's events in memory while the outbox row is already durable. Reusing the *same* context for another save then re-captures them into a duplicate row. This is bounded and absorbed by the at-least-once + idempotent-handler contract; disposing the context after a cancelled save (the normal per-request lifetime) avoids it entirely.
@@ -50,6 +51,8 @@ The outbox replaces the in-pipeline domain-event dispatch with a durable, two-ph
 
 1. **Capture (inside the transaction).** `OutboxCaptureInterceptor` (a `SaveChangesInterceptor`) scans the change tracker during `SavingChanges` for `IAggregate` entries with uncommitted events. It serializes each event and adds one `OutboxMessage` row per event to the same `SaveChanges` — so the rows commit atomically with the aggregate. It does **not** clear the aggregate's events yet.
 2. **Clear (after the commit succeeds).** In `SavedChanges` the interceptor calls each aggregate's `AcceptChanges()`. Because the events are cleared only after a successful commit, a failed save leaves the in-memory events intact for retry, and the interceptor detaches the rows it staged on `SaveChangesFailed` and `SaveChangesCanceled` so a retry on the same context does not double-capture.
+
+> **Interceptor constraint.** No other `SaveChangesInterceptor` may raise domain events on a tracked aggregate between step 1 and step 2. `AcceptChanges()` empties an aggregate's whole event list, so an event raised in that window is discarded without ever reaching the outbox. No Trellis interceptor raises domain events, so this applies only to caller-supplied interceptors — raise events from the domain model before `SaveChanges` is called instead.
 3. **Single dispatch path.** Since the aggregate's events are cleared after the commit (in `SavedChanges`), a post-commit in-pipeline `DomainEventDispatchBehavior` observes an empty list and dispatches nothing. The relay becomes the one dispatcher.
 4. **Relay (after the commit).** `OutboxRelay<TContext>` is a `BackgroundService`. Each poll it opens a bookkeeping scope, drains a batch of pending rows ordered by `Sequence`, and routes each by `OutboxMessage.Kind`. A `Domain` row is rehydrated and published through `IDomainEventPublisher` **in a dedicated per-message scope** — so a handler that injects `TContext` receives its own context, never the relay's bookkeeping context, and its tracked changes never ride the relay's `SaveChanges`. An `Integration` row is published through `IIntegrationEventPublisher`. The relay marks each row processed (or records the failure) and persists the batch with one `SaveChanges` on the bookkeeping context.
 
@@ -61,11 +64,22 @@ The flow:
 
 1. A **translator** — an ordinary `IDomainEventHandler<TDomainEvent>` — injects `IIntegrationEventCollector` and `Add(...)`s integration events while the relay re-dispatches the domain event.
 2. After publishing a `Domain` row, the relay drains the per-message scope's collector and stages each produced integration event as a new `OutboxMessageKind.Integration` row — in the **same** `SaveChanges` that marks the domain row processed, so an integration event is enrolled only once its source domain event is durably dispatched.
-3. A later drain publishes each `Integration` row through `IIntegrationEventPublisher` (default in-process fan-out to `IIntegrationEventHandler<T>`; replace the registration with a message-broker adapter to deliver to other services).
+3. A later drain publishes each `Integration` row through `IIntegrationEventPublisher` — its sole method `PublishAsync(OutboundIntegrationMessage, CancellationToken)`, carrying that row's own `OutboxMessage.Id` (default in-process fan-out to `IIntegrationEventHandler<T>`; replace the registration with a message-broker adapter to deliver to other services).
 
 Register the consumer side with `services.AddIntegrationEventDispatch(...)` / `AddIntegrationEventHandler<TEvent, THandler>()`, or the `TrellisServiceBuilder.UseIntegrationEvents(...)` slot. The collector is optional: outboxes that capture only domain events never register it and are unaffected.
 
 Delivery is at-least-once and a retried domain event re-runs its translator, so a consumer may observe the same integration event more than once (with a different `OutboxMessage.Id` each time) — **dedupe on business identity, not the message id.**
+
+### Two different duplicates — only one is the message id's job
+
+These are easy to conflate, and they need different defences:
+
+| Duplicate | Cause | `OutboxMessage.Id` | Defence |
+| --- | --- | --- | --- |
+| **Redelivery of one `Integration` row** | The relay crashed between publishing and its bookkeeping `SaveChanges`, or the batch outlived its lease | **Same** on every attempt | The consumer's inbox, keyed `(ConsumerId, MessageId)` — provided the transport carried `OutboundIntegrationMessage.MessageId` verbatim |
+| **A re-run translator staging a fresh row** | A `Domain` row was retried, so the translator produced the integration event again | **Different** each time | Business identity — the inbox cannot help, because these genuinely are two messages |
+
+The relay hands `OutboundIntegrationMessage.MessageId` to the publisher precisely so a broker adapter can stamp it on the wire (for example `ServiceBusMessage.MessageId`) and collapse the first row of the table. An adapter that minted its own id per publish attempt would turn every redelivery into a distinct message and silently defeat the consumer's inbox. It does **not** collapse the second row, which is why the "dedupe on business identity" guidance above still stands.
 
 ## Wiring: three required calls
 
@@ -100,8 +114,9 @@ public static IServiceCollection AddTrellisOutbox<TContext>(
 ```
 
 - Registers `OutboxRelay<TContext>` as an `IHostedService`, the (configured) `OutboxOptions` as a singleton, and `TimeProvider.System` if no `TimeProvider` is already registered.
-- `OutboxOptions` and `TimeProvider` are added with `TryAdd`, so a single shared `OutboxOptions` instance backs all relays in the container. Configure the outbox for one `DbContext` per composition (the `UseOutbox` slot enforces this).
-- Idempotent on the hosted service only in the sense that calling it twice for the same `TContext` registers two relays — prefer the `UseOutbox<TContext>()` builder slot, which fails fast on a duplicate.
+- `TimeProvider` is added with `TryAdd`. A single shared `OutboxOptions` instance backs all relays in the container. Configure the outbox for one `DbContext` per composition (the `UseOutbox` slot enforces this).
+- **Repeated calls accumulate configuration.** `AddHostedService` dedupes by service + implementation type, so calling this twice for the same `TContext` yields exactly one relay. Each call applies its `configure` callback on top of the already-registered `OutboxOptions` instance and re-runs `Validate()`, so a later callback wins per setting rather than being silently discarded. Configuration is applied to a clone and committed only after `Validate()` succeeds, so a rejected callback leaves the container's options untouched. Prefer the `UseOutbox<TContext>()` builder slot, which fails fast on a duplicate.
+- **Do not register `OutboxOptions` yourself via a factory or implementation type.** The helper layers onto the *last* `OutboxOptions` descriptor, which is the one the container resolves. If that descriptor is a factory or type registration it cannot be cloned, so passing a `configure` callback throws `InvalidOperationException` rather than silently configuring an instance the relay would never receive. Calling `AddTrellisOutbox<TContext>()` with no callback leaves your registration intact.
 
 This is the service-collection half only. Pair with `AddTrellisOutbox(ModelBuilder)` and `AddTrellisOutboxInterceptor(DbContextOptionsBuilder)`.
 
@@ -150,6 +165,7 @@ A persisted event awaiting relay — one row per captured domain event or transl
 | `LastError` | `string?` | Most recent relay error, if any. |
 | `LockedUntil` | `DateTime?` | UTC instant until which a relay drain holds an exclusive claim (lease) on the row; `null` when unclaimed. |
 | `LockedBy` | `Guid?` | Claim token of the relay drain that currently holds the row; `null` when unclaimed. |
+| `CompletedHandlers` | `IReadOnlyList<string>` | For domain rows, the identity of every handler that has already completed for this event (see `DomainEventDispatchReport.HandlerIdentity`). A retry skips them, so a successful handler is never re-run because a sibling failed. Deliberately **not** cleared by `ReplayAsync` — replaying means "finish the work that did not happen". Empty for integration rows. |
 
 The `OutboxMessageConfiguration` maps the table `TrellisOutboxMessages`, the `Sequence` primary key (`ValueGeneratedOnAdd`), a unique index on `Id`, the `Kind` discriminator (string, max length 32), a covering index on `{ ProcessedAt, LockedUntil, Sequence }` for the relay's claimable-rows scan, and an index on `LockedBy` for loading a drain's just-claimed batch.
 
@@ -173,15 +189,21 @@ Tuning for the relay.
 
 ## Delivery semantics
 
-The guarantee is at-least-once **delivery**, not handler success.
+The guarantee is at-least-once **delivery**, and delivery now means *every handler completed*.
 
-- A message is marked processed once it has been handed to `IDomainEventPublisher`. Per the `IDomainEventHandler<TEvent>` contract the publisher logs and swallows non-cancellation handler exceptions, so a **failing handler does not cause the message to retry**.
-- Only infrastructure failures — the event type cannot be resolved, the payload cannot be deserialized, or the relay's own `SaveChanges` fails — leave a message pending. Those retry on later polls with an **exponential backoff** (`RetryBackoff` doubling up to `MaxRetryBackoff`, minus a deterministic per-message jitter), up to `MaxAttempts`, after which the message is dead-lettered (parked): its `Attempts` reaches the cap and the scan skips it, so later messages are not blocked. `LastError` records the most recent failure. The backoff means a brief outage is ridden out by a later retry rather than burning every attempt in a tight loop.
+- A domain message is marked processed only once **every** registered `IDomainEventHandler<TEvent>` has completed. A handler that throws leaves the message pending, and the retry re-invokes **only the handlers that failed** — `OutboxMessage.CompletedHandlers` records the ones that already succeeded. An unrelated sibling's failure therefore never re-runs a successful handler's side effect.
+- Integration events produced by handlers that *did* succeed are still staged on that failed attempt. They must be, because the retry skips those handlers: discarding the events would lose them outright.
+- Infrastructure failures — the event type cannot be resolved, the payload cannot be deserialized, or the relay's own `SaveChanges` fails — behave the same way, except that nothing can be marked complete (a resolution failure means no handler ran).
+- Failures retry on later polls with an **exponential backoff** (`RetryBackoff` doubling up to `MaxRetryBackoff`, minus a deterministic per-message jitter), up to `MaxAttempts`, after which the message is dead-lettered (parked): its `Attempts` reaches the cap and the scan skips it, so later messages are not blocked. `LastError` records the most recent failure. The backoff means a brief outage is ridden out by a later retry rather than burning every attempt in a tight loop. With the defaults, a permanently failing handler is retried 10 times over roughly 3 hours before parking.
+- **Handlers must still be idempotent.** The progress record is only durable once the relay's bookkeeping `SaveChanges` lands, so a crash between dispatch and that save re-delivers the event to *every* handler. The per-handler tracking removes the routine duplicate (a failing sibling), not the crash window.
+- Integration messages have a single publish step rather than a fan-out, so `CompletedHandlers` stays empty for them; a publisher failure retries the whole row.
 - A dead-lettered message stays in the table for inspection and **replay** — see *Dead-letter and replay* below. Monitor for rows where `ProcessedAt IS NULL AND Attempts >= MaxAttempts`.
 - **Logs (production support).** The relay emits structured events. `OutboxRelay.MessageParked` (**Error**, `EventId` 5) is the alertable signal that a message exhausted `MaxAttempts` and is dead-lettered — it carries `MessageId`, `EventType`, `Attempts`, and the exception. Transient per-message failures log `OutboxRelay.RelayAttemptFailed` (**Warning**, `EventId` 4, with the attempt number); a drain that outlived its lease and was reclaimed by another instance logs `OutboxRelay.LeaseLost` (**Warning**, `EventId` 6); a whole drain cycle failing logs `OutboxRelay.DrainFailed` (**Error**, `EventId` 3); startup logs `OutboxRelay.Started` (Information), and `OutboxRelay.DrainCompleted` (Debug) reports the per-cycle count. Alert on `MessageParked`.
 - **Safe to run N-up (row-claiming + concurrency guard).** Each drain atomically claims a batch with a lease — a single `UPDATE` sets `LockedBy` (a per-drain token) and `LockedUntil` (now + `LeaseDuration`) on eligible rows. Concurrent relays running that `UPDATE` are serialized by row locks and re-evaluate the lease guard, so every row is claimed by exactly one instance. `LockedBy` is additionally an **optimistic concurrency token**: if a slow batch outlives its lease and another instance reclaims a row, the first instance's bookkeeping `UPDATE` matches no row and it abandons its write for that row (dropping any integration rows it produced and logging `OutboxRelay.LeaseLost`) rather than clobber the new owner. This makes a horizontally-scaled deployment safe **without** leader election or an external lock. Delivery is still at-least-once and handlers must stay idempotent: a crash between publish and the relay's `SaveChanges`, or a batch that outlives its lease, can re-deliver. Set `LeaseDuration` comfortably above the worst-case batch publish time, and keep node clocks reasonably in sync — the lease is compared against each relay's wall clock.
 
-Retry-until-handlers-succeed would require a non-swallowing publish path and is a planned follow-up; today, handlers that must not silently drop work should surface failures through their own durable mechanism.
+> **Migration note.** This behavior replaces the previous "handed to the publisher = delivered" semantics, under which a throwing handler silently dropped its work. Two consequences for an existing deployment: messages whose handlers fail now retry and can park (alert on `OutboxRelay.MessageParked`), and the `TrellisOutboxMessages` table gains a `CompletedHandlers` column — add a migration before deploying. The column is non-nullable with an empty default, so existing rows backfill cleanly.
+
+The relay obtains this behavior from `IReportingDomainEventPublisher` (see `trellis-api-mediator.md`), the non-swallowing counterpart to `IDomainEventPublisher`. In-pipeline dispatch still swallows, because it runs post-commit and has no retry mechanism. If you replace the default publisher, register **both** contracts or the relay's registration will fail at startup.
 
 ## Dead-letter and replay
 

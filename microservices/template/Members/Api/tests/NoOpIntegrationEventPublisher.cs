@@ -7,6 +7,6 @@ namespace Members.Api.Tests;
 // test; here the relay drains the outbox into this no-op so an invite commits without a broker.
 internal sealed class NoOpIntegrationEventPublisher : IIntegrationEventPublisher
 {
-    public ValueTask PublishAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken) =>
+    public ValueTask PublishAsync(OutboundIntegrationMessage message, CancellationToken cancellationToken) =>
         ValueTask.CompletedTask;
 }

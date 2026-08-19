@@ -3,7 +3,7 @@ package: Trellis.ServiceDefaults
 namespaces: [Trellis.ServiceDefaults]
 types: [TrellisServiceCollectionExtensions, TrellisServiceBuilder]
 version: v3
-last_verified: 2026-06-03
+last_verified: 2026-08-18
 audience: [llm]
 ---
 # Trellis.ServiceDefaults API Reference
@@ -55,7 +55,8 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 | Slot | AOT-safe overload | Scanning overload (`[RequiresUnreferencedCode]` + `[RequiresDynamicCode]`) |
 | --- | --- | --- |
 | FluentValidation | `o.UseFluentValidation()` (adapter only) plus `o.UseFluentValidation<TValidator, TMessage>()` per validator | `o.UseFluentValidation(asm)` |
-| Resource authorization | `o.UseResourceAuthorization()` (pipeline only) plus `o.UseResourceAuthorization<TMessage, TResource, TResponse>()` per command | `o.UseResourceAuthorization(asm)` |
+| Resource authorization (direct) | `o.UseResourceAuthorization()` (pipeline only) plus `o.UseResourceAuthorization<TMessage, TResource, TResponse>()` per command | `o.UseResourceAuthorization(asm)` |
+| Resource authorization (indirect / via) | `o.UseResourceAuthorization()` (pipeline only) plus `o.UseRelatedResourceAuthorization<TMessage, TLeaf, TLeafId, TOwner, TOwnerId, TResponse>(extractOwnerId)` per command, or the `ResolvedAuthorizationPath` overload for multi-hop / fan-out | `o.UseResourceAuthorization(asm)` (the scanner discovers `IAuthorizeResourceVia<TOwner>` commands too) |
 | Domain events (response-shape) | `o.UseDomainEvents()` (publisher + behavior only) plus `o.UseDomainEvents<TEvent, THandler>()` per handler | `o.UseDomainEvents(asm)` |
 | Domain events (tracked-aggregate) | `o.UseTrackedAggregateDomainEvents()` (publisher + behavior only) plus `o.UseTrackedAggregateDomainEvents<TEvent, THandler>()` per handler | `o.UseTrackedAggregateDomainEvents(asm)` |
 
@@ -95,6 +96,8 @@ public sealed class TrellisServiceBuilder
 | `public TrellisServiceBuilder UseResourceAuthorization<TMessage, TResource, TResponse>() where TMessage : IAuthorizeResource<TResource>, IMessage where TResource : class where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** Registers the closed-generic `ResourceAuthorizationBehavior<TMessage, TResource, TResponse>` for the named command and registers `IAuthorizedResource<TMessage, TResource>` (`AuthorizedResourceHolder<TMessage, TResource>`) so handlers can avoid a duplicate load — see [Recipe 31](trellis-api-cookbook.md#recipe-31--avoid-duplicate-load-with-iauthorizedresourcetcommand-tresource). Idempotent across direct + builder composition: a consumer that calls both `services.AddResourceAuthorization<TMessage, TResource, TResponse>()` directly and `options.UseResourceAuthorization<TMessage, TResource, TResponse>()` ends up with exactly one behavior descriptor and a registered accessor. The `where TResource : class` constraint matches the underlying behavior — value-type resources are rejected at compile time. Implies `UseMediator()`. |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseResourceAuthorization(params Assembly[] assemblies)` | `TrellisServiceBuilder` | Scans assemblies for `IAuthorizeResource<TResource>` commands and registers `ResourceAuthorizationBehavior<TMessage, TResource, TResponse>` for each (non-AOT). Implies `UseMediator()`. |
 | `public TrellisServiceBuilder UseResourceAuthorization(Action<Trellis.Mediator.ResourceAuthorizationOptions> configure)` | `TrellisServiceBuilder` | Configures the per-resource failure-exposure policy via `Trellis.Mediator.ResourceAuthorizationOptions` (see `HideExistence<TResource>()`, the projection-loader overload `HideExistence<TAuthorizationResource, TPublicResource>()`, and `Propagate<TResource>()`). Repeated calls compose configure delegates rather than overwriting. Enables the resource-authorization pipeline and implies `UseMediator()`. Throws `ArgumentNullException` when `configure` is null. Pair with one of the typed / scan / explicit registration overloads to actually wire the behaviors — this overload only configures the exposure policy. See [Recipe 32](trellis-api-cookbook.md#recipe-32--hide-existence-with-authfailureexposurepolicyhideasnotfound). |
+| `public TrellisServiceBuilder UseRelatedResourceAuthorization<TMessage, TLeaf, TLeafId, TOwner, TOwnerId, TResponse>(Func<TLeaf, TOwnerId?> extractOwnerId) where TMessage : IAuthorizeResourceVia<TOwner>, IIdentifyResource<TLeaf, TLeafId>, IMessage where TLeaf : class where TOwner : class where TOwnerId : notnull where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** The via-command counterpart to `UseResourceAuthorization<TMessage, TResource, TResponse>()`. Registers the closed-generic `ResourceAuthorizationViaBehavior<TMessage, TLeaf, TOwner, TResponse>` for a command that authorizes against an owner reached by a single hop from its leaf, and registers `IAuthorizedResource<TMessage, TLeaf>` so handlers inject the **leaf** (the mutation target), not the owner. Returning `null` from `extractOwnerId` short-circuits to `Error.Forbidden`. Loaders are consumer-owned: register `SharedResourceLoaderById<TLeaf, TLeafId>`, `SharedResourceLoaderById<TOwner, TOwnerId>`, and an `IResourceLoader<TMessage, TLeaf>`; a missing loader throws at request time rather than masking as a 403. Idempotent and order-independent relative to `UseEntityFrameworkUnitOfWork<TContext>()`. Implies `UseMediator()`. Throws `ArgumentNullException` when `extractOwnerId` is null. |
+| `public TrellisServiceBuilder UseRelatedResourceAuthorization<TMessage, TLeaf, TOwner, TResponse>(ResolvedAuthorizationPath path) where TMessage : IAuthorizeResourceVia<TOwner>, IMessage where TLeaf : class where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** Same as above but takes a hand-built `ResolvedAuthorizationPath` for multi-hop chains, plural-terminal fan-out, or composite shapes the single-hop overload cannot express. The path's `MessageType` / `LeafType` / `OwnerType` must agree with the generic arguments; the behavior's constructor validates this and fails fast. Implies `UseMediator()`. Throws `ArgumentNullException` when `path` is null. |
 | `public TrellisServiceBuilder UseClaimsActorProvider(Action<ClaimsActorOptions>? configure = null)` | `TrellisServiceBuilder` | Registers `ClaimsActorProvider` as `IActorProvider`. Mutually exclusive with the other actor-provider selectors; a second actor-provider selector throws `InvalidOperationException`. |
 | `public TrellisServiceBuilder UseNestedJsonPathClaimsActorProvider(Action<NestedJsonPathClaimsActorOptions>? configure = null)` | `TrellisServiceBuilder` | Registers `NestedJsonPathClaimsActorProvider` as `IActorProvider` with startup validation for the container-claim invariant. Mutually exclusive with the other actor-provider selectors; a second actor-provider selector throws `InvalidOperationException`. When `configure` is omitted, the default empty JSON paths make the provider behave like `ClaimsActorProvider`. |
 | `public TrellisServiceBuilder UseEntraActorProvider(Action<EntraActorOptions>? configure = null)` | `TrellisServiceBuilder` | Registers `EntraActorProvider` as `IActorProvider`. Mutually exclusive with the other actor-provider selectors; a second actor-provider selector throws `InvalidOperationException`. |
@@ -133,7 +136,7 @@ public sealed class TrellisServiceBuilder
 12. Transactional outbox relay (when `UseOutbox<TContext>()` is selected).
 13. Transactional inbox dispatch registration (when `UseInbox<TContext>()` is selected).
 
-That order preserves the important pipeline invariant: `TransactionalCommandBehavior<,>` is the innermost behavior, closest to the handler, so commit failures remain visible to outer logging/tracing/exception behaviors.
+That order preserves the important pipeline invariant: `TransactionalCommandBehavior<,>` is the innermost behavior, closest to the handler, so commit failures remain visible to outer logging/tracing/exception behaviors. The lower-level registration helpers are also order-independent: if a transaction behavior is present before `AddTrellisBehaviors()` or domain-event dispatch runs, it is rehomed to the innermost slot.
 
 ### Order-independence for explicit resource-authorization registrations
 
@@ -193,3 +196,22 @@ services.AddTrellis(options => options
     .UseDomainEvents(typeof(Program).Assembly)
     .UseEntityFrameworkUnitOfWork<AppDbContext>());
 ```
+
+## Registrations without a builder slot
+
+Not every `services.AddXxx()` Trellis ships has a matching `UseXxx()` slot, and the omissions are deliberate.
+
+The complete, authoritative classification lives in `Trellis.ServiceDefaults/tests/RegistrationSurfaceTests.cs`, which reflects over every registration helper reachable from `Trellis.ServiceDefaults` and fails the build if one is unclassified, if a classified helper no longer exists, if a named slot is missing from `TrellisServiceBuilder`, or if a helper classified as slotted is never actually referenced by `Trellis.ServiceDefaults`. The table below is the narrative summary of the cases worth explaining; treat the test as the source of truth if the two ever disagree.
+
+| Registration | Package | Why no slot |
+|---|---|---|
+| `AddInMemoryIdempotencyStore` | `Trellis.Asp` | The default leaf store. `UseIdempotency()` registers the middleware and options but deliberately no store, so the application picks one explicitly alongside it. |
+| `AddTrellisRouteConstraint` / `AddTrellisRouteConstraints` | `Trellis.Asp` | Registers per-value-object route constraints — application content, not a feature toggle. The application names the types (or the assembly to scan), so there is nothing for a slot to decide. |
+| `AddTransactionalCommandBehavior` | `Trellis.Mediator` | Provider-neutral; invoked by `AddTrellisUnitOfWork<TContext>()`, which *is* surfaced as `UseEntityFrameworkUnitOfWork<TContext>()`. |
+| `AddTrellisUnitOfWorkWithoutBehavior` | `Trellis.EntityFrameworkCore` | An escape hatch for hosts that take over pipeline ordering; a slot would contradict its purpose. |
+| `AddCosmosIdempotencyStore` | `Trellis.Asp.Idempotency.Cosmos` | Vendor SDK. |
+| `AddAzureServiceBusIntegrationEventPublisher` / `AddAzureServiceBusIntegrationEventConsumer` | `Trellis.Messaging.AzureServiceBus` | Vendor SDK. |
+
+The vendor-SDK rule is the important one: `Trellis.ServiceDefaults` references no cloud SDK, and a builder slot is a compile-time reference. Adding one would make every consumer of the meta-package carry the Azure SDK in order to use features that have nothing to do with Azure. Call these registrations directly on `IServiceCollection` alongside `AddTrellis(...)`. That same absence from the reference graph is what keeps the vendor packages outside the test's scan, so their "no slot" status needs no allowlist entry.
+
+`AddAzureServiceBusIntegrationEventPublisher` in particular is order-independent by construction: it *replaces* any existing `IIntegrationEventPublisher` registration rather than appending to it, so it can be called before or after `AddTrellis(options => options.UseIntegrationEvents(...))` with the same result.
