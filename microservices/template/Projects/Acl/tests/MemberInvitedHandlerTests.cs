@@ -35,7 +35,7 @@ public sealed class MemberInvitedHandlerTests : IDisposable
             Guid.NewGuid(), "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
 
         await handler.HandleAsync(evt, ct);
-        await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
 
         var rows = await _db.KnownMembers.ToListAsync(ct);
         rows.Should().ContainSingle();
@@ -53,9 +53,9 @@ public sealed class MemberInvitedHandlerTests : IDisposable
             Guid.NewGuid(), "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
 
         await handler.HandleAsync(evt, ct);
-        await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
         await handler.HandleAsync(evt, ct); // redelivery of the same member
-        await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
 
         (await _db.KnownMembers.ToListAsync(ct)).Should().ContainSingle();
     }

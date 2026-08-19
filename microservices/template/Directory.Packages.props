@@ -57,6 +57,7 @@
 
   <!-- Upstream Trellis (xavierjohn/Trellis on nuget.org) -->
   <ItemGroup>
+    <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />

@@ -34,7 +34,7 @@ public sealed class EfMemberRepositoryTests : IDisposable
         repository.Add(NewMember("acme-alice", "acme"));
         repository.Add(NewMember("acme-bob", "acme"));
         repository.Add(NewMember("globex-carol", "globex"));
-        await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
 
         var acme = await repository.ListByTenantAsync(
             TenantId.TryCreate("acme").GetValueOrThrow("valid tenant"), ct);
