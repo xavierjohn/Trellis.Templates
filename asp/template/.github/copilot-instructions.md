@@ -12,7 +12,7 @@ This template builds ASP.NET Core services on the Trellis framework for .NET 10.
 
 **Read the references yourself — do not delegate them to a sub-agent.** A sub-agent hands back a summary, so the exact signatures never reach your context and you end up writing code against a paraphrase. That is how invented APIs and wrong overloads get produced, and it is the specific failure these references exist to prevent. Sub-agents are fine for work whose output is a *verdict* — running builds and tests, searching for a file — but if the answer determines the code you are about to write, read it yourself.
 
-**Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-api-*.md` reference files, the reference file wins — those files are auto-synced from package metadata (`dotnet build /t:TrellisSyncApiReference`) and reflect the current framework surface. This file is curated guidance that can drift. Please file any contradiction as feedback.
+**Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-*.md` reference files, the reference file wins — those files are auto-synced from package metadata (`dotnet build /t:TrellisSyncApiReference`) and reflect the current framework surface. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
 | When working on... | Read first |
 |---|---|
@@ -839,7 +839,7 @@ services.AddScoped<IActorProvider, HttpActorProvider>();
 │   ├── copilot-instructions.md    ← THIS FILE
 │   ├── trellis-start-here.md      ← START HERE: routes to the cookbook
 │   ├── trellis-api-cookbook.md    ← the router: task lookup, recipes, preflight
-│   └── trellis-api-*.md           ← the rest of the shipped API reference set
+│   └── trellis-*.md               ← the rest of the reference set (incl. trellis-value-object-taxonomy.md)
 ├── Domain/
 │   ├── src/
 │   │   └── Domain.csproj
@@ -866,7 +866,7 @@ services.AddScoped<IActorProvider, HttpActorProvider>();
 
 > **NuGet packages:** Add `<PackageVersion>` to `Directory.Packages.props`, then add `<PackageReference>` without a version in the relevant `.csproj`.
 
-> **Upgrading Trellis packages:** After changing `TrellisVersion` in `Directory.Packages.props`, run `dotnet build ./{ServiceName}.slnx /t:TrellisSyncApiReference` from the service repository root to update the `.github/trellis-api-*.md` reference files from the new package versions.
+> **Upgrading Trellis packages:** After changing `TrellisVersion` in `Directory.Packages.props`, run `dotnet build ./{ServiceName}.slnx /t:TrellisSyncApiReference` from the service repository root to update the `.github/trellis-*.md` reference files from the new package versions.
 
 ### HTTP request documentation files
 
