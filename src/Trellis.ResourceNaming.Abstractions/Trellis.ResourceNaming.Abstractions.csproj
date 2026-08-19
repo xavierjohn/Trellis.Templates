@@ -21,16 +21,24 @@
 
     The targets file is packed to both build/ and buildTransitive/ so it applies
     whether the package is referenced directly or pulled in through .Azure.
+
+    Paths use forward slashes deliberately. On Windows the trailing backslash in
+    PackagePath="trellis\" is recognized as a directory marker and the doc lands at
+    trellis/<name>.md. On Linux the backslash is normalized to "trellis/" and NuGet
+    then appends its own separator, so the doc lands at the malformed "trellis//<name>.md".
+    That still satisfies a trellis/*.md glob, which is why the difference survives a
+    casual check - the published Trellis.Core packages carry the double slash today.
+    Forward slashes produce the clean path on every platform.
   -->
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)..\..\docs\api_reference\trellis-api-resourcenaming.md"
+    <None Include="$(MSBuildThisFileDirectory)../../docs/api_reference/trellis-api-resourcenaming.md"
           Pack="true"
-          PackagePath="trellis\" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\build\Trellis.ApiReference.targets"
+          PackagePath="trellis/" />
+    <None Include="$(MSBuildThisFileDirectory)../../build/Trellis.ApiReference.targets"
           Pack="true"
-          PackagePath="build\$(PackageId).targets" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\build\Trellis.ApiReference.targets"
+          PackagePath="build/$(PackageId).targets" />
+    <None Include="$(MSBuildThisFileDirectory)../../build/Trellis.ApiReference.targets"
           Pack="true"
-          PackagePath="buildTransitive\$(PackageId).targets" />
+          PackagePath="buildTransitive/$(PackageId).targets" />
   </ItemGroup>
 </Project>

@@ -108,7 +108,8 @@ try {
     $docs = @($entries | Where-Object { $_ -like 'trellis/*.md' })
     Assert-True ($docs.Count -gt 0) "packs at least one API reference under trellis/"
     Assert-True ($docs -contains 'trellis/trellis-api-resourcenaming.md') `
-        "packs trellis/trellis-api-resourcenaming.md"
+        "packs trellis/trellis-api-resourcenaming.md" `
+        "actual trellis/ entries: $($docs -join ', ')"
 
     Assert-True ($entries -contains "build/$abstractionsId.targets") `
         "packs build/$abstractionsId.targets (direct reference)"
