@@ -4,14 +4,19 @@ This template scaffolds a **multi-tenant microservices topology** on the Trellis
 
 ## 🔴 Before Writing Code — Read the API References
 
-**STOP. Do not write or generate any code until you have read the API reference files relevant to your task.** These files document the exact method signatures, overloads, conventions, and EF Core mapping rules. Guessing based on type names produces code that compiles but fails at runtime (e.g., adding explicit EF `Property()` configuration on types that Trellis conventions already handle).
+**STOP. Do not write or generate any code until you have read the reference material for your task.** These files document the exact method signatures, overloads, conventions, and EF Core mapping rules. Guessing based on type names produces code that compiles but fails at runtime (e.g., adding explicit EF `Property()` configuration on types that Trellis conventions already handle).
 
-For a typical service using aggregates, EF Core, authorization, and the eventing plane, read at least: `trellis-api-core.md`, `trellis-api-primitives.md`, `trellis-api-efcore.md`, `trellis-api-asp.md`, `trellis-api-authorization.md`, `trellis-api-mediator.md`, `trellis-api-efcore-outbox.md`, `trellis-api-efcore-inbox.md`, `trellis-api-microservices-abstractions.md`, `trellis-api-microservices-cookbook.md`, and `trellis-api-testing-reference.md`.
+**Start at [`.github/trellis-start-here.md`](trellis-start-here.md), which routes you to [`.github/trellis-api-cookbook.md`](trellis-api-cookbook.md). Read the cookbook's routing head — everything above the first `## Recipe` heading — before writing Trellis code, and keep that head in context for the rest of the session.** Then read the routing head of [`.github/trellis-api-microservices-cookbook.md`](trellis-api-microservices-cookbook.md), which does the same job for the cross-service recipes this template is built on.
+
+**Do not try to read the whole set.** It is roughly 300K tokens; skimming it burns the budget you need for the task itself. The cookbooks are routers: their task-lookup tables map your task to a numbered recipe, and the framework cookbook's preflight table names exactly which package references that task needs. A routing head is only ~4K tokens, recipe bodies are ~1.25K each, and a typical task opens one to three of them. So hold the heads, open recipe bodies on demand, and then load only the one to three area references you are sent to — the table below says which file owns each area. Never write code from a recipe's title alone; open the body.
+
+**Read the references yourself — do not delegate them to a sub-agent.** A sub-agent hands back a summary, so the exact signatures never reach your context and you end up writing code against a paraphrase. That is how invented APIs and wrong overloads get produced, and it is the specific failure these references exist to prevent. Sub-agents are fine for work whose output is a *verdict* — running builds and tests, searching for a file — but if the answer determines the code you are about to write, read it yourself.
 
 **Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-api-*.md` reference files, the reference file wins — those files are auto-synced from package metadata (`dotnet build /t:TrellisSyncApiReference`) and reflect the current framework surface. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
 | When working on... | Read first |
 |---|---|
+| **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.github/trellis-start-here.md`, then `.github/trellis-api-cookbook.md` |
 | `Result<T>`, `Maybe<T>`, `Error`, `Bind`, `Map`, `Tap`, `Ensure`, `Combine` | `.github/trellis-api-core.md` |
 | Aggregates, entities, value objects, specifications, ETag checks | `.github/trellis-api-core.md` |
 | `RequiredString<T>`, `RequiredGuid<T>`, `RequiredEnum<T>`, built-in primitives | `.github/trellis-api-primitives.md` |
@@ -28,8 +33,13 @@ For a typical service using aggregates, EF Core, authorization, and the eventing
 | Mediator pipeline behaviors | `.github/trellis-api-mediator.md` |
 | Service-level indicators (SLI) | `.github/trellis-api-sli.md`, `.github/trellis-api-sli-asp.md` |
 | Testing helpers, `FakeRepository`, `TestActorProvider`, assertions, `Unwrap()` | `.github/trellis-api-testing-reference.md` |
+| Fixing an analyzer warning — ready-to-apply WRONG/FIX shapes | `.github/trellis-api-anti-patterns.md` |
 | Analyzer diagnostics `TRLS001`–`TRLS0xx` and generator diagnostics | `.github/trellis-api-analyzers.md` |
 | Scalar vs composite value-object classification | `.github/trellis-value-object-taxonomy.md` |
+
+The `.github/` directory ships the **complete** first-party reference set, so it also contains files for packages this template does not reference. That is by design: it is how you discover a module worth adopting. The cookbooks name the right file per task, so route through them rather than opening files speculatively.
+
+**A reference file being present does not mean the project you are editing can use that package.** Before writing code against one, confirm the target project has a `<PackageReference>` for it in its own `.csproj` — `Directory.Packages.props` only supplies the version for centrally managed packages and lists some that no project references. Note also that this template's own `ServiceDefaults/` project is a local Aspire project, not the `Trellis.ServiceDefaults` package. If the package is absent, say what adopting it would buy rather than emitting code that cannot compile.
 
 ## Critical Rules
 
@@ -540,7 +550,10 @@ Study these files before adding a service or feature.
 ├── global.json                    ← DO NOT MODIFY
 ├── .github/
 │   ├── copilot-instructions.md    ← THIS FILE
-│   └── trellis-api-*.md           ← shipped API reference set
+│   ├── trellis-start-here.md      ← START HERE: routes to the cookbooks
+│   ├── trellis-api-cookbook.md    ← framework router: task lookup, recipes, preflight
+│   ├── trellis-api-microservices-cookbook.md  ← cross-service recipes
+│   └── trellis-api-*.md           ← the rest of the shipped API reference set
 ├── AppHost/                       ← Aspire orchestration
 ├── ServiceDefaults/               ← OpenTelemetry, health, SLI, discovery
 ├── Gateway/                       ← YARP + internal-JWT minting
