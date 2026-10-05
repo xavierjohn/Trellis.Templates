@@ -1,13 +1,13 @@
-using System.Diagnostics;
-using ProjectTrackerTemplate.Members.Acl;
+﻿using ProjectTrackerTemplate.Members.Acl;
 using ProjectTrackerTemplate.Members.Api;
 using ProjectTrackerTemplate.Members.Application;
+using ProjectTrackerTemplate.Members.Domain;
 using Scalar.AspNetCore;
 using Trellis.Asp;
 using Trellis.Asp.Idempotency;
 using Trellis.Microservices.AspNetCore;
-using Trellis.ResourceNaming.Azure;
 using Trellis.ServiceLevelIndicators;
+using Trellis.ServiceDefaults;
 
 // Members microservice — HR-sensitive cluster (CRUD on Member aggregate).
 //
@@ -43,55 +43,30 @@ builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
 {
-    // Always surface the active trace id so clients can correlate the error with server spans.
-    ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
-
-    // Never leak raw exception detail on a 500.
+    // Override Trellis's default 500 wording with this service's support message.
     if (ctx.ProblemDetails.Status == StatusCodes.Status500InternalServerError)
         ctx.ProblemDetails.Detail = "An error occurred. Please share the trace id with support.";
-
-    // RFC 9110 §15.5.6: surface the supported methods from the Allow header as a structured array.
-    if (ctx.ProblemDetails.Status == StatusCodes.Status405MethodNotAllowed &&
-        ctx.HttpContext.Response.Headers.TryGetValue("Allow", out var allow))
-    {
-        ctx.ProblemDetails.Extensions["allow"] = allow.ToString()
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
 });
 
 // Trellis ASP integration + scalar value-object validation. The UseScalarValueValidation
 // middleware (below) rewrites a failed value-object bind — e.g. a malformed {id} route value —
 // into a 422 ProblemDetails before the handler runs. Add .WithScalarValueValidation() to an
 // endpoint only when its request BODY carries value objects (none here yet).
-builder.Services.AddTrellisAspWithScalarValidation();
-builder.Services.AddTrellisIdempotency();
-builder.Services.AddInMemoryIdempotencyStore();
+builder.Services.AddTrellis(options => options
+    .UseAsp()
+    .UseScalarValueValidation()
+    .UseProblemDetails()
+    .UseIdempotency()
+    .UseMediator()
+    .UseDomainEvents(typeof(InviteMemberCommand).Assembly)
+    .UseIntegrationEvents()
+    .UseResourceAuthorization(typeof(InviteMemberCommand).Assembly, typeof(MembersDbContext).Assembly)
+    .UseResourceAuthorization(policy => policy.HideExistence<Member>())
+    .UseOutbox<MembersDbContext>()
+    .UseEntityFrameworkUnitOfWork<MembersDbContext>());
+builder.Services.AddConfiguredIdempotencyStore(builder.Environment, builder.Configuration);
 
-// Bind the deployed-environment options once; the SLI location id's region comes from configuration.
-var deployedEnvironmentSection = builder.Configuration.GetSection("DeployedEnvironment");
-builder.Services.Configure<DeployedEnvironmentOptions>(deployedEnvironmentSection);
-var deployedEnvironment = deployedEnvironmentSection.Get<DeployedEnvironmentOptions>() ?? new DeployedEnvironmentOptions();
-
-// Region is the deployment's telemetry location; fail fast rather than emit a region-less location id.
-var region = deployedEnvironment.Region;
-if (string.IsNullOrWhiteSpace(region))
-{
-    throw new InvalidOperationException(
-        "Configuration 'DeployedEnvironment:Region' is required for the service-level-indicator location id.");
-}
-
-var locationId = ServiceLevelIndicator.CreateLocationId("public", region);
-builder.Services.AddServiceLevelIndicator(options => options.LocationId = locationId)
-    // Stamp each SLI with the caller's tenant so emissions aren't all CustomerResourceId=Unknown.
-    // The enrichment runs after authentication (on the way out), so the tenant_id claim is available;
-    // under an ARM resource provider, switch this to the ARM resource id.
-    .Enrich(ctx =>
-    {
-        var tenantId = ctx.HttpContext.User.FindFirst("tenant_id")?.Value;
-        if (!string.IsNullOrEmpty(tenantId))
-            ctx.SetCustomerResourceId($"tenant://{tenantId}");
-    })
-    .AddApiVersion();
+builder.ConfigureServiceLevelIndicators();
 
 // === Trust-boundary layer =================================================
 
@@ -123,11 +98,8 @@ builder.Services.AddAuthorization();
 
 // === Application + anti-corruption layers ================================
 //
-// The DI that used to be inlined here now lives with each layer. AddMembersApplication wires the Mediator
-// pipeline + the domain/integration-event dispatch (its IDomainEventHandlers — the audit logger and the
-// translator — are discovered in the Application assembly). AddMembersAcl wires the EF Core context
-// (SQL Server via Aspire) + outbox capture, the repository, resource-based authorization (HideExistence),
-// the unit of work, the outbox relay, and the Service Bus publisher that replaces the in-process default.
+// Layers own Mediator handler generation, the DbContext/provider, repositories and vendor transport.
+// The AddTrellis composition above owns pipeline ordering, dispatch and the outbox relay.
 builder.Services.AddMembersApplication();
 builder.AddMembersAcl();
 
@@ -154,8 +126,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Render any 4xx/5xx (including pipeline short-circuits) as RFC 9457 ProblemDetails.
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+app.UseTrellisProblemDetails();
 
 // Measure every matched request, BEFORE auth and validation. Routing has already run, so the SLI
 // middleware sees the endpoint, and because it emits on the way out it still records the final

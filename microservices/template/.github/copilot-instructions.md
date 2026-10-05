@@ -1,43 +1,51 @@
 ﻿# Copilot Instructions — Building Microservices with Trellis
+<!-- agentdocs:start -->
+**Read `../.agentdocs/README.md` now.** The path is relative to this instruction file (repository-root path: `.agentdocs/README.md`).
+<!-- agentdocs:end -->
+
 
 This template scaffolds a **multi-tenant microservices topology** on the Trellis framework for .NET 10, orchestrated by .NET Aspire. It ships two reference services — **Members** and **Projects** — behind a **Gateway**, communicating asynchronously through integration events. Build new services and features by following the patterns the reference services already demonstrate.
 
-## 🔴 Before Writing Code — Read the API References
+## 🔴 Before Writing Code — Read AgentDocs
 
 **STOP. Do not write or generate any code until you have read the reference material for your task.** These files document the exact method signatures, overloads, conventions, and EF Core mapping rules. Guessing based on type names produces code that compiles but fails at runtime (e.g., adding explicit EF `Property()` configuration on types that Trellis conventions already handle).
 
-**Start at [`.github/trellis-start-here.md`](trellis-start-here.md), which routes you to [`.github/trellis-api-cookbook.md`](trellis-api-cookbook.md). Read the cookbook's routing head — everything above the first `## Recipe` heading — before writing Trellis code, and keep that head in context for the rest of the session.** Then read the routing head of [`.github/trellis-api-microservices-cookbook.md`](trellis-api-microservices-cookbook.md), which does the same job for the cross-service recipes this template is built on.
+**Start at [`.agentdocs/README.md`](../.agentdocs/README.md).** It identifies the required framework router for each project and the task-specific references to open on demand. For cross-service patterns, also study the local `Members/`, `Projects/`, `Gateway/`, `SharedKernel/`, and `tests/Eventing.Tests/` implementations.
 
-**Do not try to read the whole set.** It is roughly 300K tokens; skimming it burns the budget you need for the task itself. The cookbooks are routers: their task-lookup tables map your task to a numbered recipe, and the framework cookbook's preflight table names exactly which package references that task needs. A routing head is only ~4K tokens, recipe bodies are ~1.25K each, and a typical task opens one to three of them. So hold the heads, open recipe bodies on demand, and then load only the one to three area references you are sent to — the table below says which file owns each area. Never write code from a recipe's title alone; open the body.
+**Do not try to read the whole set.** It is roughly 300K tokens; skimming it burns the budget you need for the task itself. Follow the project groups in `.agentdocs/README.md`, then use the required Trellis router to open only the one to three references or recipe bodies the task needs. Never write code from a recipe's title alone; open the body.
 
 **Read the references yourself — do not delegate them to a sub-agent.** A sub-agent hands back a summary, so the exact signatures never reach your context and you end up writing code against a paraphrase. That is how invented APIs and wrong overloads get produced, and it is the specific failure these references exist to prevent. Sub-agents are fine for work whose output is a *verdict* — running builds and tests, searching for a file — but if the answer determines the code you are about to write, read it yourself.
 
-**Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-*.md` reference files, the reference file wins — those files are auto-synced from package metadata (`dotnet build /t:TrellisSyncApiReference`) and reflect the current framework surface. This file is curated guidance that can drift. Please file any contradiction as feedback.
+**Reference docs are authoritative.** If anything in this file conflicts with one of the AgentDocs-managed `trellis-*.md` files, the reference file wins — AgentDocs installs those version-aligned files from the restored, approved framework and microservices packages. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
 | When working on... | Read first |
 |---|---|
-| **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.github/trellis-start-here.md`, then `.github/trellis-api-cookbook.md` |
-| `Result<T>`, `Maybe<T>`, `Error`, `Bind`, `Map`, `Tap`, `Ensure`, `Combine` | `.github/trellis-api-core.md` |
-| Aggregates, entities, value objects, specifications, ETag checks | `.github/trellis-api-core.md` |
-| `RequiredString<T>`, `RequiredGuid<T>`, `RequiredEnum<T>`, built-in primitives | `.github/trellis-api-primitives.md` |
-| Minimal-API result mappers (`ToHttpResponse`/`ToHttpResponseAsync`), `EntityTagValue`, scalar binding/validation | `.github/trellis-api-asp.md` |
-| Minimal-API versioning (`WithVersionedRoute`, version sets) | `.github/trellis-api-asp-apiversioning.md` |
-| EF Core conventions, interceptors, `HasTrellisIndex`, `FirstOrDefaultMaybeAsync` | `.github/trellis-api-efcore.md` |
-| Transactional **outbox** (domain → integration events, relay, dead-letter) | `.github/trellis-api-efcore-outbox.md` |
-| Transactional **inbox** (idempotent consume, consumer checkpoints) | `.github/trellis-api-efcore-inbox.md` |
-| Integration-event contracts, collector, publisher/handler SPIs | `.github/trellis-api-microservices-abstractions.md` |
-| Cross-service recipes (translator, consumer, read model, deterministic ids) | `.github/trellis-api-microservices-cookbook.md` |
-| Actor-based authorization, `IAuthorize`, resource authorization | `.github/trellis-api-authorization.md` |
-| Internal-JWT actor provider + gateway minting | `.github/trellis-api-internal-jwt.md` |
-| YARP gateway / actor forwarding | `.github/trellis-api-yarp.md` |
-| Mediator pipeline behaviors | `.github/trellis-api-mediator.md` |
-| Service-level indicators (SLI) | `.github/trellis-api-sli.md`, `.github/trellis-api-sli-asp.md` |
-| Testing helpers, `FakeRepository`, `TestActorProvider`, assertions, `Unwrap()` | `.github/trellis-api-testing-reference.md` |
-| Fixing an analyzer warning — ready-to-apply WRONG/FIX shapes | `.github/trellis-api-anti-patterns.md` |
-| Analyzer diagnostics `TRLS001`–`TRLS0xx` and generator diagnostics | `.github/trellis-api-analyzers.md` |
-| Scalar vs composite value-object classification | `.github/trellis-value-object-taxonomy.md` |
+| **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.agentdocs/packages/trellis.core/trellis/trellis-start-here.md` |
+| `Result<T>`, `Maybe<T>`, `Error`, `Bind`, `Map`, `Tap`, `Ensure`, `Combine` | `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md` |
+| Aggregates, entities, value objects, specifications, ETag checks | `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md` |
+| `RequiredString<T>`, `RequiredGuid<T>`, `RequiredEnum<T>`, built-in primitives | `.agentdocs/packages/trellis.core/trellis/trellis-api-primitives.md` |
+| Minimal-API result mappers (`ToHttpResponse`/`ToHttpResponseAsync`), `EntityTagValue`, scalar binding/validation | `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md` |
+| Minimal-API versioning (`WithVersionedRoute`, version sets) | `.agentdocs/packages/trellis.core/trellis/trellis-api-asp-apiversioning.md` |
+| EF Core conventions, interceptors, `HasTrellisIndex`, `FirstOrDefaultMaybeAsync` | `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore.md` |
+| Transactional **outbox** (domain → integration events, relay, dead-letter) | `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore-outbox.md` |
+| Transactional **inbox** (idempotent consume, consumer checkpoints) | `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore-inbox.md` |
+| Shipped Service Bus transport, contract topics, settlement and dead-lettering | `.agentdocs/packages/trellis.core/trellis/trellis-api-messaging-azureservicebus.md` |
+| Integration-event contracts, collector, publisher/handler SPIs | `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore-outbox.md`, `SharedKernel/src/`, `Members/Application/src/`, `Projects/Application/src/` |
+| Cross-service JWT, tenant-isolation, and signing-key-rotation recipes | `.agentdocs/packages/trellis.microservices.abstractions/trellis-api-microservices-cookbook.md` |
+| Actor-based authorization, `IAuthorize`, resource authorization | `.agentdocs/packages/trellis.core/trellis/trellis-api-authorization.md` |
+| Internal-JWT claims shared by gateways and services | `.agentdocs/packages/trellis.microservices.abstractions/trellis-api-microservices-abstractions.md` |
+| Internal-JWT actor provider and required attributes | `.agentdocs/packages/trellis.microservices.aspnetcore/trellis-api-internal-jwt.md` |
+| YARP gateway, actor forwarding, JWT minting, and JWKS | `.agentdocs/packages/trellis.yarp/trellis-api-yarp.md` |
+| Mediator pipeline behaviors | `.agentdocs/packages/trellis.core/trellis/trellis-api-mediator.md` |
+| Service-level indicators (SLI) | `.agentdocs/packages/trellis.servicelevelindicators/trellis-api-sli.md`, `.agentdocs/packages/trellis.servicelevelindicators.asp/trellis-api-sli-asp.md` |
+| Testing helpers, `FakeRepository`, `TestActorProvider`, assertions, `Unwrap()` | `.agentdocs/packages/trellis.core/trellis/trellis-api-testing-reference.md` |
+| Fixing an analyzer warning — ready-to-apply WRONG/FIX shapes | `.agentdocs/packages/trellis.core/trellis/trellis-api-anti-patterns.md` |
+| Analyzer diagnostics `TRLS001`–`TRLS0xx` and generator diagnostics | `.agentdocs/packages/trellis.core/trellis/trellis-api-analyzers.md` |
+| Scalar vs composite value-object classification | `.agentdocs/packages/trellis.core/trellis/trellis-value-object-taxonomy.md` |
 
-The `.github/` directory ships the **complete** first-party reference set, so it also contains files for packages this template does not reference. That is by design: it is how you discover a module worth adopting. The cookbooks name the right file per task, so route through them rather than opening files speculatively.
+AgentDocs installs the complete `Trellis.Core` reference set plus guidance from the separately approved microservices, ResourceNaming, and SLI packages. `.agentdocs/README.md` is the generated index; route through it rather than opening files speculatively.
+
+**Maintaining AgentDocs:** From the Git root, run `dotnet tool restore`, `dotnet restore`, `dotnet tool run agentdocs sync`, and `dotnet tool run agentdocs check --strict` after generating the project or upgrading packages. Commit the tool manifest, managed pointers, policy, and `.agentdocs/` with the package update. The application does not require this optional tool to build or run.
 
 **A reference file being present does not mean the project you are editing can use that package.** Before writing code against one, confirm the target project has a `<PackageReference>` for it in its own `.csproj` — `Directory.Packages.props` only supplies the version for centrally managed packages and lists some that no project references. Note also that this template's own `ServiceDefaults/` project is a local Aspire project, not the `Trellis.ServiceDefaults` package. If the package is absent, say what adopting it would buy rather than emitting code that cannot compile.
 
@@ -122,7 +130,7 @@ public static class MemberEndpoints
 app.MapGet("/api/members/{id}", handler).RequireAuthorization().AddServiceLevelIndicator().MapToApiVersion(v);
 app.MapPost("/api/members", handler).RequireAuthorization().AddServiceLevelIndicator().MapToApiVersion(v);
 ```
-- **Reference:** See `Members/Api/src/MemberEndpoints.cs`, `Projects/Api/src/ProjectEndpoints.cs`, `Projects/Api/src/TeamEndpoints.cs`, and the hoisting note in `.github/trellis-api-asp.md`.
+- **Reference:** See `Members/Api/src/MemberEndpoints.cs`, `Projects/Api/src/ProjectEndpoints.cs`, `Projects/Api/src/TeamEndpoints.cs`, and the hoisting note in `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md`.
 
 ### Declare permissions as constants in the Domain layer
 
@@ -178,8 +186,14 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     }
 
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        Result.Ensure(email is not null, Error.InvalidInput.ForField("email", "required", "Email is required."))
-            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField("role", "required", "Role is required.")))
+        Result.Ensure(email is not null, Error.InvalidInput.ForField(
+            code: "required",
+            field: "email",
+            detail: "Email is required."))
+            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "role",
+                detail: "Role is required.")))
             .Map(_ => new InviteMemberCommand(email!, role!));
 }
 
@@ -196,7 +210,10 @@ public sealed class InviteMemberHandler(
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
             .EnsureAsync(
                 async memberId => !await repository.ExistsAsync(memberId, cancellationToken),
-                memberId => Error.Conflict.For<Member>(memberId, "members.duplicate", "A member with this id already exists in this tenant."))
+                memberId => Error.Conflict.For<Member>(
+                    code: "members.duplicate",
+                    id: memberId,
+                    detail: "A member with this id already exists in this tenant."))
             .MapAsync(memberId => Member.Invite(memberId, tenantId, command.Email, command.Role, timeProvider))
             .TapAsync(repository.Add);
     }
@@ -207,8 +224,12 @@ public sealed class InviteMemberHandler(
 
 ### Keep `Program.cs` thin; register each layer with an `Add{Service}{Layer}` extension
 
-- **Rule:** 🔴 MUST keep each service host's `Program.cs` focused on the trust boundary (authentication, the internal-JWT actor provider, validation/idempotency middleware, SLI middleware) and a single call to each layer's DI extension — `Add{Service}Application()` (in the Application project) and `Add{Service}Acl(builder)` (in the Acl project) — then `app.Map{Resource}Endpoints()`. Do not register handlers, repositories, DbContexts, or the eventing plane inline in `Program.cs`.
-- **Rationale:** The assembly that owns a layer's types owns its wiring — so `AddDomainEventDispatch` scans the Application assembly where the handlers actually live, and the Acl assembly owns the EF/outbox/inbox registrations. A thin host stays readable and a new service is wired with two `Add…` calls.
+- **Rule:** 🔴 MUST keep app-owned handler generation in `Add{Service}Application()` and DbContexts,
+  repositories, projection handlers and vendor transports in `Add{Service}Acl(builder)`. Select Trellis
+  framework modules together with `AddTrellis(...)` in the API root, alongside the trust boundary
+  and middleware. Do not inline repository or DbContext registration in `Program.cs`.
+- **Rationale:** Layers own application services; the composition root owns canonical framework
+  ordering. Domain-event scans target the Application assembly, not Domain.
 - **Correct:**
 ```csharp
 // Members/Application/src/DependencyInjection.cs
@@ -216,20 +237,29 @@ public static IServiceCollection AddMembersApplication(this IServiceCollection s
 {
     services.AddSingleton(TimeProvider.System);
     services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
-    services.AddTrellisBehaviors();
-    services.AddDomainEventDispatch(typeof(MemberInvitedTranslator).Assembly);
-    services.AddIntegrationEventDispatch();
     return services;
 }
 
 // Members/Api/src/Program.cs (excerpt)
 builder.Services.AddMembersApplication();
 builder.AddMembersAcl();
+builder.Services.AddTrellis(options => options
+    .UseAsp()
+    .UseScalarValueValidation()
+    .UseProblemDetails()
+    .UseIdempotency()
+    .UseMediator()
+    .UseDomainEvents(typeof(InviteMemberCommand).Assembly)
+    .UseIntegrationEvents()
+    .UseResourceAuthorization(typeof(InviteMemberCommand).Assembly, typeof(MembersDbContext).Assembly)
+    .UseResourceAuthorization(policy => policy.HideExistence<Member>())
+    .UseOutbox<MembersDbContext>()
+    .UseEntityFrameworkUnitOfWork<MembersDbContext>());
 // ...
 app.MapMemberEndpoints();
 app.MapDefaultEndpoints();
 ```
-- **Incorrect:** `Program.cs` calling `AddScoped<IMemberRepository, EfMemberRepository>()`, `AddDbContext<…>()`, `AddTrellisOutbox<…>()`, and registering handlers directly.
+- **Incorrect:** `Program.cs` inlining repositories/DbContexts, or layer extensions separately selecting pipeline modules whose order belongs to the root.
 - **Reference:** See `Members/Application/src/DependencyInjection.cs`, `Members/Acl/src/DependencyInjection.cs`, `Members/Api/src/Program.cs`, and the Projects equivalents.
 
 ### Treat errors and optional values as explicit types
@@ -241,11 +271,14 @@ app.MapDefaultEndpoints();
 ```csharp
 public static Result<MemberId> TryCreate(string value) =>
     string.IsNullOrWhiteSpace(value)
-        ? Result.Fail<MemberId>(Error.InvalidInput.ForField("id", "required", "Id is required."))
+        ? Result.Fail<MemberId>(Error.InvalidInput.ForField(
+            code: "required",
+            field: "id",
+            detail: "Id is required."))
         : Result.Ok(new MemberId(value));
 ```
 - **Incorrect:** `if (string.IsNullOrWhiteSpace(value)) throw new InvalidOperationException("Id is required.");`
-- **Reference:** See `.github/trellis-api-core.md`.
+- **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md`.
 
 ### Keep handlers on the ROP track and return `ValueTask` via `.AsValueTask()`
 
@@ -267,11 +300,11 @@ public sealed partial class UpdateProjectHandler(IAuthorizedResource<UpdateProje
 ```csharp
 // ❌ Imperative unwrap + re-fetch + ValueTask ctor wrapping.
 var maybe = await _repository.FindByIdAsync(command.Id, ct);
-if (maybe.HasNoValue) return Error.NotFound.For<Project>(command.Id);
+if (maybe.HasNoValue) return Error.NotFound.For<Project>(id: command.Id);
 maybe.Value.Update(command.Title, command.Description);
 return new(Result.Ok(maybe.Value));
 ```
-- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `.github/trellis-api-core.md`, `.github/trellis-api-mediator.md`.
+- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-mediator.md`.
 
 ### Eliminate primitive obsession; model domain enums as `RequiredEnum<T>`
 
@@ -293,7 +326,7 @@ internal sealed record MemberResponse(string Id, string TenantId, string Email, 
 }
 ```
 - **Incorrect:** `public sealed record InviteMemberCommand(string Email, string Role);` or `public enum Role { Owner, Member }`.
-- **Reference:** See `Members/Domain/src/MemberId.cs`, `Members/Domain/src/Role.cs`, `.github/trellis-api-primitives.md`, `.github/trellis-value-object-taxonomy.md`.
+- **Reference:** See `Members/Domain/src/MemberId.cs`, `Members/Domain/src/Role.cs`, `.agentdocs/packages/trellis.core/trellis/trellis-api-primitives.md`, `.agentdocs/packages/trellis.core/trellis/trellis-value-object-taxonomy.md`.
 
 ### Derive tenant from the actor, never from the request body
 
@@ -305,26 +338,29 @@ var tenantId = await actorProvider.GetCurrentTenantIdAsync(cancellationToken);
 var projects = await repository.ListByTenantAsync(tenantId, cancellationToken);
 ```
 - **Incorrect:** A `ListProjectsQuery(TenantId TenantId)` whose tenant comes from the request, or re-reading the JWT/claims inside the handler.
-- **Reference:** See `Members/Application/src/ActorProviderExtensions.cs`, `Projects/Application/src/ActorProviderExtensions.cs`, `Members/Application/src/InviteMemberCommand.cs`, `.github/trellis-api-internal-jwt.md`. The extension is **per service** because `SharedKernel` deliberately does not reference `Trellis.Authorization`.
+- **Reference:** See `.agentdocs/packages/trellis.microservices.aspnetcore/trellis-api-internal-jwt.md`, `Members/Application/src/ActorProviderExtensions.cs`, `Projects/Application/src/ActorProviderExtensions.cs`, and `Members/Application/src/InviteMemberCommand.cs`. The extension is **per service** because `SharedKernel` deliberately does not reference `Trellis.Authorization`.
 
 ### Communicate across services asynchronously through integration events
 
 - **Rule:** 🔴 MUST NOT make synchronous service-to-service calls for state another service owns. A producer raises a **domain event**, the **outbox** captures it in the same transaction as the aggregate, a **translator** maps it to a published-language **integration event**, and a consumer service ingests it through its **inbox** and projects it into a local read model. Consumers answer from their own store; they never call the producer at request time.
 - **Rationale:** Synchronous cross-service calls couple availability and latency and create distributed-transaction problems. The outbox/inbox pattern gives at-least-once delivery with transactional capture and idempotent consume, so each service stays independently deployable and resilient.
-- **Reference:** See the next rule for the full shape; `Members/*` (producer) and `Projects/*` (consumer) for the working flow; `.github/trellis-api-efcore-outbox.md`, `.github/trellis-api-efcore-inbox.md`, `.github/trellis-api-microservices-cookbook.md`.
+- **Reference:** See the next rule for the full shape; `Members/*` (producer), `Projects/*` (consumer), `SharedKernel/src/`, and `tests/Eventing.Tests/` for the working flow; `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore-outbox.md` and `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore-inbox.md`.
 
 ### Publish a stable integration-event contract; consume it idempotently
 
-- **Rule:** 🔴 MUST express each cross-service contract as a **primitives-only** `IIntegrationEvent` record carrying a `const string MessageType` discriminator (versioned, e.g. `"...v1"`); produce it from a domain event via an `IDomainEventHandler<TDomainEvent>` **translator** that `Add`s it to the `IIntegrationEventCollector`; give every copy of one logical event a **deterministic** id (so redeliveries dedupe on business identity); and consume it through the **inbox** with an `AddIntegrationEventHandler<TEvent, THandler>` that stages an idempotent projection. Never put a value object or `Maybe<T>` on the wire contract.
-- **Rationale:** A primitives-only, versioned contract decouples consumers from the producer's internal types; the deterministic id + inbox make at-least-once delivery safe (the consumer collapses redeliveries to a single effect); the translator keeps the published language separate from the internal domain event.
+- **Rule:** 🔴 MUST express each cross-service contract as a **primitives-only** `IIntegrationEvent`
+  record with a versioned `[IntegrationEventName]`. Translate through `IIntegrationEventCollector`
+  inside the outbox relay. Use the shipped Service Bus publisher/consumer with `IntegrationEventNameMap`;
+  preserve the outbox row ID as transport identity and keep business-key deduplication in the projection.
+  Never put a value object or `Maybe<T>` on the wire contract.
+- **Rationale:** Contract names decouple the wire from CLR names. The inbox collapses retries of one
+  row; an idempotent handler handles separately translated rows for the same business event.
 - **Correct:**
 ```csharp
 // SharedKernel/src/MemberInvitedIntegrationEvent.cs — published language (primitives only)
+[IntegrationEventName("projecttracker.members.member-invited.v2")]
 public sealed record MemberInvitedIntegrationEvent(
-    Guid EventId, string TenantId, string MemberId, string Role, DateTimeOffset OccurredAt) : IIntegrationEvent
-{
-    public const string MessageType = "projecttracker.members.member-invited.v1";
-}
+    string TenantId, string MemberId, string Role, DateTimeOffset OccurredAt) : IIntegrationEvent;
 
 // Members/Application/src/MemberInvitedTranslator.cs — domain event -> contract
 internal sealed class MemberInvitedTranslator(IIntegrationEventCollector collector)
@@ -333,22 +369,26 @@ internal sealed class MemberInvitedTranslator(IIntegrationEventCollector collect
     public ValueTask HandleAsync(MemberInvited e, CancellationToken ct)
     {
         collector.Add(new MemberInvitedIntegrationEvent(
-            DeterministicEventId.ForMember(e.MemberId), e.TenantId, e.MemberId, e.Role, e.OccurredAt));
+            e.TenantId, e.MemberId, e.Role, e.OccurredAt));
         return ValueTask.CompletedTask;
     }
 }
 
-// Projects/Acl/src/DependencyInjection.cs — consumer side (inbox + handler + transport)
-services.AddTrellisInbox<ProjectsDbContext>(o => o.ConsumerId = "projects");
+// Projects API root selects UseInbox; Acl registers the projection and vendor transport.
+var contracts = IntegrationEventNameMap.FromAssemblies(typeof(MemberInvitedIntegrationEvent).Assembly);
+var topic = contracts.NameFor(typeof(MemberInvitedIntegrationEvent)).GetValueOrThrow("Missing contract name.");
 services.AddIntegrationEventHandler<MemberInvitedIntegrationEvent, MemberInvitedHandler>();
-services.AddHostedService<MemberEventsConsumer>();
+services.AddAzureServiceBusIntegrationEventConsumer(contracts, o => o.Subscribe(topic, "projects"));
 ```
-- **Incorrect:** Putting `MemberId`/`TenantId` value objects on the contract, publishing the raw domain event, generating a random per-message id (defeating dedup), or projecting in the consumer without the inbox (double-apply on redelivery).
-- **Reference:** See `SharedKernel/src/MemberInvitedIntegrationEvent.cs`, `Members/Application/src/MemberInvitedTranslator.cs`, `Members/Application/src/DeterministicEventId.cs`, `Members/Acl/src/ServiceBusIntegrationEventPublisher.cs`, `Projects/Acl/src/MemberEventsConsumer.cs`, `Projects/Acl/src/MemberInvitedHandler.cs`.
+- **Incorrect:** Publishing raw domain events, replacing the outbox ID with a new transport ID, or
+  assuming inbox deduplication alone collapses separately translated rows.
+- **Reference:** See `SharedKernel/src/MemberInvitedIntegrationEvent.cs`, `Members/Application/src/MemberInvitedTranslator.cs`,
+  both Acl `DependencyInjection.cs` files, `Projects/Acl/src/MemberInvitedHandler.cs`, and
+  `.agentdocs/packages/trellis.core/trellis/trellis-api-messaging-azureservicebus.md`.
 
 ### Follow Trellis EF Core conventions; repositories stage, the unit of work commits
 
-- **Rule:** 🔴 MUST configure each `DbContext` with `ApplyTrellisConventionsFor<TContext>()` + `AddTrellisInterceptors()`, map the outbox/inbox with `AddTrellisOutbox()` / `AddTrellisInbox()` in `OnModelCreating`, and implement repositories as `RepositoryBase<TAggregate, TId>` that only **stage** changes (`Add`/`Update`/`Remove`) and return `Maybe<T>` from lookups. The handler does NOT call `SaveChanges` — `AddTrellisUnitOfWork<TContext>()` commits on command-handler success.
+- **Rule:** 🔴 MUST configure each `DbContext` with `ApplyTrellisConventionsFor<TContext>()` + `AddTrellisInterceptors()`, map the outbox/inbox with `AddTrellisOutbox()` / `AddTrellisInbox()` in `OnModelCreating`, and implement repositories as `RepositoryBase<TAggregate, TId>` that only **stage** changes (`Add`/`Update`/`Remove`) and return `Maybe<T>` from lookups. The handler does NOT call `SaveChanges` — the API root's `UseEntityFrameworkUnitOfWork<TContext>()` commits on command-handler success.
 - **Rationale:** Trellis persistence relies on conventions, interceptors (ETag + timestamps + value-object/`Maybe` query rewriting), and a pipeline-managed unit of work; manual EF patterns or explicit `SaveChangesAsync` calls silently break mapping, concurrency, or the outbox's same-transaction capture.
 - **Correct:**
 ```csharp
@@ -365,15 +405,14 @@ protected override void OnModelCreating(ModelBuilder b)
 builder.AddSqlServerDbContext<MembersDbContext>("membersdb",
     configureDbContextOptions: o => o.AddTrellisInterceptors().AddTrellisOutboxInterceptor());
 services.AddScoped<IMemberRepository, EfMemberRepository>();
-services.AddTrellisUnitOfWork<MembersDbContext>();
-services.AddTrellisOutbox<MembersDbContext>();
+// API root selects UseOutbox<MembersDbContext>() and UseEntityFrameworkUnitOfWork<MembersDbContext>().
 ```
 - **Incorrect:** Calling `SaveChangesAsync()` in a handler/repository, hand-writing `HasConversion()`/`OwnsOne()` for Trellis-supported value objects, or returning `null`/`Result` instead of `Maybe<T>` from a lookup.
-- **Reference:** See `Members/Acl/src/MembersDbContext.cs`, `Members/Acl/src/EfMemberRepository.cs`, `Members/Acl/src/DependencyInjection.cs`, `Projects/Acl/src/ProjectsDbContext.cs`, `.github/trellis-api-efcore.md`.
+- **Reference:** See `Members/Acl/src/MembersDbContext.cs`, `Members/Acl/src/EfMemberRepository.cs`, `Members/Acl/src/DependencyInjection.cs`, `Projects/Acl/src/ProjectsDbContext.cs`, `.agentdocs/packages/trellis.core/trellis/trellis-api-efcore.md`.
 
 ### Authorize with `IAuthorize` and `IAuthorizeResource<T>`; load resources once
 
-- **Rule:** 🔴 MUST use `IAuthorize` for static permission gates and `IAuthorizeResource<TResource>` + `IIdentifyResource<TResource, TId>` for per-resource checks, backed by a `SharedResourceLoaderById<TResource, TId>`. The loader runs once at the pipeline boundary and the handler reads the result via `IAuthorizedResource<TCommand, TResource>` — handlers do not re-check ownership or re-load. Register both with `AddResourceAuthorization(...)` in the Acl layer; opt sensitive resources into existence-hiding with `HideExistence<T>()` (cross-tenant failures project to 404, not 403).
+- **Rule:** 🔴 MUST use `IAuthorize` for static permission gates and `IAuthorizeResource<TResource>` + `IIdentifyResource<TResource, TId>` for per-resource checks, backed by a `SharedResourceLoaderById<TResource, TId>`. The loader runs once at the pipeline boundary and the handler reads the result via `IAuthorizedResource<TCommand, TResource>` — handlers do not re-check ownership or re-load. Scan Application and Acl with `.UseResourceAuthorization(...)` in the API root; opt sensitive resources into existence-hiding with `HideExistence<T>()` (cross-tenant failures project to 404, not 403).
 - **Rationale:** Centralizing authorization in the pipeline keeps handlers domain-focused, guarantees the resource is loaded exactly once, and makes the 403-vs-404 disclosure decision explicit per resource type.
 - **Correct:**
 ```csharp
@@ -395,23 +434,38 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     }
 
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        Result.Ensure(id is not null, Error.InvalidInput.ForField("id", "required", "Project id is required."))
-            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
-            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField("description", "required", "Description is required.")))
+        Result.Ensure(id is not null, Error.InvalidInput.ForField(
+            code: "required",
+            field: "id",
+            detail: "Project id is required."))
+            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "title",
+                detail: "Title is required.")))
+            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "description",
+                detail: "Description is required.")))
             .Map(_ => new UpdateProjectCommand(id!, title!, description!, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
         Result.Ensure(
             actor.TryGetAttribute<TenantId>("tenant_id", out var t) && t == resource.TenantId,
-            Error.Forbidden.For<Project>("projects.cross_tenant", resource.Id, "Cross-tenant project access is not permitted."))
+            Error.Forbidden.For<Project>(
+                code: "projects.cross_tenant",
+                id: resource.Id,
+                detail: "Cross-tenant project access is not permitted."))
         .Ensure(
             _ => string.Equals(resource.OwnerId, actor.Id.Value, StringComparison.Ordinal),
-            Error.Forbidden.For<Project>("projects.not_owner", resource.Id, "Only the project's owner can edit it."));
+            Error.Forbidden.For<Project>(
+                code: "projects.not_owner",
+                id: resource.Id,
+                detail: "Only the project's owner can edit it."));
 }
 ```
 - **Incorrect:** Ownership/tenant `if` checks inside the handler, or loading the aggregate a second time in the handler.
-- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/DependencyInjection.cs` (`HideExistence<Member>()`), `.github/trellis-api-authorization.md`.
+- **Reference:** See `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Application/src/GetProjectQuery.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/DependencyInjection.cs` (`HideExistence<Member>()`), `.agentdocs/packages/trellis.core/trellis/trellis-api-authorization.md`.
 
 ### Require `If-Match` on body-overwriting mutations
 
@@ -419,7 +473,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 - **Rationale:** Skipping the precondition lets concurrent clients silently overwrite each other (lost-update race). Trellis aggregates carry a strong ETag for exactly this check.
 - **Correct:** `Result.Ok(authorized.GetRequiredResource()).RequireETag(command.IfMatchETags).Tap(p => p.Update(...))` — see `Projects/Application/src/UpdateProjectCommand.cs`.
 - **Incorrect:** An update handler that omits `.RequireETag(...)` and returns `200` even for a stale/missing `If-Match`.
-- **Reference:** See `.github/trellis-api-core.md` §RequireETag, `.github/trellis-api-asp.md`.
+- **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md` §RequireETag, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md`.
 
 ### Version minimal-API routes with a version set and `WithVersionedRoute()`
 
@@ -427,15 +481,15 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 - **Rationale:** Query-string API versioning means a generated `Location` without the version points at a route that cannot be resolved; `WithVersionedRoute()` injects the active version automatically.
 - **Correct:** `.CreatedAtRoute("Members_GetById", m => m.Id).WithVersionedRoute()` — see `Members/Api/src/MemberEndpoints.cs`.
 - **Incorrect:** `.CreatedAtRoute("Members_GetById", m => m.Id)` with no `.WithVersionedRoute()` under query-string versioning.
-- **Reference:** See `.github/trellis-api-asp-apiversioning.md`, `.github/trellis-api-analyzers.md` (TRLS023).
+- **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-asp-apiversioning.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-analyzers.md` (TRLS023).
 
 ### Read the testing reference before writing tests
 
-- **Rule:** 🔴 MUST read `.github/trellis-api-testing-reference.md` before writing tests and use Trellis assertions (`Should().BeSuccess()`, `Unwrap()`, `Should().HaveValue()`/`BeNone()`). The cross-service eventing path is covered by an in-memory broker end-to-end test, not by calling the real Service Bus.
+- **Rule:** 🔴 MUST read `.agentdocs/packages/trellis.core/trellis/trellis-api-testing-reference.md` before writing tests and use Trellis assertions (`Should().BeSuccess()`, `Unwrap()`, `Should().HaveValue()`/`BeNone()`). The cross-service eventing path is covered by an in-memory broker end-to-end test, not by calling the real Service Bus.
 - **Rationale:** The testing package already provides assertions, fake repositories, actor providers, and safe unwrapping; the eventing test proves outbox → broker → inbox → read model hermetically.
 - **Correct:** `result.Should().BeSuccess(); var member = result.Unwrap();`
 - **Incorrect:** `result.Value.Should().NotBeNull();`
-- **Reference:** See `tests/Eventing.Tests/MemberInvitedEventingTests.cs`, `tests/Eventing.Tests/InMemoryBroker.cs`, `.github/trellis-api-testing-reference.md`.
+- **Reference:** See `tests/Eventing.Tests/MemberInvitedEventingTests.cs`, `tests/Eventing.Tests/InMemoryBroker.cs`, `.agentdocs/packages/trellis.core/trellis/trellis-api-testing-reference.md`.
 
 ## Decision Tables
 
@@ -459,7 +513,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Per-resource ownership/tenant check | `IAuthorizeResource<T>` + `IIdentifyResource<T, TId>` + loader | Handler-side ownership checks |
 | Shared loader by id | `SharedResourceLoaderById<T, TId>` | Repeating per-command loader code |
 | Tenant scoping | `IActorProvider.GetCurrentTenantIdAsync(...)` | A `tenant_id` request parameter |
-| Hide existence of a sensitive resource | `AddResourceAuthorization(o => o.HideExistence<T>())` (404 on cross-tenant) | Leaking 403 that confirms existence |
+| Hide existence of a sensitive resource | API root's `UseResourceAuthorization(o => o.HideExistence<T>())` (404 on cross-tenant) | Leaking 403 that confirms existence |
 | Required `If-Match` on body-overwriting mutation | `.RequireETag(command.IfMatchETags)` | Omitting it (lost-update race) |
 
 ### Handler and endpoint decisions
@@ -480,11 +534,12 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 |---|---|---|
 | Conventions | `ApplyTrellisConventionsFor<TContext>()` | Manual `HasConversion()`/`OwnsOne()` for Trellis types |
 | Interceptors | `AddTrellisInterceptors()` | Reimplement ETag/timestamp plumbing |
-| Commit | `AddTrellisUnitOfWork<TContext>()` (pipeline commits) | `SaveChangesAsync()` in a handler |
+| Commit | `UseEntityFrameworkUnitOfWork<TContext>()` (pipeline commits) | `SaveChangesAsync()` in a handler |
 | Optional lookup | `FirstOrDefaultMaybeAsync(...)` / repository `Maybe<T>` | `FirstOrDefaultAsync(...)` + `null` |
 | Produce a cross-service event | Domain event → outbox → translator → `IIntegrationEventCollector` | Synchronous call to the other service |
-| Consume a cross-service event | `AddTrellisInbox` + `AddIntegrationEventHandler<,>` + consumer host | Projecting without the inbox (double-apply) |
-| Dedup identity | `DeterministicEventId.For…(businessKey)` | A random per-message id |
+| Consume a cross-service event | `UseInbox` + projection handler + shipped Service Bus consumer | Projecting without the inbox (double-apply) |
+| Transport dedup identity | Outbox row ID, preserved by Trellis | A new ID per delivery attempt |
+| Business dedup identity | Projection's `(TenantId, MemberId)` check | Treating distinct translated rows as transport retries |
 
 ## Reference Implementation
 
@@ -500,9 +555,9 @@ Study these files before adding a service or feature.
 | Resource authorization + loader | `Projects/Application/src/UpdateProjectCommand.cs`, `Projects/Acl/src/ProjectResourceLoader.cs`, `Members/Acl/src/MemberResourceLoader.cs` |
 | Aggregate with value objects + `RequiredEnum` | `Members/Domain/src/Member.cs`, `Members/Domain/src/Role.cs`, `Members/Domain/src/MemberId.cs`, `Projects/Domain/src/Project.cs` |
 | Repository (`Maybe<T>`, stages only) | `Members/Application/src/IMemberRepository.cs`, `Members/Acl/src/EfMemberRepository.cs` |
-| Outbox producer (domain event → integration event) | `Members/Domain/src/MemberInvited.cs`, `Members/Application/src/MemberInvitedTranslator.cs`, `Members/Acl/src/ServiceBusIntegrationEventPublisher.cs` |
-| Published-language contract + deterministic id | `SharedKernel/src/MemberInvitedIntegrationEvent.cs`, `Members/Application/src/DeterministicEventId.cs` |
-| Inbox consumer + read model | `Projects/Acl/src/MemberEventsConsumer.cs`, `Projects/Acl/src/MemberInvitedHandler.cs`, `Projects/Application/src/IKnownMemberDirectory.cs` |
+| Outbox producer (domain event → integration event) | `Members/Domain/src/MemberInvited.cs`, `Members/Application/src/MemberInvitedTranslator.cs`, `Members/Acl/src/DependencyInjection.cs` |
+| Named published-language contract + topology | `SharedKernel/src/MemberInvitedIntegrationEvent.cs`, `SharedKernel/src/MessagingTopology.cs` |
+| Shipped inbox transport + read model | `Projects/Acl/src/DependencyInjection.cs`, `Projects/Acl/src/MemberInvitedHandler.cs`, `Projects/Application/src/IKnownMemberDirectory.cs` |
 | Aspire orchestration, gateway, defaults | `AppHost/src/Program.cs`, `Gateway/src/Program.cs`, `ServiceDefaults/src/Extensions.cs` |
 | End-to-end eventing test | `tests/Eventing.Tests/MemberInvitedEventingTests.cs`, `tests/Eventing.Tests/InMemoryBroker.cs` |
 
@@ -528,17 +583,27 @@ Study these files before adding a service or feature.
 |---|---|
 | `SharedKernel` | Cross-service domain identities (e.g. `TenantId`) **and** published-language integration-event contracts. References only `Trellis.Core` + `Trellis.Primitives` — **not** `Trellis.Authorization` — so keep auth helpers (like the tenant extension) per service. |
 | `AppHost` | .NET Aspire orchestration — provisions SQL Server + databases and the Service Bus (emulator in dev), and wires every service and the Gateway. |
-| `ServiceDefaults` | `AddServiceDefaults` — OpenTelemetry (incl. SLI instrumentation), health checks, service discovery, HttpClient resilience. References `Trellis.ServiceLevelIndicators` for the SLI OpenTelemetry instrumentation. |
+| `ServiceDefaults` | OpenTelemetry, health, discovery and resilience via `AddServiceDefaults`; shared region binding, tenant enrichment and API-version SLI registration via `ConfigureServiceLevelIndicators`. |
 | `Gateway` | YARP reverse proxy + internal-JWT minting (JWKS endpoint) — the only public trust boundary; mints the actor JWT downstream services consume. |
 
-> **Published language vs Shared Kernel.** `TenantId` is a *shared kernel* identity both contexts co-own; an `IIntegrationEvent` is a *published language* contract one context publishes. They live in the same project for the template's sake but evolve under different rules — change a shared identity as a co-owned decision; change a contract as a versioned publish/subscribe decision (add fields, never repurpose; bump `MessageType` on a breaking change).
+> **Published language vs Shared Kernel.** `TenantId` is a *shared kernel* identity both contexts co-own; an `IIntegrationEvent` is a *published language* contract one context publishes. They live in the same project for the template's sake but evolve under different rules — change a shared identity as a co-owned decision; change a contract as a versioned publish/subscribe decision (add fields, never repurpose; advance the `IntegrationEventName` version on a breaking change).
 
 ### Composition-root rules
+
+- Select ASP, scalar validation, ProblemDetails, idempotency, Mediator behaviors, resource
+  authorization, domain/integration dispatch, outbox/inbox and the unit of work together through
+  `Trellis.ServiceDefaults.AddTrellis`; the local Aspire `ServiceDefaults/` project is a separate
+  telemetry/discovery component. Use `app.UseTrellisProblemDetails()` for the HTTP error pipeline.
+- In-memory idempotency is Development-only. Members requires the configured Cosmos store outside
+  Development; register vendor stores directly, not through a fabricated builder slot.
+- Telemetry exporters require their destination settings. See `README.md` and
+  `infra/production.bicep` for the production telemetry and managed-identity Cosmos contract.
 
 - Repository **interfaces** live in Application; **implementations** in Acl.
 - One `DependencyInjection.cs` per layer: `Add{Service}Application()` (Application) and `Add{Service}Acl(builder)` (Acl).
 - `IActorProvider` is registered as the internal-JWT provider in the Api host; register `TimeProvider.System` as a singleton in the Application layer of any service whose handlers use it (Members does; Projects does not).
-- The Acl layer **replaces** the default in-process `IIntegrationEventPublisher` with the transport adapter (`services.Replace(ServiceDescriptor.Singleton<IIntegrationEventPublisher, …>())`) so events leave the process.
+- The Acl layer selects `AddAzureServiceBusIntegrationEventPublisher` or
+  `AddAzureServiceBusIntegrationEventConsumer` directly; vendor transports have no builder slot.
 
 ### Project layout
 
@@ -548,12 +613,16 @@ Study these files before adding a service or feature.
 ├── Directory.Build.props          ← DO NOT MODIFY
 ├── Directory.Packages.props       ← ADD packages here (versions only); TrellisVersion + TrellisMicroservicesVersion
 ├── global.json                    ← DO NOT MODIFY
+├── .config/
+│   └── dotnet-tools.json          ← pins Trellis.AgentDocs
+├── .agentdocs/
+│   ├── README.md                  ← START HERE: project-aware guidance index
+│   ├── policy.json                ← approved guidance publishers
+│   └── packages/
+│       └── trellis.core/trellis/  ← version-aligned Trellis references
+├── AGENTS.md                      ← managed pointer to .agentdocs/README.md
 ├── .github/
-│   ├── copilot-instructions.md    ← THIS FILE
-│   ├── trellis-start-here.md      ← START HERE: routes to the cookbooks
-│   ├── trellis-api-cookbook.md    ← framework router: task lookup, recipes, preflight
-│   ├── trellis-api-microservices-cookbook.md  ← cross-service recipes
-│   └── trellis-*.md               ← the rest of the reference set (incl. trellis-value-object-taxonomy.md)
+│   └── copilot-instructions.md    ← THIS FILE + managed AgentDocs pointer
 ├── AppHost/                       ← Aspire orchestration
 ├── ServiceDefaults/               ← OpenTelemetry, health, SLI, discovery
 ├── Gateway/                       ← YARP + internal-JWT minting
@@ -573,7 +642,7 @@ Study these files before adding a service or feature.
 
 ## Implementation Order and Build Checkpoints
 
-- **Rule:** 🔴 MUST implement a service Domain → Application → Acl → Api → Tests, running `dotnet build` between layers (source generators emit code — `partial Maybe<T>` backing fields, Mediator wiring — that later layers consume). Adding a **new** service additionally requires registering it (and its database/queue) in `AppHost` and routing it in the `Gateway`.
+- **Rule:** 🔴 MUST implement a service Domain → Application → Acl → Api → Tests, running `dotnet build` between layers (source generators emit code — `partial Maybe<T>` backing fields, Mediator wiring — that later layers consume). Adding a **new** service additionally requires registering it (and its database and contract topics/subscriptions) in `AppHost` and routing it in the `Gateway`.
 - **Rationale:** Generated code only appears after compilation, so a later layer cannot reference it until the earlier project has built once; and a new service is not reachable until Aspire provisions it and the gateway routes to it.
 - **Correct:**
 ```text
@@ -583,7 +652,7 @@ Study these files before adding a service or feature.
 3. Acl/src         — DbContext, repositories, resource loaders, outbox/inbox,
                      integration-event publisher/consumer.                       → dotnet build
 4. Api/src         — *Endpoints.cs, DTOs, Program.cs, internal-JWT provider.     → dotnet build
-5. AppHost + Gateway — provision DB/queue, add the project, route it.            → dotnet build
+5. AppHost + Gateway — provision DB/topics/subscriptions, add project, route it. → dotnet build
 6. Tests           — Domain/Application/Acl/Api + Eventing.Tests.               → dotnet test
 ```
 - **Incorrect:** Creating every file across all projects, then a single build after downstream layers already require generated code; or shipping a service the gateway cannot reach.

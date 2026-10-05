@@ -28,7 +28,7 @@ jobs:
       - name: Build template content
         run: dotnet build template/ProjectTrackerTemplate.slnx --no-restore --configuration Release
       - name: Test template content
-        run: dotnet test template/ProjectTrackerTemplate.slnx --no-build --configuration Release
+        run: dotnet test --solution template/ProjectTrackerTemplate.slnx --no-build --configuration Release
 
   pack-and-instantiate:
     name: Pack template + instantiate + build instantiation

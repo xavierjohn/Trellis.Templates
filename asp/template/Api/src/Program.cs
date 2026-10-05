@@ -41,15 +41,7 @@ if (app.Environment.IsDevelopment())
         });
 }
 
-// Error-handling pipeline — placed before all downstream middleware so 4xx/5xx responses
-// from anywhere in the pipeline produce an RFC 9457 ProblemDetails body. UseExceptionHandler
-// converts unhandled exceptions (thrown by endpoints, middleware, filters) into 500
-// ProblemDetails via IProblemDetailsService. UseStatusCodePages converts empty-body 4xx/5xx
-// responses written by ASP.NET-native pipeline short-circuits (404 route-miss, 405
-// MethodNotAllowed, 406 NotAcceptable, 413 ContentTooLarge, 415 UnsupportedMediaType) into
-// ProblemDetails as well. The bodies are enriched in DependencyInjection.AddProblemDetails.
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+app.UseTrellisProblemDetails();
 
 app.UseHttpsRedirection();
 

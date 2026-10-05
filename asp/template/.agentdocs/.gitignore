@@ -1,0 +1,3 @@
+# Keep managed guidance even when the repository ignores NuGet packages directories.
+!/packages/
+!/packages/**

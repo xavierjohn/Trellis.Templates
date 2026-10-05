@@ -49,7 +49,7 @@ internal class FakeRepositoryAdapter : ITodoRepository
             : (IEnumerable<TodoItem>)ordered;
 
         var rows = seeked.Take(pageSize.Applied + 1).ToList();
-        var page = PageBuilder.FromOverFetch(rows, pageSize, t => (Guid)t.Id);
+        var page = PageBuilder.FromOverFetch(rows, pageSize, t => CursorCodec.Encode((Guid)t.Id));
         return Task.FromResult(Result.Ok(page));
     }
 
@@ -60,4 +60,3 @@ internal class FakeRepositoryAdapter : ITodoRepository
     public Task<Result<Unit>> RemoveByIdAsync(TodoId id, CancellationToken cancellationToken) =>
         _repo.RemoveByIdAsync(id, cancellationToken);
 }
-

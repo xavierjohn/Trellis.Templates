@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "approvedPackages": [
+    "Trellis.Core",
+    "Trellis.ResourceNaming.Abstractions",
+    "Trellis.ServiceLevelIndicators",
+    "Trellis.ServiceLevelIndicators.Asp",
+    "Trellis.ServiceLevelIndicators.Asp.ApiVersioning"
+  ]
+}

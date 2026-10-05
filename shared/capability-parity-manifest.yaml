@@ -17,7 +17,7 @@ templates:
 #   http-status      - boot the project, issue request, assert status   ({version} expands per template)
 #   package-referenced - a PackageReference exists
 #   builds           - the instantiated solution builds (global)
-#   docs-in-sync     - .github/trellis/* equals the canonical conventions source (global)
+#   docs-in-sync     - AgentDocs-managed package guidance matches the restored graph (global)
 
 capabilities:
 
@@ -47,17 +47,25 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/idempotency.md
     checks:
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisIdempotency" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddTrellisIdempotency|\\.UseIdempotency\\(" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "UseTrellisIdempotency" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IdempotentAttribute|\\[Idempotent\\]" }
+      - { kind: package-referenced, package: "Trellis.Asp.Idempotency.Cosmos" }
+      - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "AddCosmosIdempotencyStore" }
+      - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "(?s)if \\(!environment.IsDevelopment\\(\\)\\)\\s+throw new InvalidOperationException", desc: "in-memory storage fails closed outside Development" }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "'/scope'", desc: "Cosmos partition key matches the store contract" }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "defaultTtl:\\s*-1\\b", desc: "per-item TTL is enabled without expiring reservations" }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "disableLocalAuth:\\s*true", desc: "Cosmos uses managed identity rather than account keys" }
+      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "00000000-0000-0000-0000-000000000002", desc: "native Cosmos data contributor role" }
+      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "scope:.*?/dbs/.*?/colls/", desc: "role assignment is scoped to the idempotency container" }
 
   problem-details:
     title: RFC 9457 ProblemDetails
     requiredFor: [asp, microservices]
     docs: conventions/problem-details.md
     checks:
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddProblemDetails" }
-      - { kind: source-contains, glob: "**/*.cs", pattern: "UseExceptionHandler" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddTrellisProblemDetails|\\.UseProblemDetails\\(" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "UseTrellisProblemDetails" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "CustomizeProblemDetails" }
 
   scalar-validation:
@@ -65,7 +73,7 @@ capabilities:
     requiredFor: [asp, microservices]
     docs: conventions/scalar-validation.md
     checks:
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisAspWithScalarValidation|AddScalarValueValidation" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddTrellisAspWithScalarValidation|AddScalarValueValidation|(?s)AddTrellis\\([^;]+\\.UseScalarValueValidation\\(" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "UseScalarValueValidation" }
 
   openapi-scalar:
@@ -85,15 +93,29 @@ capabilities:
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddOpenTelemetry" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "WithTracing" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "[Ll]ogging\\.AddOpenTelemetry" }
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddSource\\(\"Trellis.Mediator\"\\)", desc: "mediator spans actually exported" }
+      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisMediatorInstrumentation|AddSource\\(\"Trellis.Mediator\"\\)", desc: "mediator spans actually exported" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "LoggerMessage", desc: "handlers emit structured business events" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "OTEL_EXPORTER_OTLP_ENDPOINT", desc: "OTLP requires an explicitly configured destination" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "APPLICATIONINSIGHTS_CONNECTION_STRING", desc: "Azure Monitor is configuration-aware" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "UseAzureMonitor" }
+      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "Microsoft.Insights/components", desc: "Azure deployment provisions application telemetry" }
+      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "WorkspaceResourceId", desc: "Application Insights is workspace-based" }
+
+  composition-root:
+    title: Current Trellis composition APIs
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: package-referenced, package: "Trellis.ServiceDefaults" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "(?s)AddTrellis\\([^;]+\\.UseAsp\\(" }
+      - { kind: source-contains, glob: "**/Api/src/**/*.cs", pattern: "\\.UseResourceAuthorization\\(", desc: "resource authorization belongs to the API composition" }
+      - { kind: source-contains, glob: "**/Api/src/**/*.cs", pattern: "\\.UseEntityFrameworkUnitOfWork<", desc: "unit-of-work ordering is selected by the composition builder" }
 
   authorization:
     title: Actor-based authorization
     requiredFor: [asp, microservices]
     docs: conventions/authorization.md
     checks:
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddResourceAuthorization|AddTrellisBehaviors" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddResourceAuthorization|\\.UseResourceAuthorization\\(" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IAuthorize|RequiredPermissions" }
 
   mediator-pipeline:
@@ -102,7 +124,7 @@ capabilities:
     docs: conventions/mediator.md
     checks:
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddMediator" }
-      - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisBehaviors" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddTrellisBehaviors|\\.UseMediator\\(" }
 
   health-checks:
     title: Health endpoints
@@ -121,14 +143,47 @@ capabilities:
       - { kind: source-contains, glob: "**/*.cs", pattern: "DeployedEnvironmentOptions|IResourceNamer" }
 
   build-guidance:
-    title: AI build guidance (.github/copilot-instructions.md)
+    title: AI build guidance and Trellis references
     requiredFor: [asp, microservices]
     docs: conventions/build-guidance.md
     checks:
       - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "command and its handler", desc: "guide present; command + handler colocation rule documented" }
       - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "[Pp]ermission", desc: "permissions-in-Domain rule documented" }
+      - { kind: source-contains, glob: "**/.config/dotnet-tools.json", pattern: "\"trellis.agentdocs\"", desc: "local AgentDocs tool is pinned" }
+      - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Core\"", desc: "framework guidance publisher is approved" }
+      - { kind: source-contains, glob: "**/.agentdocs/README.md", pattern: "Required reading by project", desc: "project-aware guidance index is shipped" }
+      - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.core/trellis/trellis-start-here.md", pattern: "Trellis.*start here", desc: "framework router is installed in the canonical AgentDocs package location" }
+      - { kind: source-contains, glob: "**/.agentdocs/agent-context.json", pattern: "\"Graph\"", desc: "managed context records the restored graph" }
+      - { kind: source-contains, glob: "**/AGENTS.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "agents have a managed index pointer" }
+      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "Copilot has a managed index pointer" }
 
   # --- template-specific (still tracked, but not cross-cutting) -------------------------------
+  servicebus-transport:
+    title: Shipped Trellis Service Bus transport
+    requiredFor: [microservices]
+    checks:
+      - { kind: package-referenced, package: "Trellis.Messaging.AzureServiceBus" }
+      - { kind: source-contains, glob: "Members/Acl/src/DependencyInjection.cs", pattern: "AddAzureServiceBusIntegrationEventPublisher" }
+      - { kind: source-contains, glob: "Projects/Acl/src/DependencyInjection.cs", pattern: "AddAzureServiceBusIntegrationEventConsumer" }
+      - { kind: source-contains, glob: "SharedKernel/src/*.cs", pattern: "\\[IntegrationEventName\\(" }
+      - { kind: source-contains, glob: "AppHost/src/Program.cs", pattern: "AddServiceBusTopic" }
+      - { kind: source-contains, glob: "AppHost/src/Program.cs", pattern: "AddServiceBusSubscription" }
+      - { kind: source-contains, glob: "AppHost/src/Program.cs", pattern: "CorrelationFilter", desc: "the emulator subscription has an explicit delivery rule" }
+      - { kind: source-contains, glob: "Members/Api/src/Program.cs", pattern: "\\.UseOutbox<" }
+      - { kind: source-contains, glob: "Projects/Api/src/Program.cs", pattern: "\\.UseInbox<" }
+
+  microservices-guidance:
+    title: AgentDocs-managed microservices references
+    requiredFor: [microservices]
+    checks:
+      - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Microservices.Abstractions\"" }
+      - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Microservices.AspNetCore\"" }
+      - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Yarp\"" }
+      - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.microservices.abstractions/trellis-api-microservices-abstractions.md", pattern: "Trellis" }
+      - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.microservices.abstractions/trellis-api-microservices-cookbook.md", pattern: "Trellis" }
+      - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.microservices.aspnetcore/trellis-api-internal-jwt.md", pattern: "Trellis" }
+      - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.yarp/trellis-api-yarp.md", pattern: "Trellis" }
+
   aspire-servicedefaults:
     title: Aspire AppHost + ServiceDefaults
     requiredFor: [microservices]
@@ -146,4 +201,4 @@ capabilities:
 
 global-checks:
   - { kind: builds, config: Release, expect: { warnings: 0, errors: 0 } }
-  - { kind: docs-in-sync, command: "trellis-conventions sync --check" }
+  - { kind: docs-in-sync, command: "dotnet tool run agentdocs check --strict" }

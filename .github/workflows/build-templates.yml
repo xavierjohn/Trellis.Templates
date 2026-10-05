@@ -33,7 +33,7 @@ jobs:
           - template: microservices
             slnx: ProjectTrackerTemplate.slnx
             short: trellis-microservices
-            runTests: false
+            runTests: true
     defaults:
       run:
         working-directory: ${{ matrix.template }}
@@ -57,7 +57,20 @@ jobs:
       - name: Test
         if: ${{ matrix.runTests }}
         working-directory: ${{ matrix.template }}/template
-        run: dotnet test --solution ${{ matrix.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+        run: dotnet test --solution ${{ matrix.slnx }} --no-build -c Release -- --filter-not-trait "Category=Integration"
+
+      - name: Render and compile Aspire messaging infrastructure
+        if: ${{ matrix.template == 'microservices' }}
+        working-directory: microservices/template
+        run: |
+          OUTPUT="${{ runner.temp }}/aspire-messaging"
+          mkdir -p "$OUTPUT"
+          dotnet AppHost/src/bin/Release/net10.0/ProjectTrackerTemplate.AppHost.dll \
+            --publisher manifest --output-path "$OUTPUT/manifest.json"
+          az bicep install
+          for file in "$OUTPUT"/*.bicep; do
+            az bicep build --file "$file"
+          done
 
       - name: Pack template
         run: dotnet pack templatepack.csproj -c Release -o nupkg
@@ -73,6 +86,12 @@ jobs:
           dotnet new ${{ matrix.short }} -n SmokeTest
           cd SmokeTest
           dotnet build SmokeTest.slnx -c Release
+          dotnet test --solution SmokeTest.slnx --no-build -c Release -- --filter-not-trait "Category=Integration"
+          git init --quiet
+          dotnet tool restore
+          dotnet tool run agentdocs check --strict --strict-references --content-only
+          dotnet tool run agentdocs sync --strict --strict-references
+          dotnet tool run agentdocs check --strict --strict-references
 
       - name: Upload pack
         uses: actions/upload-artifact@v4

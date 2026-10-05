@@ -1,42 +1,36 @@
 <Project>
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.458</TrellisVersion>
-    <TrellisSliVersion>10.0.0-preview.26</TrellisSliVersion>
+    <TrellisVersion>3.0.0-alpha.542</TrellisVersion>
+    <TrellisSliVersion>10.0.0-preview.34</TrellisSliVersion>
   </PropertyGroup>
   <!-- Runtime -->
   <ItemGroup>
-    <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.0.0-rc.1" />
+    <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.2.3" />
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+    <PackageVersion Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
     <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.5" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="MartinCostello.Logging.XUnit.v3" Version="0.7.1" />
     <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
-    <!-- Override the transitive native SQLite lib to the patched 3.50.3 (GHSA-2m69-gcr7-jv3q / NU1903);
-         EF Core Sqlite 10.x still pins the vulnerable 2.1.11. SQLitePCLRaw pairs the native lib
-         independently of core, so 3.50.3 + core 2.1.x is supported. Remove once EF's bump lands. -->
-    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.7.0" />
-    <!-- Pin the transitive Microsoft.OpenApi up to the patched 2.7.x (GHSA-v5pm-xwqc-g5wc / NU1903);
-         Microsoft.AspNetCore.OpenApi 10.x and Asp.Versioning.OpenApi still pull the vulnerable 2.0.0.
-         Stay on the 2.x line the ASP.NET Core OpenApi packages target (a direct reference in the Api
-         project forces the override). Remove once those packages bump their pin. -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.6" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.10" />
-    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.16.10" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.13" />
+    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.17.13" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.12" />
     <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
+    <PackageVersion Include="Trellis.Asp.Idempotency.Cosmos" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.EntityFrameworkCore" Version="$(TrellisVersion)" />
@@ -44,7 +38,7 @@
     <PackageVersion Include="Trellis.Mediator" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Mediator.FluentValidation" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Primitives" Version="$(TrellisVersion)" />
-    <PackageVersion Include="Trellis.ResourceNaming.Azure" Version="0.1.0-preview.12" />
+    <PackageVersion Include="Trellis.ResourceNaming.Azure" Version="0.1.0-preview.32" />
     <PackageVersion Include="Trellis.ServiceDefaults" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
@@ -55,10 +49,11 @@
   </ItemGroup>
   <!-- Test -->
   <ItemGroup>
+    <!-- Trellis.Testing requires the FluentAssertions 7.x binary API. -->
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.6" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
-    <PackageVersion Include="xunit.v3" Version="3.2.2" />
-    <PackageVersion Include="Xunit.DependencyInjection" Version="11.3.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
   </ItemGroup>
 </Project>

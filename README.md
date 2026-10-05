@@ -66,17 +66,18 @@ plus these cross-cutting capabilities, already wired and tested:
 
 - **Date-based API versioning**
 - **Actor-based authorization** — permission gates and per-resource/ownership checks
-- **RFC 9457 ProblemDetails** error responses
+- **RFC 9457 ProblemDetails** error responses using Trellis's standard `code`/`kind` envelope
 - **RFC 9110 conditional requests** — strong ETags, `If-Match` (412 / 428), `If-None-Match` -> 304
 - **RFC 8288 cursor (keyset) pagination** with `Link` headers
 - **RFC 7240 `Prefer: return=minimal`** on writes
-- **Idempotent writes** (`Idempotency-Key`)
+- **Idempotent writes** (`Idempotency-Key`) — in-memory in Development, durable Cosmos storage required outside Development
 - **Value-object validation** — malformed scalars are rejected as 422 at the boundary, and commands are always-valid via `TryCreate`
 - **OpenAPI document + Scalar UI**
-- **OpenTelemetry** traces, metrics, and structured logs (including Service Level Indicators)
+- **OpenTelemetry** traces, metrics, and structured logs (including Service Level Indicators), with configuration-aware OTLP/Azure Monitor exporters
 - **Health checks**
 - **EF Core** with Trellis conventions (value-object mapping, timestamps, ETag/concurrency interceptors)
 - **Mediator pipeline** — authorization and transactional unit-of-work behaviors
+- **Trellis composition APIs** — `AddTrellis` modules and the canonical ProblemDetails middleware
 
 The microservices template adds the distributed pieces: a **YARP gateway** with internal-JWT minting and
 a JWKS endpoint, **multi-tenant ABAC** isolation, and a **transactional outbox -> Azure Service Bus ->
@@ -84,9 +85,24 @@ inbox** flow for effectively-once, cross-service messaging.
 
 ## Built for AI-assisted development
 
-Every generated project ships a `.github/copilot-instructions.md` and a full set of `trellis-api-*.md`
-API references, so GitHub Copilot and coding agents produce idiomatic Trellis code — `Result`/`Maybe`
-flows, always-valid commands, EF conventions — instead of guessing.
+Every generated project ships version-aligned API references under `.agentdocs/`, installed by the
+pinned `Trellis.AgentDocs` local tool. `AGENTS.md` and `.github/copilot-instructions.md` contain managed
+pointers to `.agentdocs/README.md`, which routes agents to required and on-demand references.
+
+After generating a project, initialize its Git root and refresh the recorded restore graph from there:
+
+```powershell
+git init
+dotnet tool restore
+dotnet restore
+dotnet tool run agentdocs sync
+dotnet tool run agentdocs check --strict
+```
+
+Repeat restore, sync, and check after package upgrades, and commit `.config/dotnet-tools.json`, the
+managed pointers, `.agentdocs/policy.json`, and `.agentdocs/` with the package update. Core approval
+covers framework guidance; microservices, ResourceNaming, and SLI publishers are approved separately.
+AgentDocs is optional for building and running the application.
 
 ## Docs and related projects
 

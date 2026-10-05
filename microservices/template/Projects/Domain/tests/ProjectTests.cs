@@ -4,7 +4,7 @@ using ProjectTrackerTemplate.SharedKernel;
 namespace Projects.Domain.Tests;
 
 // The Project aggregate is loaded once by the resource-auth pipeline, then mutated + re-read by the
-// handler. Update mutates in place — the behaviour that proves the v4 accessor reads the same instance.
+// handler. Update mutates in place — the behaviour that proves the typed accessor reads the same instance.
 public class ProjectTests
 {
     [Fact]

@@ -5,7 +5,7 @@ using TodoSample.Application;
 using TodoSample.Application.Todos;
 using TodoSample.Domain;
 using Trellis.Authorization;
-using Trellis.Mediator;
+using Trellis.ServiceDefaults;
 using Trellis.Testing;
 
 public static class DependencyInjection
@@ -18,8 +18,12 @@ public static class DependencyInjection
         services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<FakeRepository<TodoItem, TodoId>>();
         services.AddScoped<ITodoRepository, FakeRepositoryAdapter>();
-        services.AddScoped<SharedResourceLoaderById<TodoItem, TodoId>, FakeTodoItemResourceLoader>();
-        services.AddResourceAuthorization(typeof(CompleteTodoCommand).Assembly, typeof(FakeTodoItemResourceLoader).Assembly);
+        services.AddScoped<SharedResourceLoaderById<TodoItem, TodoId>, FakeSharedResourceLoader<TodoItem, TodoId>>();
+        services.AddTrellis(options => options
+            .UseMediator()
+            .UseDomainEvents(typeof(CreateTodoCommand).Assembly)
+            .UseFluentValidation(typeof(CreateTodoCommand).Assembly)
+            .UseResourceAuthorization(typeof(CompleteTodoCommand).Assembly));
         return services;
     }
 }

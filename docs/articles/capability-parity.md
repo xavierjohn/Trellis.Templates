@@ -47,6 +47,19 @@ The **Capability parity** workflow runs the contract against both templates on e
 Drop `AddServiceLevelIndicator` from a template and the build turns red with exactly which capability
 regressed — drift is caught by CI, not by hoping a reviewer notices.
 
+The guidance contract requires the pinned AgentDocs tool, approval policy, managed index and restore
+context, Core router, and pointers in both `AGENTS.md` and `.github/copilot-instructions.md`. The
+microservices template also requires its four package-owned microservices references. CI checks an
+isolated Git-root copy of each template with `agentdocs check --strict --strict-references --content-only`,
+so stale guidance, broken instruction pointers, and unresolved cross-package links fail the gate.
+The template round trip checks the installed guidance before refreshing the renamed restore graph.
+
+The contract also requires the shipped Trellis composition and ProblemDetails APIs, conditional
+OTLP/Azure Monitor exporters, and durable idempotency outside Development. Cosmos infrastructure
+must use `/scope`, per-item TTL (`defaultTtl: -1`), keyless authentication and container-scoped native
+data-plane access. CI compiles each template's Bicep modules in addition to the source contract.
+Runtime composition and loopback-export tests belong to the generated projects.
+
 ## Adding or changing a capability
 
 1. Update `shared/capability-parity-manifest.yaml` — add the capability and the checks that prove it.

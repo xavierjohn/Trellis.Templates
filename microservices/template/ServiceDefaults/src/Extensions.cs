@@ -3,11 +3,15 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Asp.Versioning;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Trellis.ServiceLevelIndicators;
+using Trellis.ResourceNaming.Azure;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -47,6 +51,7 @@ public static class Extensions
         {
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
+            logging.ParseStateValues = true;
         });
 
         builder.Services.AddOpenTelemetry()
@@ -72,17 +77,51 @@ public static class Extensions
         return builder;
     }
 
+    public static TBuilder ConfigureServiceLevelIndicators<TBuilder>(this TBuilder builder)
+        where TBuilder : IHostApplicationBuilder
+    {
+        var section = builder.Configuration.GetSection("DeployedEnvironment");
+        builder.Services.Configure<DeployedEnvironmentOptions>(section);
+        var environment = section.Get<DeployedEnvironmentOptions>() ?? new DeployedEnvironmentOptions();
+        var region = environment.Region;
+        if (string.IsNullOrWhiteSpace(region))
+            throw new InvalidOperationException(
+                "Configuration 'DeployedEnvironment:Region' is required for the service-level-indicator location id.");
+
+        var locationId = ServiceLevelIndicator.CreateLocationId("public", region);
+        builder.Services.AddServiceLevelIndicator(options => options.LocationId = locationId)
+            .Enrich(context =>
+            {
+                var tenantId = context.HttpContext.User.FindFirst("tenant_id")?.Value;
+                if (!string.IsNullOrEmpty(tenantId))
+                    context.SetCustomerResourceId($"tenant://{tenantId}");
+            })
+            .AddApiVersion();
+        return builder;
+    }
+
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        // Aspire AppHost sets OTEL_EXPORTER_OTLP_ENDPOINT on every referenced project; when
-        // run outside Aspire (env var unset), the exporter is a no-op.
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-
-        if (useOtlpExporter)
+        var endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+        if (!string.IsNullOrWhiteSpace(endpoint))
         {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) ||
+                (endpointUri.Scheme != Uri.UriSchemeHttp && endpointUri.Scheme != Uri.UriSchemeHttps))
+                throw new InvalidOperationException("OTEL_EXPORTER_OTLP_ENDPOINT must be an absolute HTTP or HTTPS endpoint.");
+
+            var protocol = builder.Configuration["OTEL_EXPORTER_OTLP_PROTOCOL"] switch
+            {
+                null or "grpc" => OtlpExportProtocol.Grpc,
+                "http/protobuf" => OtlpExportProtocol.HttpProtobuf,
+                _ => throw new InvalidOperationException("OTEL_EXPORTER_OTLP_PROTOCOL must be grpc or http/protobuf."),
+            };
+            builder.Services.AddOpenTelemetry().UseOtlpExporter(protocol, endpointUri);
         }
+
+        var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        if (!string.IsNullOrWhiteSpace(connectionString))
+            builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.ConnectionString = connectionString);
 
         return builder;
     }

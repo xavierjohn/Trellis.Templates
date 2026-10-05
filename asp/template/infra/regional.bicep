@@ -24,6 +24,12 @@ param managedIdentityName string
 @description('Log Analytics workspace name (convention: tdo-log-prod-<region-short>).')
 param logAnalyticsName string
 
+param applicationInsightsName string
+param cosmosAccountName string
+param cosmosResourceGroupName string
+param cosmosEndpoint string
+param idempotencyDatabaseName string
+
 @description('FQDN of the global SQL server the app connects to (convention-computed; identical to the value the global stack provisions).')
 param sqlServerFqdn string
 
@@ -71,6 +77,27 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
+resource insights 'Microsoft.Insights/components@2020-02-02' = {
+  name: applicationInsightsName
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
+module idempotencyAccess './idempotency-access.bicep' = {
+  name: 'idempotency-access-${deployedRegionShortName}'
+  scope: resourceGroup(cosmosResourceGroupName)
+  params: {
+    cosmosAccountName: cosmosAccountName
+    databaseId: idempotencyDatabaseName
+    principalId: identity.properties.principalId
+  }
+}
+
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
@@ -95,6 +122,9 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       '${identity.id}': {}
     }
   }
+  dependsOn: [
+    idempotencyAccess
+  ]
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
@@ -138,6 +168,26 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AZURE_CLIENT_ID'
           value: identity.properties.clientId
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: insights.properties.ConnectionString
+        }
+        {
+          name: 'Idempotency__Store'
+          value: 'Cosmos'
+        }
+        {
+          name: 'Idempotency__Cosmos__Endpoint'
+          value: cosmosEndpoint
+        }
+        {
+          name: 'Idempotency__Cosmos__DatabaseId'
+          value: idempotencyDatabaseName
+        }
+        {
+          name: 'Idempotency__Cosmos__ContainerId'
+          value: 'idempotency'
         }
         // Passwordless SQL via the app's managed identity. Requires the Acl to use the SqlServer EF
         // provider (the sample ships with SQLite for local dev) and the identity to be granted a

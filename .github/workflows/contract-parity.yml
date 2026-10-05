@@ -42,3 +42,21 @@ jobs:
           shared/capability-parity-manifest.yaml
           ${{ matrix.template }}
           ${{ matrix.template }}/template
+
+      - name: Compile Azure infrastructure
+        run: |
+          az bicep install
+          for file in "${{ matrix.template }}"/template/infra/*.bicep; do
+            az bicep build --file "$file" --outfile "${{ runner.temp }}/$(basename "$file" .bicep).json"
+          done
+
+      - name: Verify managed AgentDocs
+        run: |
+          SOURCE="${{ runner.temp }}/agentdocs-${{ matrix.template }}"
+          mkdir -p "$SOURCE"
+          cp -a "${{ matrix.template }}/template/." "$SOURCE/"
+          cd "$SOURCE"
+          git init --quiet
+          dotnet tool restore
+          dotnet restore
+          dotnet tool run agentdocs check --strict --strict-references --content-only

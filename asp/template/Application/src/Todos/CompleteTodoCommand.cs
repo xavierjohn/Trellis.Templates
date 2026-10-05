@@ -28,7 +28,10 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     /// Creates an always-valid command. A null id fails closed as validation (422).
     /// </summary>
     public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
-        Result.Ensure(todoId is not null, Error.InvalidInput.ForField("id", "required", "Todo id is required."))
+        Result.Ensure(todoId is not null, Error.InvalidInput.ForField(
+            code: "required",
+            field: "id",
+            detail: "Todo id is required."))
             .Map(_ => new CompleteTodoCommand(todoId!));
 
     /// <inheritdoc />
@@ -37,7 +40,10 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     /// <inheritdoc />
     public IResult Authorize(Actor actor, TodoItem resource) =>
         Result.Ensure(actor.IsOwner(resource.CreatedByActorId),
-            Error.Forbidden.For<TodoItem>("todo.complete.creator-only", resource.Id, "Only the creator can complete this todo."));
+            Error.Forbidden.For<TodoItem>(
+                code: "todo.complete.creator-only",
+                id: resource.Id,
+                detail: "Only the creator can complete this todo."));
 
     /// <inheritdoc />
     public TodoId GetResourceId() => TodoId;
@@ -59,6 +65,8 @@ public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCom
 
     public async ValueTask<Result<TodoItem>> Handle(CompleteTodoCommand command, CancellationToken cancellationToken) =>
         await _repository.FindByIdAsync(command.TodoId, cancellationToken)
-            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .ToResultAsync(Error.NotFound.For<TodoItem>(
+                id: command.TodoId,
+                detail: $"Todo {command.TodoId} not found."))
             .CheckAsync(todo => todo.Complete(_timeProvider));
 }

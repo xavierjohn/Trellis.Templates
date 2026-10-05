@@ -11,7 +11,7 @@ dotnet restore template\ProjectTrackerTemplate.slnx
 if errorlevel 1 goto :fail
 dotnet build template\ProjectTrackerTemplate.slnx -c Release --no-restore
 if errorlevel 1 goto :fail
-dotnet test  template\ProjectTrackerTemplate.slnx -c Release --no-build
+dotnet test --solution template\ProjectTrackerTemplate.slnx -c Release --no-build
 if errorlevel 1 goto :fail
 
 echo === Pack template package ===

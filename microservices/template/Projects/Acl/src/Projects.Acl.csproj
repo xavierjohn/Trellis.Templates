@@ -12,6 +12,7 @@
     <PackageReference Include="Trellis.EntityFrameworkCore" />
     <PackageReference Include="Trellis.EntityFrameworkCore.Inbox" />
     <PackageReference Include="Trellis.Mediator" />
+    <PackageReference Include="Trellis.Messaging.AzureServiceBus" />
     <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <!-- Persistence: EF Core on SQL Server (inbox dedup + read models), provisioned and wired by Aspire. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />

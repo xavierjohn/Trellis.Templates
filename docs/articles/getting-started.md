@@ -65,8 +65,22 @@ you can see the patterns in context before you replace them. The recommended pat
 
 1. Read the reference domain to see how aggregates, commands, handlers, and endpoints fit together.
 2. Replace it with your own domain, one layer at a time, building as you go.
-3. Lean on the shipped `.github/` instructions and API references — they tell an AI assistant exactly how
-   to build with Trellis, so scaffolding new features stays consistent.
+3. Start coding agents at `.agentdocs/README.md`, reached through managed pointers in `AGENTS.md` and
+   `.github/copilot-instructions.md`. The index routes to the version-aligned package references.
+
+To maintain the optional AgentDocs setup, run these commands from the generated project's Git root
+after creating it or upgrading packages:
+
+```powershell
+dotnet tool restore
+dotnet restore
+dotnet tool run agentdocs sync
+dotnet tool run agentdocs check --strict
+```
+
+Initialize a new repository with `git init` first if needed. Commit the tool manifest, managed
+instruction pointers, policy, and `.agentdocs/` with package updates. The application builds and runs
+without the tool.
 
 ## Where to next
 

@@ -1,58 +1,105 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
-using Microsoft.Extensions.Hosting;
-using ProjectTrackerTemplate.SharedKernel;
-using Trellis.Mediator;
+using Azure.Messaging.ServiceBus;
 
 namespace Eventing.Tests;
 
-// A minimal in-process stand-in for the Service Bus queue: the Members publisher enqueues a serialized
-// integration event and the Projects consumer dequeues it into the inbox dispatcher. Shared by both hosts
-// in a single test process, it lets the cross-service eventing flow run with no broker container.
+// Only the Azure SDK boundary is substituted. The real Trellis publisher, wire format, consumer,
+// settlement and inbox all run, without requiring a broker container.
 public sealed class InMemoryBroker
 {
-    private readonly Channel<byte[]> _channel = Channel.CreateUnbounded<byte[]>();
+    private readonly Channel<ServiceBusReceivedMessage> _channel = Channel.CreateUnbounded<ServiceBusReceivedMessage>();
 
-    public ValueTask PublishAsync(byte[] message, CancellationToken cancellationToken) =>
-        _channel.Writer.WriteAsync(message, cancellationToken);
+    public ConcurrentQueue<ServiceBusReceivedMessage> Completed { get; } = new();
+    public string? Topic { get; internal set; }
+    public string? Subscription { get; internal set; }
 
-    public IAsyncEnumerable<byte[]> ReadAllAsync(CancellationToken cancellationToken) =>
+    public ValueTask PublishAsync(ServiceBusMessage message, CancellationToken cancellationToken) =>
+        _channel.Writer.WriteAsync(ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: message.Body,
+            messageId: message.MessageId,
+            subject: message.Subject,
+            contentType: message.ContentType,
+            correlationId: message.CorrelationId,
+            properties: new Dictionary<string, object>(message.ApplicationProperties)), cancellationToken);
+
+    public IAsyncEnumerable<ServiceBusReceivedMessage> ReadAllAsync(CancellationToken cancellationToken) =>
         _channel.Reader.ReadAllAsync(cancellationToken);
 }
 
-// Members side: replaces ServiceBusIntegrationEventPublisher. The outbox relay drains captured events into
-// this, which serializes each onto the broker exactly as the real adapter serializes onto Service Bus.
-internal sealed class InMemoryBrokerPublisher(InMemoryBroker broker) : IIntegrationEventPublisher
+internal sealed class InMemoryServiceBusClient(InMemoryBroker broker) : ServiceBusClient
 {
-    public async ValueTask PublishAsync(OutboundIntegrationMessage message, CancellationToken cancellationToken)
-    {
-        if (message.Event is not MemberInvitedIntegrationEvent invited)
-            throw new NotSupportedException(
-                $"No broker mapping for integration event '{message.Event.GetType().Name}'. The real " +
-                "ServiceBusIntegrationEventPublisher throws here too, so the outbox relay never marks an " +
-                "unmapped event processed and silently drops it.");
+    public override ServiceBusSender CreateSender(string queueOrTopicName) => new InMemorySender(broker);
 
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(invited, IntegrationEventSerialization.Options);
-        await broker.PublishAsync(bytes, cancellationToken);
+    public override ServiceBusProcessor CreateProcessor(
+        string topicName, string subscriptionName, ServiceBusProcessorOptions options)
+    {
+        broker.Topic = topicName;
+        broker.Subscription = subscriptionName;
+        return new InMemoryProcessor(broker);
+    }
+
+    [SuppressMessage("Usage", "CA2215", Justification = "The SDK test-double constructor creates no transport to dispose.")]
+    public override ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+internal sealed class InMemorySender(InMemoryBroker broker) : ServiceBusSender
+{
+    public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default) =>
+        broker.PublishAsync(message, cancellationToken).AsTask();
+
+    [SuppressMessage("Usage", "CA2215", Justification = "The SDK test-double constructor creates no transport to dispose.")]
+    public override ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+internal sealed class InMemoryProcessor(InMemoryBroker broker) : ServiceBusProcessor
+{
+    private CancellationTokenSource? _stop;
+    private Task? _pump;
+
+    public override Task StartProcessingAsync(CancellationToken cancellationToken = default)
+    {
+        _stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _pump = PumpAsync(_stop.Token);
+        return Task.CompletedTask;
+    }
+
+    private async Task PumpAsync(CancellationToken cancellationToken)
+    {
+        await foreach (var message in broker.ReadAllAsync(cancellationToken))
+            await OnProcessMessageAsync(new ProcessMessageEventArgs(
+                message, new InMemoryReceiver(broker), "in-memory", cancellationToken));
+    }
+
+    public override async Task StopProcessingAsync(CancellationToken cancellationToken = default)
+    {
+        if (_stop is null || _pump is null)
+            return;
+
+        await _stop.CancelAsync();
+        try
+        {
+            await _pump.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            // Expected receive-loop cancellation; dispatch faults still propagate.
+        }
+    }
+
+    public override async Task CloseAsync(CancellationToken cancellationToken = default)
+    {
+        await StopProcessingAsync(cancellationToken);
+        _stop?.Dispose();
     }
 }
 
-// Projects side: replaces MemberEventsConsumer. Reads the broker and feeds each message to the inbox
-// dispatcher inside an IntegrationEnvelope keyed on the producer's deterministic EventId — the same dedup
-// contract the real Service Bus pump uses, so the inbox collapses redeliveries to one effect.
-internal sealed class InMemoryBrokerConsumer(InMemoryBroker broker, IInboxDispatcher inbox) : BackgroundService
+internal sealed class InMemoryReceiver(InMemoryBroker broker) : ServiceBusReceiver
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public override Task CompleteMessageAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken = default)
     {
-        await foreach (var message in broker.ReadAllAsync(stoppingToken))
-        {
-            var integrationEvent = JsonSerializer.Deserialize<MemberInvitedIntegrationEvent>(
-                message, IntegrationEventSerialization.Options);
-            if (integrationEvent is null)
-                continue;
-
-            var envelope = new IntegrationEnvelope(integrationEvent.EventId, integrationEvent) { MessageSource = "members" };
-            await inbox.DispatchAsync(envelope, stoppingToken);
-        }
+        broker.Completed.Enqueue(message);
+        return Task.CompletedTask;
     }
 }

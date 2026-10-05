@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "trellis.agentdocs": {
+      "version": "0.1.0-preview.20",
+      "commands": [
+        "agentdocs"
+      ],
+      "rollForward": false
+    }
+  }
+}

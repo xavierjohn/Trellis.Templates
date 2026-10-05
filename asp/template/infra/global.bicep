@@ -19,6 +19,9 @@ param sqlServerName string
 @description('SQL database name (convention: tdo-sqldb-prod).')
 param sqlDatabaseName string
 
+param cosmosAccountName string
+param idempotencyDatabaseName string
+
 @description('Microsoft Entra principal that becomes the SQL server administrator (object id).')
 param sqlAdminObjectId string
 
@@ -72,6 +75,16 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   sku: {
     name: 'Basic'
     tier: 'Basic'
+  }
+}
+
+module idempotency './idempotency.bicep' = {
+  name: 'idempotency'
+  params: {
+    location: location
+    cosmosAccountName: cosmosAccountName
+    databaseId: idempotencyDatabaseName
+    tags: tags
   }
 }
 

@@ -36,9 +36,18 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     // Always-valid: a missing title/description (null when the JSON omits them) fails closed as validation
     // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        Result.Ensure(id is not null, Error.InvalidInput.ForField("id", "required", "Project id is required."))
-            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
-            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField("description", "required", "Description is required.")))
+        Result.Ensure(id is not null, Error.InvalidInput.ForField(
+            code: "required",
+            field: "id",
+            detail: "Project id is required."))
+            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "title",
+                detail: "Title is required.")))
+            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "description",
+                detail: "Description is required.")))
             .Map(_ => new UpdateProjectCommand(id!, title!, description!, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
@@ -46,10 +55,16 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
         Result.Ensure(
             actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId) && tenantId == resource.TenantId,
-            Error.Forbidden.For<Project>("projects.cross_tenant", resource.Id, "Cross-tenant project access is not permitted."))
+            Error.Forbidden.For<Project>(
+                code: "projects.cross_tenant",
+                id: resource.Id,
+                detail: "Cross-tenant project access is not permitted."))
         .Ensure(
             _ => string.Equals(resource.OwnerId, actor.Id.Value, StringComparison.Ordinal),
-            Error.Forbidden.For<Project>("projects.not_owner", resource.Id, "Only the project's owner can edit it."));
+            Error.Forbidden.For<Project>(
+                code: "projects.not_owner",
+                id: resource.Id,
+                detail: "Only the project's owner can edit it."));
 }
 
 // The mutation path. Reads the SAME Project instance ResourceAuthorizationBehavior loaded for Authorize

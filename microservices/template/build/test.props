@@ -4,7 +4,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <!-- CA1707: test method names use underscores. TRLS003: Trellis analyzer relaxed for test code. -->
     <NoWarn>$(NoWarn);CA1707;TRLS003</NoWarn>
   </PropertyGroup>

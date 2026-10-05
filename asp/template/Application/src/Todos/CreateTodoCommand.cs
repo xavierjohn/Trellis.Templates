@@ -36,8 +36,14 @@ public sealed record CreateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     /// The tag is optional (<see cref="Maybe{T}"/>).
     /// </summary>
     public static Result<CreateTodoCommand> TryCreate(Title? title, DueDate? dueDate, Maybe<Tag> tag) =>
-        Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required."))
-            .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField("dueDate", "required", "Due date is required.")))
+        Result.Ensure(title is not null, Error.InvalidInput.ForField(
+            code: "required",
+            field: "title",
+            detail: "Title is required."))
+            .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField(
+                code: "required",
+                field: "dueDate",
+                detail: "Due date is required.")))
             .Map(_ => new CreateTodoCommand(title!, dueDate!, tag));
 }
 

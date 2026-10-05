@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProjectTrackerTemplate.Members.Api;
@@ -17,7 +16,7 @@ using ProjectTrackerTemplate.Projects.Api;
 using Trellis.Asp.Authorization;
 using Trellis.Authorization;
 using Trellis.EntityFrameworkCore;
-using Trellis.Mediator;
+using Azure.Messaging.ServiceBus;
 using Trellis.Testing.AspNetCore;
 
 namespace Eventing.Tests;
@@ -82,7 +81,7 @@ internal sealed class MembersEventingFactory : WebApplicationFactory<MembersApiE
         {
             services.ReplaceDbProvider<ProjectTrackerTemplate.Members.Acl.MembersDbContext>(options =>
                 options.UseSqlite(_connection).AddTrellisInterceptors().AddTrellisOutboxInterceptor());
-            services.ReplaceSingleton<IIntegrationEventPublisher>(new InMemoryBrokerPublisher(_broker));
+            services.ReplaceSingleton<ServiceBusClient>(new InMemoryServiceBusClient(_broker));
             EventingTestServices.AddTestAuthentication(services);
         });
     }
@@ -95,7 +94,7 @@ internal sealed class MembersEventingFactory : WebApplicationFactory<MembersApiE
     }
 }
 
-// Boots the Projects host with the in-memory broker consumer (instead of the Service Bus pump) over SQLite.
+// Boots the Projects host with the shipped Trellis consumer and an Azure SDK broker double over SQLite.
 internal sealed class ProjectsEventingFactory : WebApplicationFactory<ProjectsApiEntryPoint>
 {
     private readonly InMemoryBroker _broker;
@@ -119,15 +118,7 @@ internal sealed class ProjectsEventingFactory : WebApplicationFactory<ProjectsAp
             services.ReplaceDbProvider<ProjectTrackerTemplate.Projects.Acl.ProjectsDbContext>(options =>
                 options.UseSqlite(_connection).AddTrellisInterceptors());
 
-            // Replace the Service Bus pump with the in-memory broker consumer feeding the same inbox. Use a
-            // type-safe predicate and fail loudly (Single) if the pump is no longer registered (e.g. renamed).
-            var pump = services.Single(descriptor =>
-                descriptor.ServiceType == typeof(IHostedService) &&
-                descriptor.ImplementationType == typeof(ProjectTrackerTemplate.Projects.Acl.MemberEventsConsumer));
-            services.Remove(pump);
-
-            services.AddSingleton<IHostedService>(provider =>
-                new InMemoryBrokerConsumer(_broker, provider.GetRequiredService<IInboxDispatcher>()));
+            services.ReplaceSingleton<ServiceBusClient>(new InMemoryServiceBusClient(_broker));
 
             EventingTestServices.AddTestAuthentication(services);
         });
