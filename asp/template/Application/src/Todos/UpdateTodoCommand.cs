@@ -50,12 +50,24 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     /// <param name="ifMatchETags">Optional ETags from the <c>If-Match</c> header for conditional update.</param>
     /// <param name="timeProvider">Optional time provider for testability. Defaults to <see cref="TimeProvider.System"/>.</param>
     public static Result<UpdateTodoCommand> TryCreate(TodoId? todoId, Title? title, DueDate? dueDate, Maybe<Tag> tag, EntityTagValue[]? ifMatchETags = null, TimeProvider? timeProvider = null) =>
-        Result.Ensure(todoId is not null, Error.InvalidInput.ForField("id", "required", "Todo id is required."))
-            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField("title", "required", "Title is required.")))
-            .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField("dueDate", "required", "Due date is required.")))
-            .Ensure(_ => dueDate! > (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
-                Error.InvalidInput.ForField("dueDate", "out_of_range", "Due date must be in the future."))
-            .Map(_ => new UpdateTodoCommand(todoId!, title!, dueDate!, tag, ifMatchETags));
+        todoId.ToResult(Error.InvalidInput.ForField(
+            code: "required",
+            field: "id",
+            detail: "Todo id is required."))
+            .Combine(title.ToResult(Error.InvalidInput.ForField(
+                code: "required",
+                field: "title",
+                detail: "Title is required.")))
+            .Combine(dueDate.ToResult(Error.InvalidInput.ForField(
+                code: "required",
+                field: "dueDate",
+                detail: "Due date is required.")))
+            .Ensure(values => values.Item3 > (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
+                Error.InvalidInput.ForField(
+                    code: "out_of_range",
+                    field: "dueDate",
+                    detail: "Due date must be in the future."))
+            .Map((validId, validTitle, validDueDate) => new UpdateTodoCommand(validId, validTitle, validDueDate, tag, ifMatchETags));
 }
 
 /// <summary>
@@ -69,7 +81,9 @@ public sealed class UpdateTodoCommandHandler : ICommandHandler<UpdateTodoCommand
 
     public async ValueTask<Result<TodoItem>> Handle(UpdateTodoCommand command, CancellationToken cancellationToken) =>
         await _repository.FindByIdAsync(command.TodoId, cancellationToken)
-            .ToResultAsync(Error.NotFound.For<TodoItem>(command.TodoId, $"Todo {command.TodoId} not found."))
+            .ToResultAsync(Error.NotFound.For<TodoItem>(
+                id: command.TodoId,
+                detail: $"Todo {command.TodoId} not found."))
             .RequireETagAsync(command.IfMatchETags)
             .BindAsync(todo => todo.Update(command.Title, command.DueDate, command.Tag));
 }

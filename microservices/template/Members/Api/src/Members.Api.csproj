@@ -25,15 +25,15 @@
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Asp.Versioning.OpenApi" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!-- Forces the patched Microsoft.OpenApi (see Directory.Packages.props) over the vulnerable
-         2.0.0 pulled transitively by Microsoft.AspNetCore.OpenApi / Asp.Versioning.OpenApi. -->
-    <PackageReference Include="Microsoft.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="Trellis.Asp" />
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
+    <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
+    <PackageReference Include="Trellis.ServiceDefaults" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />

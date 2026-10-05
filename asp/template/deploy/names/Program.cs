@@ -55,6 +55,10 @@ var json = new JsonObject
     ["sqlServerFqdn"] = context.SqlServerFqdn(),
     ["sqlDatabaseName"] = context.Name(AzureResourceTypes.SqlDatabase),
     ["globalResourceGroup"] = context.Name(AzureResourceTypes.ResourceGroup),
+    ["cosmosAccountName"] = context.CosmosName(),
+    ["cosmosEndpoint"] = context.CosmosUrl().AbsoluteUri,
+    ["idempotencyDatabaseName"] = context.Name(
+        new ResourceTypeSpec("idemdb", 1, 255, NameSeparator.Dash, IsDnsGlobal: false)),
 };
 
 // Regional resources — only when a region is supplied. Each carries the region token (and, for
@@ -71,6 +75,7 @@ if (!string.IsNullOrWhiteSpace(regionShort))
         new ResourceTypeSpec("plan", 1, 40, NameSeparator.Dash, IsDnsGlobal: false), region: regionShort);
     json["managedIdentityName"] = context.ManagedIdentityName();
     json["logAnalyticsName"] = context.LogAnalyticsName();
+    json["applicationInsightsName"] = context.Name(AzureResourceTypes.ApplicationInsights, region: regionShort);
 }
 
 var serialized = json.ToJsonString(new JsonSerializerOptions { WriteIndented = true });

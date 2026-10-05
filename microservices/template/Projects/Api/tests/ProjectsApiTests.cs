@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ProjectTrackerTemplate.Projects.Domain;
 using Trellis.Authorization;
 using Trellis.Testing.AspNetCore;
@@ -12,6 +13,20 @@ namespace Projects.Api.Tests;
 public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<ProjectsApiFactory>
 {
     private const string Version = "2026-03-26";
+
+    [Fact]
+    public async Task Missing_route_uses_the_Trellis_ProblemDetails_envelope()
+    {
+        var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
+
+        var response = await client.GetAsync($"/missing-route?api-version={Version}", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        body.GetProperty("code").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("kind").GetString().Should().Be("not-found");
+        body.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
+    }
 
     [Fact]
     public async Task Get_project_without_the_required_permission_is_403()

@@ -40,7 +40,7 @@ jobs:
         run: |
           dotnet restore template/ProjectTrackerTemplate.slnx
           dotnet build template/ProjectTrackerTemplate.slnx --no-restore --configuration Release
-          dotnet test  template/ProjectTrackerTemplate.slnx --no-build  --configuration Release
+          dotnet test --solution template/ProjectTrackerTemplate.slnx --no-build --configuration Release
 
       - name: Pack template package
         run: dotnet pack templatepack.csproj -c Release -o nupkgs -p:PublicRelease=true

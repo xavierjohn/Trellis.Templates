@@ -1,0 +1,3144 @@
+﻿---
+package: Trellis.Core
+namespaces: [Trellis]
+types: [Result, "Result<T>", IResult, "IResult<TValue>", "IFailureFactory<TSelf>", IPersistOnFailure, "Maybe<T>", Maybe, MaybeInvariant, Error, ITransportFault, ICodedTransportFault, RetryAdvice, RetryClassification, ErrorRetryExtensions, Unit, "Page<T>", Page, Cursor, PageSize, PageSizeLimitPolicy, PageRequest, "ICursorCodec<TState>", CursorCodec, PageBuilder, "EquatableArray<T>", EquatableArray, ResourceRef, InputPointer, InputLocation, FieldViolation, RuleViolation, IAggregate, "Aggregate<TId>", IETagStampable, IReconstitutionStampable, IEntity, "Entity<TId>", IDomainEvent, IIntegrationEvent, IntegrationEventNameAttribute, ITrackedAggregateSource, ValueObject, "ScalarValueObject<TSelf,T>", "IScalarValue<TSelf,TPrimitive>", "IFormattableScalarValue<TSelf,TPrimitive>", "RequiredString<TSelf>", "RequiredInt<TSelf>", "RequiredLong<TSelf>", "RequiredDecimal<TSelf>", "RequiredBool<TSelf>", "RequiredGuid<TSelf>", "RequiredDateTime<TSelf>", "RequiredDateTimeOffset<TSelf>", "RequiredEnum<TSelf>", "RequiredEnumJsonConverter<T>", "ParsableJsonConverter<T>", ResultRequiresExplicitHttpMappingConverter, PrimitiveValueObjectTrace, "Specification<T>", TrellisJsonValidationException, TrellisValidationFormatException, RangeAttribute, StringLengthAttribute, NotDefaultAttribute, TrimAttribute, PositiveAttribute, NonNegativeAttribute, NegativeAttribute, NonPositiveAttribute, RailwayTrackAttribute, TrackBehavior, EnumValueAttribute, ResourceCollectionNameAttribute, ResultDebugSettings]
+version: v3
+last_verified: 2026-09-12
+audience: [llm]
+agent_usage: onDemand
+agent_description: "Open when you need exact signatures for Result, Maybe, Error, Page, aggregates, entities, specifications or Required value-object bases, or the ROP operations Bind, Map and Ensure."
+---
+# Trellis.Core API Reference
+
+**Package:** `Trellis.Core`  
+**Namespace:** `Trellis`  
+**Purpose:** Provides Trellis result, maybe, scalar-value, and transport-agnostic error primitives for railway-oriented application flows.
+
+See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#trellis-cross-package-cookbook) — recipes using this package, [trellis-api-http-abstractions.md](trellis-api-http-abstractions.md#package-role), [trellis-api-asp.md](trellis-api-asp.md#use-this-file-when), [trellis-api-primitives.md](trellis-api-primitives.md#trellis-api-primitives).
+
+---
+
+## Use this file when
+
+- You need exact signatures for `Result`, `Result<T>`, `Maybe<T>`, `Error`, `ITransportFault`, `Page<T>`, DDD primitives, specifications, custom primitive base classes, or generated primitive JSON/tracing support.
+- You are composing domain/application flows and need the canonical ROP operation: `Bind`, `Map`, `Tap`, `Ensure`, `Combine`, `ParallelAsync`, `AsTask`, or `AsValueTask`.
+- You are defining aggregates, entities, domain events, specifications, or source-generated `Required*<TSelf>` value objects.
+
+## Error-handling philosophy
+
+Trellis models **expected failures as values, not exceptions.** Anything a caller can reasonably anticipate — input validation, not-found, conflict, forbidden, optional absence — is returned as `Result<T>` (or modelled as `Maybe<T>`) and pattern-matched at the boundary. This keeps the railway intact and every failure path testable.
+
+`throw` is **not** banned — it is reserved for the *truly exceptional*: a programming error, a "can't happen" invariant that was violated, or a startup/configuration/infrastructure fault the process cannot recover from. The rule is "never throw for an **expected** outcome," **not** "never throw at all."
+
+| Situation | Do | Not |
+|---|---|---|
+| Expected domain failure (validation, not-found, conflict, forbidden) | `Result.Fail<T>(new Error.X(...))` | `throw` |
+| Expected absence of a value | `Maybe<T>` | `null` / `throw` |
+| Truly exceptional / unrecoverable (bug, broken environment, violated precondition) | `throw` | wrap a normal outcome in a Result just to avoid throwing |
+| Internal "shouldn't happen" you still want to flow as a value | return `new Error.Unexpected(code, faultId?)` (renders 500 at the boundary, no exception) | `throw new Exception(...)` inside a Result chain |
+
+Analyzer **TRLS010** flags `throw` inside Result chains (`Bind`/`Map`/`Tap`/`Ensure`); reading `result.Error` never throws. Never use `try`/`catch` in Domain or Application layers to drive an *expected* outcome — use `Result.Try(...)` only to convert a genuinely unexpected exception at an integration seam into a typed `Error`.
+
+## Patterns Index
+
+Use this table before searching the long type catalog.
+
+| Goal | Canonical API | See |
+|---|---|---|
+| Return success/failure without payload | `Result.Ok()` / `Result.Fail(error)` (returns `Result<Unit>`) | [`Result`](#public-static-partial-class-result) |
+| Return success/failure with payload | `Result.Ok(value)` / `Result.Fail<T>(error)` | [`Result<TValue>`](#public-readonly-struct-resulttvalue--iresulttvalue-iequatableresulttvalue-ifailurefactoryresulttvalue-ipersistonfailure) |
+| Fail but still persist staged work (worker pattern) | `Result.FailAfterCommit<T>(error)` / `Result.FailAfterCommit(error)` | [`Result`](#public-static-partial-class-result), [`IPersistOnFailure`](#public-interface-ipersistonfailure) |
+| Classify an `Error` for a worker/consumer retry loop | `error.Classify()` / `error.IsTransient()` / `error.IsPermanent()` / `error.IsFailFast()` / `error.GetRetryAdvice()` | [`Retry classification`](#retry-classification-errorretryextensions) |
+| Turn a boolean guard into a result | `Result.Ensure(condition, error)` or `Result.Ensure(condition, () => error)` for lazy errors; `.Ensure(...)` in a value-threaded chain | [`Result`](#public-static-partial-class-result), [`Ensure family`](#ensure-family--ensureextensions-ensureextensionsasync-ensureallextensions-ensureallextensionsasync) |
+| Start independent async result-producing operations concurrently | `Result.ParallelAsync(...)`, then combine the returned tasks | [`Result`](#public-static-partial-class-result) |
+| Combine multiple validated *typed* fields into a tuple | static `Result.Combine<T1,T2>(Result<T1>, Result<T2>)` or instance `r1.Combine(r2)`, then `.Map(...)` | [`Combine family`](#combine-family--combineextensions-combineextensionsasync-combineerrorextensions) |
+| Combine multiple boolean guards | `Result.Ensure(...).Combine(Result.Ensure(...))` then `.Bind(...)` (extension `Combine` aggregates errors and adds each value as the next tuple element; pass a `Result<Unit>` from a no-payload guard and ignore it with `_` in the next lambda) | [`Combine family`](#combine-family--combineextensions-combineextensionsasync-combineerrorextensions) |
+| Adapt an already-computed result to async APIs | `.AsTask()` / `.AsValueTask()` | [`ResultTaskAdapterExtensions`](#task-adapter-family--resulttaskadapterextensions) |
+| Model expected absence | `Maybe<T>`, `Maybe.From(value)`, `Maybe<T>.None` | [`Maybe<T>`](#public-readonly-struct-maybet-where-t--notnull) |
+| Validate optional input, treating only null as absent | `Maybe.Optional(value, function)` | [`Maybe`](#public-static-class-maybe) |
+| Treat null, empty, or whitespace-only optional text as absent before validation | `Maybe.OptionalNonBlank(value, function)` | [`Maybe`](#public-static-class-maybe) |
+| Convert absence to a domain failure | `maybe.ToResult(error)` / `maybe.ToResult(errorFactory)` | [`MaybeExtensions`](#maybeextensions) |
+| Convert a nullable reference / value to a domain failure (sync or async) | `obj.ToResult(error)` / `task.ToResultAsync(error)` / `valueTask.ToResultAsync(errorFactory)` — works on `T?` for both `class` and `struct`, plus `Task<T?>` and `ValueTask<T?>`; prefer it to `Result.Ensure(x is not null, error)` (reported by `TRLS066`), because it returns the non-null value as a `Result<T>` instead of a discarded `Unit` | [`Nullable to Result`](#nullable-to-result--nullableextensions-nullableextensionsasync) |
+| Create HTTP-oriented domain errors | Closed `Error` cases plus `ResourceRef.For<TResource>(id)` | [`Error`](#public-abstract-record-error), [`Error Cases`](#error-cases-closed-adt) |
+| Validate pagination controls and return a page | `PageRequest.TryCreate(cursor, limit)` → typed `Decode(codec)` or EF `ToPageAsync`; `PageBuilder.FromOverFetch(rows, size, row => codec.Encode(state))` or direct `new Page<T>(...)` for provider tokens | [`Pagination`](#pagination) |
+| Model aggregates/entities/events | `Aggregate<TId>`, `Entity<TId>`, `IDomainEvent` | [`Domain-Driven Design`](#domain-driven-design) |
+| Define a stable published integration contract | `IIntegrationEvent` | [`IIntegrationEvent`](#iintegrationevent) |
+| Name an integration contract for the wire (cross-service) | `[IntegrationEventName]` | [`IntegrationEventNameAttribute`](#integrationeventnameattribute) |
+| Move reusable query predicates out of repositories | `Specification<T>` | [`Specification<T>`](#specificationt) |
+| Define custom required value objects | `partial class X : RequiredString<X>` / `RequiredGuid<X>` / other `Required*` bases | [`Primitive value object base classes`](#primitive-value-object-base-classes) |
+| Extract a success value or throw at a trust boundary (DTO → entity rehydration, JSON deserialization) | `result.GetValueOrThrow($"context message")` / `GetValueOrThrowAsync(...)` | [`GetValueOrThrowExtensions`](#extension-class-catalog-full-signatures) (entry in the extension catalog), [cookbook Recipe 30](trellis-api-cookbook.md#recipe-30--rehydrating-entities-from-persistence-fail-loud-vs-result-track) |
+
+## Canonical async handler skeleton
+
+Every async command/query handler that composes Trellis primitives follows the same await-then-chain shape. **The sync verbs (`Bind`/`Map`/`Ensure`) extend `Result<T>` receivers with sync delegates only. The async verbs (`BindAsync`/`MapAsync`/`EnsureAsync`) extend `Result<T>`, `Task<Result<T>>`, *and* `ValueTask<Result<T>>` receivers; on a sync receiver they take an async delegate (`Task<...>` or `ValueTask<...>`), while on a `Task`/`ValueTask` receiver they additionally provide sync-delegate convenience overloads.** A `Task<Result<T>>` is *not* a `Result<T>` and does not expose the sync extensions — calling `.Bind(...)` on a `Task<Result<T>>` fails with `CS1929: 'Task<Result<T>>' does not contain a definition for 'Bind'`.
+
+```csharp
+// Generic handler — Task<Result<TOut>>
+public async Task<Result<OrderResponse>> Handle(CreateDraftOrderCommand cmd, CancellationToken ct)
+{
+    // 1. Sync precondition — produces a Result<Unit>, chains synchronously.
+    var preconditions = Result.Ensure(cmd.LineItems.Count > 0,
+                            () => Error.InvalidInput.ForField(field: "lineItems", code: ValidationCodes.ValueNotEmpty, detail: "..."))
+                        .Bind(_ => Result.Ensure(!cmd.HasDuplicates,
+                            () => Error.InvalidInput.ForField(field: "lineItems", code: "line-items.duplicate-product", detail: "...")));
+
+    if (preconditions.IsFailure) return Result.Fail<OrderResponse>(preconditions.Error);
+
+    // 2. Async precondition — returns Task<Result<T>>; await BEFORE chaining sync extensions,
+    //    or use the *Async siblings (BindAsync/EnsureAsync/MapAsync) which extend Task<Result<T>>.
+    return await LoadCustomerAsync(cmd.CustomerId, ct)                  // Task<Result<Customer>>
+        .EnsureAsync(c => c.IsActive,
+            c => new Error.Forbidden("customer.inactive",
+                ResourceRef.For<Customer>(c.Id)))                        // Task<Result<Customer>>
+        .BindAsync(c => LoadProductsAsync(cmd.LineItems, ct))           // Task<Result<IReadOnlyList<Product>>>
+        .MapAsync(products => Order.CreateDraft(cmd, products))         // Task<Result<Order>>
+        .MapAsync(order => OrderResponse.From(order));                  // Task<Result<OrderResponse>>
+}
+
+// No-payload handler — Task<Result<Unit>>
+public Task<Result<Unit>> Handle(CancelOrderCommand cmd, CancellationToken ct) =>
+    LoadOrderAsync(cmd.OrderId, ct)                                     // Task<Result<Order>>
+        .BindAsync(order => order.Cancel())                             // Task<Result<Unit>> (Cancel returns Result<Unit>)
+        .BindAsync(_ => _uow.SaveChangesResultAsync(ct));               // Task<Result<Unit>>
+```
+
+**Common build failures and their fix:**
+
+| Diagnostic | What the model wrote | Fix |
+| --- | --- | --- |
+| `CS1929: 'Task<Result<T>>' does not contain a definition for 'Bind'` | `LoadAsync(...).Bind(x => ...)` | Use `BindAsync` (which extends `Task<Result<T>>`), or `await` first then `.Bind(...)` |
+| `CS0411: type arguments for 'Map<TOut>' cannot be inferred` | `someTaskResult.Map(...)` after a `CheckAsync` whose result type can't be inferred | `await` the precondition into a concrete `Result<T>` before projecting; or use `MapAsync<TOut>(...)` |
+
+
+## Common traps
+
+- Do not use throwing value access in production code. Prefer `TryGetValue`, `Match`, `Bind`, `Map`, or deconstruction guarded by the success flag.
+- Do not use `default(Result<T>)` as success. The default state is a typed `new Error.Unexpected("default-initialized")` failure.
+- For no-payload success, use `Result.Ok()` (which returns `Result<Unit>`). The `Trellis.Unit` type is the canonical "no value" payload — it is a public `readonly record struct` with a single value (`Unit.Default`).
+- Use `ParallelAsync` only for independent work. If operation B depends on operation A, compose with `Bind`/`BindAsync` instead.
+
+### First-30-minutes surprises
+
+| Surprise | What it actually is |
+|---|---|
+| `Result<T>.Value` getter does not exist (`CS1061`) | Removed from the current API because it was the primary cause of unsafe value access. Extract via `TryGetValue(out var v)`, `Match(...)`, deconstruction `var (ok, v, err) = result;`, or chain with `Bind`/`Map`. `Maybe<T>.Value` *does* exist but is hidden from IntelliSense and gated by analyzer `TRLS003` — guard with `HasValue`/`TryGetValue`/`Match`/`GetValueOrDefault`. The two types do not have symmetric value-access ergonomics. |
+| Implicit `T → Result<T>` and `Error → Result<T>` were removed (`CS0029`) | Use the explicit factory: `return Result.Ok(value);` and `return Result.Fail<T>(error);`. The C# compiler flags every site with `CS0029: cannot implicitly convert type 'T' to 'Result<T>'`. |
+| `Aggregate<TId>` / `Entity<TId>` already provide `CreatedAt` and `LastModified` (`CS0108`) | Both are `DateTimeOffset` (not `DateTime`) and infrastructure-managed by Trellis EF Core. Defining your own `public DateTime CreatedAt { ... }` on the aggregate triggers `CS0108: 'X.CreatedAt' hides inherited member 'Entity<TId>.CreatedAt'`. If your spec calls for an audit timestamp, use the inherited base property instead of declaring a new one. |
+| `Result<T>` has `.Error` (nullable, never throws) but **not** `.Value` | `result.Error` returns `Error?` (null on success). `result.TryGetError(out var err)` is the safe Boolean form. Reading the success value still requires `TryGetValue`/`Match`/destructuring. |
+
+## Breaking changes from v1
+
+Migration notes for users moving from the previous `Trellis.Core` API surface.
+
+| Change | Previous API | Current API | Migration |
+|---|---|---|---|
+| Result success factory | `Result.Success(value)` / `Result.Success<T>(...)` / `Result.Success()` | `Result.Ok(value)` / `Result.Ok<T>(...)` / `Result.Ok()` | Mechanical find-and-replace of `Result.Success` → `Result.Ok` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Result failure factory | `Result.Failure<T>(error)` / `Result.Failure(error)` | `Result.Fail<T>(error)` / `Result.Fail(error)` | Mechanical find-and-replace of `Result.Failure` → `Result.Fail` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Deferred success factory | `Result.Success(Func<T> funcOk)` | *(removed)* | Inline the factory: `Result.Ok(funcOk())` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Deferred failure factory | `Result.Failure<T>(Func<Error> errorFactory)` | *(removed)* | Inline the factory: `Result.Fail<T>(errorFactory())` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Conditional factory | `Result.SuccessIf(cond, value, error)` / `Result.SuccessIf(cond, t1, t2, error)` | *(removed)* | Use a ternary: `cond ? Result.Ok(value) : Result.Fail<T>(error)` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Inverse-conditional factory | `Result.FailureIf(cond, value, error)` / `Result.FailureIf(predicate, value, error)` | *(removed)* | Use a ternary: `cond ? Result.Fail<T>(error) : Result.Ok(value)` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Async-conditional factories | `Result.SuccessIfAsync(predicate, value, error)` / `Result.FailureIfAsync(predicate, value, error)` | *(removed)* | `(await predicate()) ? Result.Ok(value) : Result.Fail<T>(error)` (invert as needed; parens required because `await` binds tighter than `?:`) | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
+| Exception → result helpers | `Result.FromException(ex)` / `Result.FromException<T>(ex)` | *(removed)* | Use `Result.Try` / `Result.TryAsync` for inline exception capture, or log the exception and return `Result.Fail(new Error.Unexpected("unhandled-exception", faultId) { Detail = "An unexpected error occurred while processing the request." })`. Do not copy `ex.Message` into public `Detail`. |
+| Implicit operators on `Result<T>` | `Result<T> r = value;` and `Result<T> r = error;` | *(removed)* | Use the explicit factory: `Result.Ok(value)` / `Result.Fail<T>(error)`. The compiler flags every site with CS0029. |
+| Non-generic `Result` for void flows | `Result` was a separate `readonly struct` for success/failure with no payload, distinct from `Result<T>`. | The non-generic `Result` instance type was removed. `Result` is now a `public static partial class` factory only; for no-payload success/failure use `Result<Unit>` (returned by parameterless `Result.Ok()` / `Result.Fail(error)` / `Result.Ensure(...)` / `Result.Try(...)` factories). The `Trellis.Unit` type is a public `readonly record struct` with a single value (`Unit.Default`). | Replace `Result` parameter/return types with `Result<Unit>`; replace `Task<Result>` with `Task<Result<Unit>>`; in lambdas after `.Bind(...)` / `BindAsync(...)` accept the `Unit` argument explicitly (`_ =>` or `(Unit _) =>`). |
+| `Error` as open class hierarchy | `Error` was a `class` with 18 hand-written subclasses (`ValidationError`, `NotFoundError`, …) and static factory helpers (`Error.Validation(...)`, `Error.NotFound(...)`, …). | `Error` is an `abstract record` with **12 nested `sealed record` cases** (`Error.NotFound`, `Error.InvalidInput`, …). Closed via `private` constructor; static factories live on individual cases, not the base. | Replace not-found factories with `Error.NotFound.For<TResource>(id: id, detail: "...")`. Replace validation factories with `Error.InvalidInput.ForField(code, field, detail: detail)` or `Error.InvalidInput.ForRule(code, detail: detail)`. Replace concrete subclass type names (`ValidationError`, `NotFoundError`) with `Error.InvalidInput`, `Error.NotFound`. See "Error Cases (closed ADT)" below. | <!-- v1-stale-ok: migration-comparison row intentionally cites removed v1 factories -->
+| `MatchErrorExtensions` | `result.MatchError(onValidation: ..., onNotFound: ..., onUnexpected: ...)` | *(removed)* | Use a `switch` expression on the closed ADT: `result.Match(_ => ..., e => e switch { Error.NotFound nf => ..., Error.InvalidInput uc => ..., _ => ... })`. C# verifies exhaustiveness against the closed catalog. |
+| `FlattenValidationErrorsExtensions` | `result.FlattenValidationErrors()` | *(removed)* | `Combine` over multiple `Result<T>` automatically merges `Error.InvalidInput.Fields` and `.Rules`. |
+| `Error.Instance` field | `error.Instance` (string-shaped HTTP vocabulary) | *(removed)* | The ASP wire layer populates `ProblemDetails.Instance` from the server-relative request path+query (RFC 9457 §3.1). Typed payloads expose `ResourceRef` directly via fields like `Error.NotFound.Resource` for callers that need to assert on the resource identity. |
+| Public `Value` / `Error` accessors on `Result<T>` | Both threw on the wrong branch. | `result.Error` is `public Error?` and **never throws** (null on success). The throwing `result.Value` getter was removed entirely because it was the primary cause of unsafe value access. | Read errors with `if (result.Error is { } error) { ... }` or `result.TryGetError(out var error)`. Extract success values with `result.TryGetValue(out var v)`, `result.TryGetValue(out var v, out var err)`, `result.Match(...)`, or `var (ok, v, err) = result;` (Deconstruct). | <!-- stale-doc-ok: migration-comparison row intentionally cites removed value accessor -->
+| HTTP transport abstractions package | `Trellis.Core` | `Trellis.Http.Abstractions` | Add a PackageReference to `Trellis.Http.Abstractions` for code that names `WriteOutcome<T>`, `RepresentationMetadata`, `EntityTagValue`, `RetryAfterValue`, `PreconditionKind`, `AuthChallenge`, or `AggregateETagExtensions`. The CLR namespace stays `Trellis`, so most source files only need the package-reference change. |
+| Package id | `Trellis.Results` | `Trellis.Core` | Replace `<PackageReference Include="Trellis.Results" ... />` with `<PackageReference Include="Trellis.Core" ... />`. The CLR namespace stays `Trellis` — no `using` changes are needed. The legacy `Trellis.Results` package is unlisted with a redirect notice; there is no metapackage shim. | <!-- stale-doc-ok: migration-comparison row intentionally cites previous package id -->
+| OpenTelemetry `ActivitySource` name | `"Trellis.Results"` | `"Trellis.Results"` (unchanged) | No change needed. The source is named for the operations it traces, not for the package that ships it, so the v1 name carried over. The `ResultsTraceProviderBuilderExtensions.ActivitySourceName` constant exposes it programmatically. | <!-- stale-doc-ok: migration-comparison row intentionally cites the v1 activity source name -->
+| Test helper namespace | `Trellis.Results.Tests.*` | `Trellis.Core.Tests.*` | Internal change only — affects users who took an InternalsVisibleTo dependency on the test assembly (none expected). | <!-- stale-doc-ok: migration-comparison row intentionally cites previous test namespace -->
+| Package merge: DDD | <PackageReference Include="Trellis.DomainDrivenDesign" .../> | *(removed)* | All DDD types (`Aggregate<T>`, `Entity<T>`, `ValueObject`, `Specification<T>`, etc.) moved into `Trellis.Core`. Drop the `Trellis.DomainDrivenDesign` PackageReference; the types are still in `namespace Trellis;` so no using changes are needed. | <!-- stale-doc-ok: migration-comparison row intentionally cites previous package id -->
+| Package merge: Primitives generator | <PackageReference Include="Trellis.Primitives.Generator" .../> | *(removed)* | The Required* source generator is now bundled inside `Trellis.Core.nupkg` (`analyzers/dotnet/cs/Trellis.Core.Generator.dll`). Installing `Trellis.Core` (or any package depending on it) attaches the analyzer automatically. Drop the standalone PackageReference. |
+| `Required*` base classes | `Trellis.Primitives` | `Trellis.Core` | Source-tree consumers may need to ensure they reference `Trellis.Core`. Namespace is unchanged (`Trellis`), so no using edits are required. |
+| Package merge: Asp generator | `<PackageReference Include="Trellis.AspSourceGenerator" .../>` | *(removed)* | The ASP source generator is now bundled inside `Trellis.Asp.nupkg` (`analyzers/dotnet/cs/Trellis.AspSourceGenerator.dll`). Installing `Trellis.Asp` attaches the analyzer automatically. Drop the standalone PackageReference. |
+| Package merge: EF Core generator | `<PackageReference Include="Trellis.EntityFrameworkCore.Generator" .../>` | *(removed)* | The EF Core source generator (Maybe&lt;T&gt; partial properties + owned value-object helpers) is now bundled inside `Trellis.EntityFrameworkCore.nupkg` (`analyzers/dotnet/cs/Trellis.EntityFrameworkCore.Generator.dll`). Installing `Trellis.EntityFrameworkCore` attaches the analyzer automatically. Drop the standalone PackageReference. |
+| Package merge: Asp authorization | `<PackageReference Include="Trellis.Asp.Authorization" .../>` | *(removed)* | The ASP.NET actor providers (`ClaimsActorProvider`, `EntraActorProvider`, `DevelopmentActorProvider`, `CachingActorProvider`, `AddTrellisAspAuthorization()`) are now part of `Trellis.Asp.nupkg`. The CLR namespace stays `Trellis.Asp.Authorization` — no `using` changes needed. Drop the standalone PackageReference. `Trellis.Asp` now transitively brings in `Trellis.Authorization`. |
+
+The renames bring the factory names in line with Rust (`Ok`/`Err`), F# (`Ok`), and FluentResults (`Ok`/`Fail`). The `IsSuccess`/`IsFailure` predicate properties are **not** renamed — predicates read as questions and stay long-form.
+
+---
+
+## Types
+
+### `public interface IResult`
+
+Base success/failure contract.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `IsSuccess` | `bool` | `true` for success results. Marked `[MemberNotNullWhen(false, nameof(Error))]`. |
+| `IsFailure` | `bool` | `true` for failure results. Marked `[MemberNotNullWhen(true, nameof(Error))]`. |
+| `Error` | `Error?` | `null` on success; never throws. |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `bool TryGetError(out Error? error)` | Non-throwing failure extractor. `[NotNullWhen(true)]` on the out parameter. |
+
+#### Factory Methods
+
+None.
+
+---
+
+### `public interface IResult<TValue> : IResult`
+
+Typed success/failure contract. Note: there is **no** `Value` property — the previous `Value` getter threw on failure and was the leading source of `TRLS003`. Use `TryGetValue` to extract the success payload.
+
+#### Properties
+
+None (inherits `IsSuccess`, `IsFailure`, `Error` from `IResult`).
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `bool TryGetValue([MaybeNullWhen(false)] out TValue value)` | Non-throwing success extractor. Returns `true` and binds `value` on success; returns `false` and leaves `value` at `default` on failure. |
+
+#### Factory Methods
+
+None.
+
+---
+
+### `public interface IFailureFactory<TSelf> where TSelf : IFailureFactory<TSelf>`
+
+Static factory contract for producing a failure instance of the implementing type.
+
+#### Properties
+
+None.
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `static abstract TSelf CreateFailure(Error error)` | Used by generic pipeline code |
+
+#### Factory Methods
+
+`CreateFailure(Error error)`.
+
+---
+
+### `public static partial class Result`
+
+Static factory and helper surface for `Result<TValue>`. There is no non-generic instance `Result` type — for no-payload success/failure, use `Result<Unit>` (returned by the parameterless overloads listed below).
+
+> **Default-state invariant.** `default(Result<T>)` represents a **failure** carrying the
+> shared `new Error.Unexpected("default-initialized")` sentinel — *not* success. This makes uninitialized
+> state a typed failure rather than a silent success that would hide a programming error. Always
+> construct via `Result.Ok(...)` or `Result.Fail(error)`. Analyzer **`TRLS019`** flags explicit
+> `default(Result<T>)` at call sites.
+
+`Result` is `public static partial class Result`. It hosts the static factory and helper methods used to build every `Result<TValue>`.
+
+#### Static factory methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static Result<TValue> Ok<TValue>(TValue value)` | Success factory |
+| `public static Result<Unit> Ok()` | Success without payload (returns `Result<Unit>`) |
+| `public static Result<TValue> Fail<TValue>(Error error)` | Failure factory |
+| `public static Result<Unit> Fail(Error error)` | Failure without payload (returns `Result<Unit>`) |
+| `public static Result<TValue> FailAfterCommit<TValue>(Error error)` | Persist-on-failure factory. Still a failure (`IsFailure == true`), but sets [`IPersistOnFailure.PersistOnFailure`](#public-interface-ipersistonfailure) so `TransactionalCommandBehavior` (and any other opt-in pipeline behavior) commits staged changes alongside the failure. Canonical use: worker handler that converts a transient external-service rejection into a persisted `permanently_failed` row. Throws `ArgumentNullException` on null `error`. |
+
+> **`null` and `Result.Ok`.** `Ok<TValue>(TValue value)` is unconstrained and performs **no null check** — at runtime a `null` argument yields a *successful* result whose value is `null` (`IsSuccess == true`, `TryGetValue` returns `true` with a `null` out-value). Nullable-reference annotations catch only the obvious mistake: a literal `null` against a non-nullable `T` (e.g. `Result.Ok<string>(null)`) raises the nullable-reference *warning* `CS8625` — a build error only where warnings are promoted (`TreatWarningsAsErrors`, as this repo sets). They do **not** stop the common case — passing an already-nullable value, where inference widens `TValue` to the nullable type and the null success compiles silently. A success that wraps `null` is almost never intended: model optionality with `Maybe<T>` (absence is data) and a missing-but-required value with `Result.Fail(Error.NotFound.For<T>(id: id))`, not `Result.Ok(null)`.
+| `public static Result<Unit> FailAfterCommit(Error error)` | No-payload persist-on-failure factory (returns `Result<Unit>`). |
+| `public static Result<Unit> Ensure(bool flag, Error error)` | Converts a boolean to `Result<Unit>` |
+| `public static Result<Unit> Ensure(bool flag, Func<Error> errorFactory)` | Boolean guard with a lazy error factory; skips the factory on success, invokes it exactly once on failure. |
+| `public static Result<Unit> Ensure(Func<bool> predicate, Error error)` | Deferred predicate version |
+| `public static Result<Unit> Ensure(Func<bool> predicate, Func<Error> errorFactory)` | Evaluates the predicate once, then creates the error only when it returns false. |
+| `public static Task<Result<Unit>> EnsureAsync(Func<Task<bool>> predicate, Error error)` | Async predicate version |
+| `public static Task<Result<Unit>> EnsureAsync(Func<Task<bool>> predicate, Func<Error> errorFactory)` | Awaits the predicate once; invokes the synchronous error factory only after a false result. |
+| `public static Result<T> Try<T>(Func<T> func, Func<Exception, Error>? map = null)` | Converts thrown exceptions to failures |
+| `public static Task<Result<T>> TryAsync<T>(Func<Task<T>> func, Func<Exception, Error>? map = null)` | Async exception capture |
+| `public static Result<Unit> Try(Action work, Func<Exception, Error>? map = null)` | No-payload exception capture (returns `Result<Unit>`) |
+| `public static Task<Result<Unit>> TryAsync(Func<Task> work, Func<Exception, Error>? map = null)` | Async no-payload exception capture |
+| `public static Result<(T1, T2)> Combine<T1, T2>(Result<T1> r1, Result<T2> r2)` | Combines two results; passing a `Result<Unit>` adds `Unit` as the next tuple element |
+| `public static Result<(T1, ..., T9)> Combine<...>(...)` | Additional generated arities up to 9 |
+| `public static (Task<Result<T1>>, ..., Task<Result<T9>>) ParallelAsync<...>(...)` | Starts async result-producing operations in parallel, arities 2-9 |
+
+The default exception mapper produces `new Error.Unexpected("unhandled-exception", Guid.NewGuid().ToString("N")) { Detail = "An unexpected error occurred while processing the request." }`. It never copies `Exception.Message` into public `Detail`; log exception details at the call site or provide a custom mapper with safe, domain-specific text. `OperationCanceledException` is always rethrown rather than mapped.
+
+#### Factory Methods
+
+`Ok`, `Fail`, `FailAfterCommit`, `Ensure`, `Try`, `TryAsync`, `Combine`, and `ParallelAsync`. Removed from the current API (see "Breaking changes from v1" above): `Success`, `Failure`, `Success(Func<T>)`, `Failure<T>(Func<Error>)`, `SuccessIf`, `FailureIf`, `SuccessIfAsync`, `FailureIfAsync`, `FromException`, and the non-generic `Result` instance type itself (`CreateFailure`, `IFailureFactory<Result>`, `IEquatable<Result>`, etc.).
+
+---
+
+### `public interface IPersistOnFailure`
+
+Opt-in marker carried by result types whose **failure** outcome should still trigger any post-handler persistence step (notably `TransactionalCommandBehavior`'s commit). The canonical producer is `Result.FailAfterCommit<T>(error)`; the canonical consumer is `TransactionalCommandBehavior`, which checks `result is IPersistOnFailure { PersistOnFailure: true }` to decide whether to commit a failed handler outcome.
+
+> **Per-instance, not type-level.** `Result<T>` implements `IPersistOnFailure` unconditionally — the same struct represents both ordinary failures and persist-on-failure failures, and the per-instance `PersistOnFailure` property discriminates. A type-only `is IPersistOnFailure` check is therefore *insufficient* and would incorrectly include ordinary `Result.Fail<T>(error)` values; consumers must use the property-bound pattern `result is IPersistOnFailure { PersistOnFailure: true }`.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `PersistOnFailure` | `bool` | `true` for instances created via `Result.FailAfterCommit<T>(error)` / `Result.FailAfterCommit(error)`, and for failures projected or aggregated from such an instance by railway operators (e.g. `Map`, `Bind`, `Combine`). The flag is sticky once propagated. `Result.Ok(...)`, `Result.Fail(...)`, and `default(Result<T>)` all return `false`. |
+
+#### Pipeline composition
+
+| Behavior | Persist-on-failure handling |
+| --- | --- |
+| `TransactionalCommandBehavior` (`Trellis.Mediator`) | Commits staged changes on success **or** persist-on-failure. Commit error on a persist-on-failure outcome replaces the handler error in the returned response. |
+| `DomainEventDispatchBehavior` (`Trellis.Mediator`) | Treats persist-on-failure as failure: events are **not** dispatched. Events the handler raised on aggregates remain on those in-memory instances and are discarded with the request scope — they are not a durable retry buffer. Model post-failure side effects via an outbox row or a dedicated follow-up command. |
+
+#### Anti-pattern — composing `FailAfterCommit` with aggregating operators
+
+`Result.FailAfterCommit<T>(error)` is a **leaf** worker-handler operation: it converts a single aggregate's transient external rejection into a persisted `permanently_failed` state and returns. Threading that result through `Combine` / `TraverseAll` / `SequenceAll` / `WhenAllAsync` OR-accumulates the `PersistOnFailure` flag onto the aggregated failure — `TransactionalCommandBehavior` then commits the staged permanent-failure mutation alongside whatever the other legs produced, which is almost never what the handler author intended.
+
+**Restructure** such handlers so the aggregating step runs to its terminal outcome first and `FailAfterCommit` is invoked at the end (or in a follow-up command), never as a leg inside a multi-aggregate composition. See [`trellis-api-anti-patterns.md`](trellis-api-anti-patterns.md#no-analyzer--resultfailaftercommit-composed-with-aggregating-operators) for the WRONG / FIX gallery entry.
+
+---
+
+### `public readonly struct Result<TValue> : IResult<TValue>, IEquatable<Result<TValue>>, IFailureFactory<Result<TValue>>, IPersistOnFailure`
+
+Represents either a successful `TValue` or a failure `Error`.
+
+> **Default-state invariant.** `default(Result<T>)` represents a **failure** carrying
+> the shared `new Error.Unexpected("default-initialized")` sentinel — *not* success with `default(T)`.
+> All failure-facing APIs (`Error`, `TryGetError`, `Deconstruct`, `Equals`, `GetHashCode`, `ToString`,
+> `AsUnit`) route through this sentinel so that `default(Result<T>)` is observationally equivalent to
+> `Result.Fail<T>(new Error.Unexpected("default-initialized"))`. Always construct via `Result.Ok(value)`
+> or `Result.Fail<T>(error)`. Analyzer **`TRLS019`** flags explicit `default(Result<T>)` at call sites.
+
+> **JSON serialization fails fast.** `Result<T>` (and the `IResult` / `IResult<T>` interfaces) carry a default `[JsonConverter(typeof(ResultRequiresExplicitHttpMappingConverter))]` that throws `NotSupportedException` on any direct `JsonSerializer.Serialize` / `Deserialize` call. The intended pattern is to call `.ToHttpResponse()` from `Trellis.Asp` on the result before it reaches STJ (the resulting `Microsoft.AspNetCore.Http.IResult` writes the body itself; the struct is never serialized), or to unwrap the value via `Match` / `TryGetValue` for non-HTTP contexts. Consumers who genuinely need a raw JSON dump (logging, IPC, storage) can register a converter (or a `JsonConverterFactory`) in `JsonSerializerOptions.Converters` — option-registered converters take precedence over the type-level `[JsonConverter]` attribute. **The override must match the declared static type:** a `JsonConverter<Result<T>>` covers only `Result<T>`-declared values; `IResult<T>`-declared values need `JsonConverter<IResult<T>>`; `IResult`-declared values need `JsonConverter<IResult>`. Use a `JsonConverterFactory` if you need to cover multiple result shapes at once.
+
+> **No `Value` property.** The throwing `public TValue Value` getter was removed. Use `TryGetValue`, `Match`, or `Deconstruct` to extract success values.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `Error` | `Error?` | `null` on success; never throws. Pattern-match on the value (e.g. `if (result.Error is { } error)`) for imperative branches. For `default(Result<T>)`, returns the shared `new Error.Unexpected("default-initialized")` sentinel. |
+| `IsSuccess` | `bool` | Success flag. `[MemberNotNullWhen(false, nameof(Error))]`. |
+| `IsFailure` | `bool` | Failure flag. `[MemberNotNullWhen(true, nameof(Error))]`. `default(Result<T>).IsFailure` is `true`. |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static Result<TValue> CreateFailure(Error error)` | Implements `IFailureFactory<Result<TValue>>`; lets generic pipeline behaviors construct failures polymorphically. Equivalent to `Result.Fail<TValue>(error)`. |
+| `public bool TryGetValue([MaybeNullWhen(false)] out TValue value)` | Non-throwing success extractor. `[MemberNotNullWhen(false, nameof(Error))]`. |
+| `public bool TryGetValue([MaybeNullWhen(false)] out TValue value, [NotNullWhen(false)] out Error? error)` | Combined extractor — binds both `value` (on success) and `error` (on failure) in one call, eliminating the need for `result.Error!` after a failed single-out `TryGetValue`. |
+| `public bool TryGetError([NotNullWhen(true)] out Error? error)` | Non-throwing failure extractor; on `default(Result<T>)` returns `true` with the `Error.Unexpected` sentinel. |
+| `public void Deconstruct(out bool isSuccess, out TValue? value, out Error? error)` | Deconstruction support: `var (ok, value, error) = result;`. |
+| `public Result<Unit> AsUnit()` | Discards the success value, returning a `Result<Unit>`. On a default-initialized failure, returns an explicit `Result.Fail(sentinel)` (never another `default`). Preserves the persist-on-failure flag when the source was created via `Result.FailAfterCommit<T>(error)`. |
+| `public bool Equals(Result<TValue> other)` | Value equality. Equal if both are success with `EqualityComparer<TValue>.Default.Equals` over the values, or both are failure with equal `Error` *and* equal persist-on-failure intent. Default-initialized failures route through the shared sentinel; an ordinary `Result.Fail(error)` and a `Result.FailAfterCommit(error)` with the same `Error` are **not** equal. |
+| `public override bool Equals(object? obj)` | Object equality. |
+| `public override int GetHashCode()` | Hash code matching `Equals`. |
+| `public override string ToString()` | `"Success({value})"` or `"Failure({Code}: {Detail})"`. |
+
+#### Operators
+
+The implicit conversion operators (`TValue → Result<TValue>`, `Error → Result<TValue>`) were removed from the current API. Use `Result.Ok(value)` / `Result.Fail<T>(error)`.
+
+| Signature | Notes |
+| --- | --- |
+| `public static bool operator ==(Result<TValue> left, Result<TValue> right)` | Equality |
+| `public static bool operator !=(Result<TValue> left, Result<TValue> right)` | Inequality |
+
+#### Factory Methods
+
+Use the static `Result` type.
+
+---
+
+### `public static class Maybe`
+
+Non-generic helpers for creating `Maybe<T>` and optional result flows.
+
+> **Factory naming.** The factory is `Maybe.From(value)` / `Maybe<T>.From(value)` — there is **no** `Some` factory. Writing `Maybe.Some(...)` (a common habit from other option types) raises `CS0117`. Use `From` for presence and `Maybe<T>.None` for absence.
+
+#### Properties
+
+None.
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static Maybe<T> From<T>(T? value) where T : notnull` | Wraps nullable input |
+| `public static Result<Maybe<TOut>> Optional<TIn, TOut>(TIn? value, Func<TIn, Result<TOut>> function) where TIn : class where TOut : notnull` | Runs function for every non-null reference, including empty or whitespace-only strings |
+| `public static Result<Maybe<TOut>> Optional<TIn, TOut>(TIn? value, Func<TIn, Result<TOut>> function) where TIn : struct where TOut : notnull` | Value-type overload |
+| `public static Result<Maybe<TOut>> OptionalNonBlank<TOut>(string? value, Func<string, Result<TOut>> function) where TOut : notnull` | Opt-in string adapter: null, empty, or whitespace-only input becomes successful `Maybe<TOut>.None` without invoking the function; nonblank input is passed unchanged exactly once |
+
+`OptionalNonBlank` uses `string.IsNullOrWhiteSpace`, including .NET's Unicode whitespace
+classification. It does **not** trim nonblank input: normalization remains the supplied
+factory's responsibility. The factory can return either a reference or value type, and its
+failures retain the original error and persist-on-failure intent. Factory exceptions propagate.
+A null `function` throws `ArgumentNullException` even for absent input, matching `Optional`.
+Existing `Optional` and `From` semantics are unchanged; this policy is never applied
+automatically to required strings, JSON binding, or query parameters.
+
+```csharp
+string? input = "   ";
+Result<Maybe<string>> label = Maybe.OptionalNonBlank(input, value => Result.Ok(value));
+// Success with None; the factory is not invoked.
+```
+
+#### Factory Methods
+
+`From`, `Optional`, and `OptionalNonBlank`.
+
+---
+
+### `public static class MaybeInvariant`
+
+Multi-field validation helpers for `Maybe<T>` values. Each method returns `Result<Unit>` — success when the invariant holds, or an `Error.InvalidInput` whose `Fields` list carries one `FieldViolation` per offending field. Field paths are normalized via `InputPointer.ForProperty(name)` (RFC 6901 JSON Pointer).
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static Result<Unit> AllOrNone<T1, T2>(Maybe<T1> first, Maybe<T2> second, string firstFieldName, string secondFieldName)` | All fields present or all absent. Arities 2, 3, 4. |
+| `public static Result<Unit> Requires<T1, T2>(Maybe<T1> source, Maybe<T2> required, string sourceFieldName, string requiredFieldName)` | If `source` is present, `required` must be too. Arity 2. |
+| `public static Result<Unit> MutuallyExclusive<T1, T2>(Maybe<T1> first, Maybe<T2> second, string firstFieldName, string secondFieldName)` | At most one field may be present. Arities 2, 3, 4. |
+| `public static Result<Unit> ExactlyOne<T1, T2>(Maybe<T1> first, Maybe<T2> second, string firstFieldName, string secondFieldName)` | Exactly one field must be present. Arities 2, 3, 4. |
+| `public static Result<Unit> AtLeastOne<T1, T2>(Maybe<T1> first, Maybe<T2> second, string firstFieldName, string secondFieldName)` | At least one field must be present. Arities 2, 3, 4. |
+
+#### Usage
+
+```csharp
+// All-or-none: street + city must both be provided or both omitted
+MaybeInvariant.AllOrNone(command.Street, command.City, "street", "city");
+
+// Requires: if discount is given, reason is required
+MaybeInvariant.Requires(command.Discount, command.DiscountReason, "discount", "discountReason");
+
+// ExactlyOne: must provide either email or phone
+MaybeInvariant.ExactlyOne(command.Email, command.Phone, "email", "phone");
+```
+
+---
+
+### `public readonly struct Maybe<T> where T : notnull`
+
+Optional value container for domain optionality.
+
+> **Default-state invariant.** `default(Maybe<T>)` equals `Maybe<T>.None` (the type already uses an
+> `_isValueSet` discriminator). Although correct, prefer the explicit `Maybe<T>.None` for readability.
+> Analyzer **`TRLS019`** flags explicit `default(Maybe<T>)` at call sites and recommends `Maybe<T>.None`
+> instead.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `None` | `Maybe<T>` | Static empty instance |
+| `Value` | `T` | Throws when `HasNoValue` is `true` |
+| `HasValue` | `bool` | Present flag |
+| `HasNoValue` | `bool` | Empty flag |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static Maybe<T> From(T? value)` | Static constructor |
+| `public T GetValueOrThrow(string? errorMessage = null)` | Throwing extractor |
+| `public T GetValueOrDefault(T defaultValue)` | Fallback extractor |
+| `public T GetValueOrDefault(Func<T> defaultFactory)` | Deferred fallback |
+| `public bool TryGetValue(out T value)` | Non-throwing extractor |
+| `public Maybe<TResult> Map<TResult>(Func<T, TResult> selector) where TResult : notnull` | Maps present value. A selector that returns `null` collapses to `None` (Maybe never holds `null`); the `notnull` constraint discourages this at compile time but cannot fully enforce it for nullable reference types. |
+| `public TResult Match<TResult>(Func<T, TResult> some, Func<TResult> none)` | Branches on presence |
+| `public Maybe<TResult> Bind<TResult>(Func<T, Maybe<TResult>> selector) where TResult : notnull` | Flat-map |
+| `public Maybe<T> Or(T fallback)` | Fallback value |
+| `public Maybe<T> Or(Func<T> fallbackFactory)` | Deferred fallback value |
+| `public Maybe<T> Or(Maybe<T> fallback)` | Fallback maybe |
+| `public Maybe<T> Or(Func<Maybe<T>> fallbackFactory)` | Deferred fallback maybe |
+| `public Maybe<T> Where(Func<T, bool> predicate)` | Keeps value only when predicate passes |
+| `public bool HasValueWhere(Func<T, bool> predicate)` | `HasValue && predicate(Value)`. The predicate is not invoked when this instance is `None`. `MaybeQueryInterceptor` in `Trellis.EntityFrameworkCore` rewrites this to `EF.Property<T?>(entity, "_field") != null AND predicate-body` for inline expression-bodied lambdas, so the same shape translates to SQL. Method-group conversions and captured `Func<T,bool>` variables are not translatable — only inline lambdas. |
+| `public Maybe<T> Tap(Action<T> action)` | Side effect on value |
+| `public override bool Equals(object? obj)` | Equality |
+| `public bool Equals(Maybe<T> other)` | Equality |
+| `public bool Equals(T? other)` | Equality against raw value. `Maybe<T>.None.Equals((T?)null)` returns `true` — the absence of a value converges with the canonical `null` sentinel; use `HasValue` / `HasNoValue` if the distinction matters. |
+| `public override int GetHashCode()` | Hash code |
+| `public override string ToString()` | Debug string |
+
+#### Operators
+
+| Signature | Notes |
+| --- | --- |
+| `public static implicit operator Maybe<T>(T value)` | Implicit success-like wrap |
+| `public static bool operator ==(Maybe<T> maybe, T value)` | Equality |
+| `public static bool operator !=(Maybe<T> maybe, T value)` | Inequality |
+| `public static bool operator ==(Maybe<T> first, Maybe<T> second)` | Equality |
+| `public static bool operator !=(Maybe<T> first, Maybe<T> second)` | Inequality |
+
+> **Removed.** The `(Maybe<T>, object?)` `==` / `!=` overloads were removed because they silently absorbed cross-type comparisons (e.g. `Maybe<int> count = 5; count == "five"` previously compiled and always returned `false`). For boxed comparisons use the `Equals(object?)` instance method: `maybe.Equals(boxedValue)`.
+
+#### Factory Methods
+
+`None` and `From`.
+
+---
+
+### `public interface IScalarValue<TSelf, TPrimitive> where TSelf : IScalarValue<TSelf, TPrimitive> where TPrimitive : IComparable`
+
+Contract for scalar value objects that validate and expose a primitive payload.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `Value` | `TPrimitive` | Wrapped primitive |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `static abstract Result<TSelf> TryCreate(TPrimitive value, string? fieldName = null)` | Primitive-based validation entry point |
+| `static abstract Result<TSelf> TryCreate(string? value, string? fieldName = null)` | String-based validation entry point |
+| `static virtual TSelf Create(TPrimitive value)` | Throws on validation failure. **Generic-constraint dispatch**: invoked from generic code via `T.Create(value)` where `T : IScalarValue<T, P>`. Concrete-class call sites (e.g. `EmailAddress.Create("…")`) bind to `ScalarValueObject<TSelf, T>.Create(T)` instead — the static-virtual default does not participate in concrete-type lookup. |
+
+#### Factory Methods
+
+`TryCreate` and `Create`.
+
+---
+
+### `public interface IFormattableScalarValue<TSelf, TPrimitive> : IScalarValue<TSelf, TPrimitive> where TSelf : IFormattableScalarValue<TSelf, TPrimitive> where TPrimitive : IComparable`
+
+Extends `IScalarValue` for culture-aware string parsing.
+
+#### Properties
+
+Inherited only.
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `static abstract Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)` | Culture-aware parse-and-validate |
+
+#### Factory Methods
+
+`TryCreate(string?, IFormatProvider?, string?)`.
+
+---
+
+### `public abstract record Error`
+
+Closed discriminated union of domain error values. Each case is a nested `sealed record` carrying a typed payload. The base record has a `private` constructor — only the cases declared in `Error.cs` may inherit, which makes `switch` over an `Error` reference exhaustive at the language level.
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `Kind` | `string` | Stable domain slug (e.g. `"not-found"`, `"invalid-input"`). Survives CLR renames. Suitable for telemetry. Wire-format mapping for HTTP problem-details `type` is the boundary's responsibility — see `trellis-api-asp.md`. |
+| `Code` | `string` | The machine-readable reason a consumer sees — in an HTTP body, a span tag, a metric dimension, a log field. Storage on the base with an `init` accessor, so every case names a reason the same way: `new Error.NotFound(resource) { Code = "account.closed" }`. Defaults to the sentinel `error.unspecified`, **never to `Kind`**. Cases whose reason is required (`Conflict`, `InvariantViolation`, `Unexpected`, `Forbidden`) take it as a positional parameter instead, so the compiler refuses one that says nothing. There is deliberately no second raw-versus-wire code member: two of them is how an HTTP body and a span tag come to disagree about the same failure, which is a bug this framework has already shipped once. `ResponseFailureWriter` and `Trellis.Mediator.TracingBehavior` both read this one property. |
+| `Detail` | `string?` | Human-readable detail. Init-only (`Detail = "..."`). Boundary renderers prefer it when non-null; otherwise they compute a message from `Kind`/`Code` plus the typed payload. |
+| `Cause` | `Error?` | Structured cause chain. **Never holds a live `System.Exception`** — wrap context as a child `Error`. Cycles are detected at `init` and throw `InvalidOperationException`. |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public string GetDisplayMessage()` | Computes the rendered detail. Returns `Detail` when non-null; otherwise composes from `Kind`/`Code` and the typed payload. For an `InvalidInput` carrying a single `FieldViolation`, returns just that violation's `Detail`. |
+| `public override bool Equals(object? obj)` / `Equals(Error? other)` | Value equality over discriminator + typed payload + `Detail`. **`Cause` is excluded** so two errors with identical surface payload compare equal regardless of how deeply they were wrapped (mirrors `System.Exception` precedent). Collection-bearing payloads use `EquatableArray<T>` for sequence equality. |
+| `public override int GetHashCode()` | Hash matches `Equals`. |
+
+#### Construction and case-scoped factories
+
+Construct cases directly or use their **case-scoped static factories**. The base `Error` has no static `Error.Validation(...)` / `Error.NotFound(...)` helpers; every call site names the case it produces. <!-- v1-stale-ok: explanatory note about removed v1 factory helpers -->
+
+**One ordering rule: `code`, subject, metadata, `detail`.** Every factory parameter that carries a reason is named `code` and comes first. Constructors whose code is required also lead with `Code`. Use named `id:` when omitting the optional code on `NotFound` or `Gone`; do not invent a reason just to populate that argument.
+
+| Case(s) | Exact factory signature(s), returning the named case |
+| --- | --- |
+| `InvalidInput` | `ForField(string code, string? field, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
+| `InvalidInput` | `ForField(string code, InputPointer field, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
+| `InvalidInput` | `ForRule(string code, IReadOnlyList<InputPointer>? fields = null, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
+| `Conflict`, `InvariantViolation`, `Forbidden` | `For<TResource>(string code, object? id = null, string? detail = null)` and `For(string code, ResourceRef resource, string? detail = null)` |
+| `Conflict`, `InvariantViolation` | `ForReason(string code, string? detail = null)` |
+| `Forbidden` | `ForPolicy(string code, string? detail = null)` |
+| `NotFound`, `Gone` | `For<TResource>(string? code = null, object? id = null, string? detail = null)` |
+| `NotFound`, `Gone` | `For(string? code, ResourceRef resource, string? detail = null)` and `For(ResourceRef resource, string? detail = null)` |
+
+Required codes reject null (`ArgumentNullException`), empty, or whitespace (`ArgumentException`) at construction, including direct case constructors and `FieldViolation` / `RuleViolation`. Assignments to `Error.Code`, `FieldViolation.ReasonCode`, or `RuleViolation.ReasonCode`, including `with` expressions, enforce the same invariant. This is invalid API usage, not a domain validation failure. Nonblank application codes pass through unchanged; no vocabulary membership or trimming is imposed. `NotFound` and `Gone` factories keep optional-code normalization: omission, null, empty, or whitespace means `ValidationCodes.Unspecified`.
+
+`ForField` converts a string field with `InputPointer.ForProperty`; null/empty targets the root. The pointer overload preserves its path and input location. `ForRule` defensively copies related `fields` in order; null/empty means no associated fields. Both preserve `args` and violation `detail`; `ForRule` also sets the root `Detail`. The root `InvalidInput.Code` remains the unspecified sentinel because reasons belong to its violations. Validated violation construction records one metric; `with` copies do not recount, and invalid constructor codes are rejected before recording a metric.
+
+Resource factories use `ResourceRef.For<TResource>(id)` for type naming and invariant ID formatting. The explicit-reference forms accept `ResourceRef.For("Order", id)` instead of the removed string-resource overloads, and reject a default reference or blank `Type`. Null IDs remain valid collection-level references. `ForReason` / `ForPolicy` produce resourceless errors.
+
+```csharp
+Error.InvalidInput.ForField(ValidationCodes.StringEmail, "email", detail: "Invalid email.");
+Error.InvalidInput.ForRule("password.mismatch",
+    fields: [InputPointer.ForBody("/password"), InputPointer.ForBody("/confirmation")],
+    detail: "Password and confirmation differ.");
+Error.Conflict.For<Order>("order.already-shipped", id: orderId);
+Error.Forbidden.For("orders.write", ResourceRef.For("Order", orderId));
+Error.NotFound.For<Order>(id: orderId);
+Error.Gone.For<Order>("order.purged", id: orderId);
+```
+
+Factories remove resource/pointer construction ceremony. Cases without that ceremony keep direct constructors, for example `new Error.Unexpected("db.timeout")` or `new Error.AuthenticationRequired() { Code = "token.expired" }`. `Aggregate` remains the multi-error composition constructor. `Kind`, `Code`, `Detail`, violation property names, and wire payload shapes are unchanged. See [factory migration](https://github.com/xavierjohn/Trellis/blob/main/MIGRATION_v3.md#code-first-error-factories) before porting positional string arguments; old calls can compile with a different meaning.
+
+---
+
+### Concrete error cases
+
+Nested `sealed record` cases under `Error`. The base constructor is `private`, so the case set is closed even though each nested case is publicly instantiable with `new`.
+
+| Case | Constructor | Domain semantics |
+| --- | --- | --- |
+| `Error.InvalidInput` | `(EquatableArray<FieldViolation> Fields, EquatableArray<RuleViolation> Rules = default)` | Request input failed semantic validation. Use `ForField(...)` / `ForRule(...)` for the common single-violation shapes. Reasons belong to the individual violations, so the root `Code` stays `error.unspecified`. |
+| `Error.InvariantViolation` | `(string Code, ResourceRef? Resource = null)` | Domain rule failed outside field-bound request validation; use for cross-aggregate invariants or internal preconditions. Code-first `For` / `For<TResource>` and resourceless `ForReason`. |
+| `Error.NotFound` | `(ResourceRef Resource)` | The addressed resource does not exist. `For<TResource>(id: id)` needs no custom code. Supply a code only when a finer reason matters; blank optional factory codes normalize to `error.unspecified`. |
+| `Error.Forbidden` | `(string Code, ResourceRef? Resource = null)` | The caller is authenticated but not allowed by the named policy. `PolicyId` reads `Code`, so they cannot drift. Code-first `For` / `For<TResource>` and resourceless `ForPolicy`. |
+| `Error.Conflict` | `(string Code, ResourceRef? Resource = null)` | The request collides with current state (for example duplicate keys or concurrent modification). Code-first `For` / `For<TResource>` and resourceless `ForReason`. |
+| `Error.Gone` | `(ResourceRef Resource)` | The resource previously existed but has been permanently removed. `For<TResource>(id: id)` needs no custom code; supply one for a finer reason such as `"order.purged"`. Optional-code handling matches `NotFound`. |
+| `Error.AuthenticationRequired` | `(string? Scheme = null)` | Authentication is missing or could not be established. Set `{ Code = ... }` to distinguish causes that share the 401 surface — e.g. `"Authentication.InvalidCredentials"` vs `"Authentication.MissingCredentials"` vs `"Authentication.TokenExpired"` — so telemetry, dashboards, and client branching don't have to parse `Detail`. |
+| `Error.Unavailable` | `(RetryAdvice? Retry = null)` | A dependency or subsystem is temporarily unavailable; retry may succeed later. Set `{ Code = ... }` to identify the kind of unavailability. |
+| `Error.RateLimited` | `(RetryAdvice? Retry = null)` | The caller exceeded a quota or rate limit. Set `{ Code = ... }` to name *which* quota (e.g. `"quota.daily-transfers"`) — a caller subject to several limits cannot back off intelligently while every one of them reports the same thing. |
+| `Error.Unexpected` | `(string Code, string? FaultId = null)` | Unhandled internal failure or “shouldn't happen” condition. `FaultId`, when supplied, correlates to telemetry. |
+| `Error.Aggregate` | `(EquatableArray<Error> Errors)` <br> `(IEnumerable<Error> errors)` <br> `(params Error[] errors)` | Composition node that flattens nested aggregates and preserves every inner error. Reasons belong to the children, so the root `Code` stays `error.unspecified`. |
+| `Error.TransportFault` | `(ITransportFault Fault)` | Opaque envelope for lower-layer, transport-specific faults produced outside the domain model. `Code` is the wrapped fault's own code when it implements `ICodedTransportFault`, read once at construction. |
+
+#### Closed union — exhaustive matching
+
+The catalog is closed to these 12 cases: `InvalidInput`, `InvariantViolation`, `NotFound`, `Forbidden`, `Conflict`, `Gone`, `AuthenticationRequired`, `Unavailable`, `RateLimited`, `Unexpected`, `Aggregate`, and `TransportFault`. Pattern matching over `Error` stays explicit and exhaustive at the language level.
+
+#### Error.TransportFault envelope
+
+Domain code treats `ITransportFault` as opaque and does not inspect concrete transport payloads. Boundary layers such as `Trellis.Asp` unwrap `HttpError` to synthesize HTTP status codes, companion headers, and problem-details extensions. The built-in HTTP transport payload union lives in [Trellis.Http.Abstractions](trellis-api-http-abstractions.md#httperror).
+
+#### RetryAdvice
+
+`RetryAdvice` is a transport-neutral retry hint: `public readonly record struct RetryAdvice(TimeSpan? After = null, DateTimeOffset? At = null);`. `Error.RateLimited` and `Error.Unavailable` carry it so the boundary can emit `Retry-After` without teaching the domain about HTTP headers.
+
+HTTP-specific status codes, headers, and problem-details `type` tokens are not the domain's responsibility. See [trellis-api-asp.md](trellis-api-asp.md#trellisaspoptions) for the boundary mapping table.
+
+#### Retry classification (ErrorRetryExtensions)
+
+`ErrorRetryExtensions` (static class in the `Trellis` namespace) and the `RetryClassification` enum (`Transient = 0`, `Permanent = 1`, `FailFast = 2`) translate the closed `Error` catalog into the three decisions a worker, message-broker consumer, or outbound-gateway caller has to make on every failed item: retry, give up, or halt the batch.
+
+| Extension on `Error` | Returns | Purpose |
+| --- | --- | --- |
+| `RetryClassification Classify(this Error error)` | `RetryClassification` | Default mapping for every nested `Error` case. Throws `ArgumentNullException` on `null`. |
+| `bool IsTransient(this Error error)` | `bool` | Shorthand for `Classify(error) == RetryClassification.Transient`. |
+| `bool IsPermanent(this Error error)` | `bool` | Shorthand for `Classify(error) == RetryClassification.Permanent`. |
+| `bool IsFailFast(this Error error)` | `bool` | Shorthand for `Classify(error) == RetryClassification.FailFast`. |
+| `RetryAdvice? GetRetryAdvice(this Error error)` | `RetryAdvice?` | Returns advice carried by `Error.RateLimited` / `Error.Unavailable`. Returns `null` for every other case, including `Error.Aggregate` (intentional — see below). |
+
+**Default classification table.** Every non-aggregate nested case of `Error` is enumerated; the catalog is closed so the table is exhaustive at framework-publish time:
+
+| Error case | Classification |
+| --- | --- |
+| `Error.Unavailable`, `Error.RateLimited`, `Error.Unexpected` | `Transient` |
+| `Error.AuthenticationRequired` | `FailFast` |
+| `Error.Forbidden`, `Error.InvalidInput`, `Error.InvariantViolation`, `Error.NotFound`, `Error.Gone`, `Error.Conflict`, `Error.TransportFault` | `Permanent` |
+
+`Error.Aggregate` is classified by max-severity over its inner errors (the constructor flattens nested aggregates, so the inners are never themselves `Aggregate`): `FailFast` if any inner classifies as `FailFast`; otherwise `Permanent` if any inner classifies as `Permanent`; otherwise `Transient`. The rule answers "should I retry the operation that produced this aggregate **as an indivisible unit?**" — a mixed `Aggregate(Permanent, Transient)` is `Permanent` because retrying the unit will not change the permanent inner's outcome. Callers that want per-inner retry granularity must iterate over `agg.Errors` themselves.
+
+**`GetRetryAdvice` for `Error.Aggregate` always returns `null`.** Two reasons: (1) returning the first transient inner's advice would contradict `Classify` whenever the aggregate is `Permanent` or `FailFast`, and (2) under-waiting is order-dependent (a `RateLimited(1s)` followed by a `RateLimited(60s)` would suggest 1 s). Callers that want a merged hint must define their own policy over the inner errors.
+
+**Conflict and eventually-consistent reads.** `Error.Conflict` defaults to `Permanent` because a generic outer retry loop cannot perform the conflict-specific work (rowversion reload, natural-key regeneration) that 409-shaped failures usually require. Domains with a meaningful conflict retry strategy should override locally — branch on the concrete shape first and only call `Classify()` in the fallback arm — or use a dedicated primitive such as `DbContext.SaveChangesWithRetryAsync` (see [trellis-api-efcore.md](trellis-api-efcore.md#dbcontextretryextensions)). `Error.NotFound` and `Error.Gone` default to `Permanent`; services whose reads are eventually consistent should override the mapping locally rather than expect the framework default to infer their consistency model.
+
+**Why `Error.Unexpected` is `Transient`.** `Error.Unexpected` wraps unhandled exceptions and "this should not have happened" conditions. A retry can hide a deterministic bug or recover a momentary failure; the default favours availability. Producers should reserve `Error.Unexpected` for unknown internal faults and surface deterministic failures as `Error.InvariantViolation`, `Error.InvalidInput`, or `Error.Conflict` instead. Consumers must still cap retries.
+
+**Why `Error.TransportFault` is `Permanent`.** `ITransportFault` is opaque from `Trellis.Core`'s perspective; concrete payloads (such as `HttpError` in `Trellis.Http.Abstractions`) are defined by transport-specific packages. The retryable transient outcomes those transports produce (HTTP 429, HTTP 503, gRPC `UNAVAILABLE`) are mapped at the boundary to `Error.RateLimited` and `Error.Unavailable` — which carry `RetryAdvice` — and never reach `Error.TransportFault`. Every `HttpError` case shipped today (405, 406, 412, 413, 415, 416, 428) is a caller-side error that will not succeed by waiting and retrying. Transport packages that surface their own retryable transient faults via `Error.TransportFault` should provide a transport-aware classification extension that overrides this default for the specific faults that are genuinely retryable.
+
+#### Supporting types
+
+HTTP-specific supporting types (`AuthChallenge`, `EntityTagValue`, `RetryAfterValue`, `PreconditionKind`, `RepresentationMetadata`, `WriteOutcome<T>`, and `AggregateETagExtensions`) now live in [Trellis.Http.Abstractions](trellis-api-http-abstractions.md#use-this-file-when).
+
+| Type | Shape | Purpose |
+| --- | --- | --- |
+| `ResourceRef` | `readonly record struct (string Type, string? Id = null)` plus `ResourceRef.For(string type, object? id = null)` and `ResourceRef.For<TResource>(object? id = null)` | Aggregate identity. The `For(...)` helpers convert IDs with invariant formatting when possible. `For<TResource>` peels `Maybe<T>` wrappers and strips generic arity. `ResourceRef.FormatTypeName(Type)` exposes just the arity-stripping step — `typeof(List<int>)` → `"List"` — **without** the `Maybe<T>` peeling, which stays scoped to `For<TResource>` because that method owns the resource-naming contract. Use it when a component needs a type-derived identifier on the wire (AOT-generated converter fallback messages, for example). Throws `ArgumentNullException` for a null type. |
+| `InputPointer` | `readonly record struct` with `InputPointer(string Path)` and `InputPointer(string Path, InputLocation In)` | RFC 6901 JSON Pointer (for example `/email`) plus the part of the input it addresses. Construct simple property names via `InputPointer.ForProperty("email")`, or use `InputPointer.Root` for the document root. See [`InputPointer` locations](#inputpointer-locations) for the location-stamping factories. |
+| `InputLocation` | `enum { Unspecified = 0, Body, Query, Path, Header }` | Which part of the input an offending value came from — the `in` discriminator of a violation's wire location. `Unspecified` projects as `"unknown"`. |
+| `FieldViolation` | `sealed record (InputPointer Field, string ReasonCode, ImmutableDictionary<string,ValidationArgValue>? Args = null, string? Detail = null)` | Single per-field violation inside `InvalidInput.Fields`. `Equals` / `GetHashCode` compare `Args` by content. |
+| `RuleViolation` | `sealed record (string ReasonCode, EquatableArray<InputPointer> Fields = default, ImmutableDictionary<string,ValidationArgValue>? Args = null, string? Detail = null)` | Multi-field invariant or object-level rule inside `InvalidInput.Rules`. `Equals` / `GetHashCode` compare `Args` by content. |
+| `ITransportFault` | marker interface | Transport-specific payload contract used by `Error.TransportFault`. HTTP-aware code uses `HttpError` from `Trellis.Http.Abstractions`; other transports can define their own implementations. |
+| `ICodedTransportFault` | `ITransportFault` plus `string Kind { get; }` and `string Code { get; }` | Opt-in sub-interface for a fault that names its own failure. See [Coded transport faults](#icodedtransportfault--a-fault-that-names-itself) below. |
+| `RetryAdvice` | `readonly record struct (TimeSpan? After = null, DateTimeOffset? At = null)` | Transport-neutral retry hint carried by `Error.RateLimited` and `Error.Unavailable`. Boundary layers translate it to headers such as `Retry-After`. |
+| `EquatableArray<T>` | `readonly struct (ImmutableArray<T> Items)` | Wraps `ImmutableArray<T>` so records get sequence equality instead of reference equality. |
+
+#### `ICodedTransportFault` — a fault that names itself
+
+`ITransportFault` is a marker: `Trellis.Core` knows nothing about HTTP, gRPC, or a message bus, so it cannot ask an arbitrary payload what went wrong. That leaves `Error.TransportFault` with no code of its own, and its `Code` is the sentinel — which is correct for a payload Core genuinely cannot read.
+
+`ICodedTransportFault` is how a transport package opts out of that fallback:
+
+```csharp
+public interface ICodedTransportFault : ITransportFault
+{
+    string Kind { get; }
+    string Code { get; }
+}
+```
+
+When `Error.TransportFault` wraps one, the error's `Code` is the fault's `Code`, **passed through verbatim**. A transport fault's code is the transport's word, not a Trellis reason code. `HttpError.PreconditionFailed(..., PreconditionKind.IfMatch)` codes as `IfMatch` — an HTTP precondition name — and rewriting it into `error.*` shape would misrepresent a value the caller has to match against the HTTP spec, not against this vocabulary.
+
+`HttpError` in `Trellis.Http.Abstractions` implements this interface; its existing `Kind` and `Code` members satisfy it unchanged. Faults that stay bare `ITransportFault` implementations keep the sentinel behavior and continue to compile.
+
+---
+
+### `ValidationCodes` — the reason-code vocabulary
+
+`ValidationCodes` (namespace `Trellis`) is the closed set of reason codes the framework itself emits on `FieldViolation.ReasonCode` and `RuleViolation.ReasonCode`. `FaultCodes` carries framework-owned codes for non-validation outcomes across the applicable `Error` cases.
+
+**These values are frozen.** They are wire contract: a client branches on them, and renaming one silently breaks that client at runtime with no compile error anywhere. Codes may be *added*; an existing code's spelling and meaning may not change.
+
+Two conventions make the set predictable:
+
+- **Punctuation is uniform** — lower-case, dot-separated namespaces, `kebab-case` within a segment. Never `snake_case`.
+
+  A segment is one concept, hyphenated internally; it is never subdivided across dots. A dot introduces a
+  new *namespace* level, so splitting a single idea across dots claims a hierarchy that does not exist and
+  defeats the prefix fallback below — a client matching on `state.*` would be told the failure category is
+  "state".
+
+  | Wrong | Right | Why |
+  | --- | --- | --- |
+  | `state.machine.invalid.transition` | `state-machine.invalid-transition` | Two concepts, two segments — not four levels. |
+  | `account.not.active` | `account.not-active` | "not active" is one idea. |
+  | `value.not_null` | `value.not-null` | `snake_case` is never used. |
+
+  Depth itself is not the rule — a genuinely nested namespace may go deeper, as
+  `resource.authorization-via.load-failed` does, where `resource` → `authorization-via` → `load-failed` are
+  three real levels rather than one idea chopped up. The frozen constants below happen to need at most two
+  segments: some `FaultCodes` are single-segment because they name a fault with no namespace, the rest —
+  and every `ValidationCodes` entry — are `namespace.name`. `ValidationCodesTests` enforces that bound on
+  the frozen set.
+- **The namespace tells you what failed**, so a client can fall back on the prefix when it does not recognise the full code:
+
+| Namespace | Means | Example |
+| --- | --- | --- |
+| `format.*` | A CLR scalar could not be constructed from the input at all. Includes out-of-range-for-type — `"99999999999"` into an `int` is `format.integer`, because `int.TryParse` cannot distinguish it from `"abc"`. | `format.integer`, `format.guid`, `format.date-time`, `format.conversion` |
+| `string.*` | A string arrived intact but did not match a required shape. All ISO code sets live here. | `string.email`, `string.pattern`, `string.max-length`, `string.country-code` |
+| `number.*` | Validation of an **already-parsed** number. `number.overflow` is arithmetic only. | `number.precision`, `number.overflow` |
+| `value.*` | Type-agnostic presence or comparison. | `value.not-null`, `value.not-empty`, `value.not-default`, `value.greater-than`, `value.between-inclusive` |
+| `fields.*` | The subject is *a set of fields* rather than one. | `fields.mutually-exclusive`, `fields.exactly-one`, `fields.at-least-one` |
+| `enum.*`, `money.*`, `http.*`, `etag.*`, `cursor.*`, `page-size.*`, `attribute.*` | Domain-specific. | `enum.name-undefined`, `money.currency-mismatch`, `http.bad-request` |
+
+#### The complete set
+
+Emit these by constant, not by literal — a typo in a literal is a silent wire break, while a typo in a constant name does not compile.
+
+| Constant | Wire value | Emitted when |
+| --- | --- | --- |
+| `Unspecified` | `error.unspecified` | The producer has no code to report. |
+| `LegacyUnspecified` | `validation.error` | Pre-vocabulary placeholder; flagged by `ReasonCodeVocabularyAnalyzer` at the producer. **Do not emit.** |
+| `FormatInteger` | `format.integer` | Not parseable as `int`/`long`/`short`/`byte`, including out of range for the type. |
+| `FormatNumber` | `format.number` | Not parseable as `double`/`float`. |
+| `FormatDecimal` | `format.decimal` | Not parseable as `decimal`. |
+| `FormatBoolean` | `format.boolean` | Not parseable as `bool`. |
+| `FormatGuid` | `format.guid` | Not parseable as `Guid`. |
+| `FormatDateTime` | `format.date-time` | Not parseable as `DateTime`/`DateTimeOffset`. |
+| `FormatDate` | `format.date` | Not parseable as `DateOnly`. |
+| `FormatTime` | `format.time` | Not parseable as `TimeOnly`. |
+| `FormatDuration` | `format.duration` | Not parseable as `TimeSpan`. |
+| `FormatConversion` | `format.conversion` | Conversion to the target type failed with no more specific code — including a JSON token of the wrong kind. |
+| `StringLength` | `string.length` | Length outside an allowed range. |
+| `StringMinLength` | `string.min-length` | Shorter than the minimum. Args: `minLength`, `totalLength`. |
+| `StringMaxLength` | `string.max-length` | Longer than the maximum. Args: `maxLength`, `totalLength`. Generated primitives and the FluentValidation adapter agree on both, so a client renders the same message whichever producer noticed. |
+| `StringExactLength` | `string.exact-length` | Not the required exact length. |
+| `StringPattern` | `string.pattern` | Did not match a required regular expression. |
+| `StringEmail` | `string.email` | Not a valid email address. |
+| `StringUrl` | `string.url` | Not a valid absolute HTTP/HTTPS URL. |
+| `StringHostname` | `string.hostname` | Not RFC 1123 compliant. |
+| `StringIpAddress` | `string.ip-address` | Not a valid IPv4 or IPv6 address. |
+| `StringSlug` | `string.slug` | Not a valid slug. |
+| `StringPhoneE164` | `string.phone-e164` | Not E.164 format. |
+| `StringCountryCode` | `string.country-code` | Not an ISO 3166-1 alpha-2 code. |
+| `StringLanguageCode` | `string.language-code` | Not an ISO 639-1 alpha-2 code. |
+| `StringCurrencyCode` | `string.currency-code` | Not an ISO 4217 code. |
+| `StringCreditCard` | `string.credit-card` | Failed credit-card validation. |
+| `StringTimeZoneIana` | `string.time-zone-iana` | Not an IANA time-zone identifier resolvable on the current system. Windows-only identifiers are rejected. |
+| `NumberFinite` | `number.finite` | An already-parsed floating-point value is NaN or infinity where a finite number is required. No args; the non-finite input is not echoed into JSON. |
+| `NumberPrecision` | `number.precision` | A parsed decimal exceeded the allowed scale or precision. |
+| `NumberOverflow` | `number.overflow` | **Arithmetic** overflow, such as `Money.Add`. Malformed input is a `format.*` code. |
+| `ValueNotNull` | `value.not-null` | Required and absent (or explicitly `null`). |
+| `ValueNotEmpty` | `value.not-empty` | Present but empty or whitespace. |
+| `ValueNotDefault` | `value.not-default` | Left at the type default — `Guid.Empty`, `0`, `default(DateTime)`. |
+| `ValueMustBeNull` | `value.must-be-null` | Supplied where it must be absent. |
+| `ValueMustBeEmpty` | `value.must-be-empty` | Non-empty where it must be empty. |
+| `ValueMustEqual` | `value.must-equal` | Did not equal a required value. |
+| `ValueMustNotEqual` | `value.must-not-equal` | Equalled a forbidden value. |
+| `ValueLessThan` | `value.less-than` | Not less than the bound. Args: `comparisonValue`. |
+| `ValueLessThanOrEqual` | `value.less-than-or-equal` | Above the maximum. Args: `comparisonValue`. |
+| `ValueGreaterThan` | `value.greater-than` | Not greater than the bound. Args: `comparisonValue`. |
+| `ValueGreaterThanOrEqual` | `value.greater-than-or-equal` | Below the minimum. Args: `comparisonValue`. |
+| `ValueBetweenInclusive` | `value.between-inclusive` | Outside an inclusive range. Args: `from`, `to`. |
+| `ValueBetweenExclusive` | `value.between-exclusive` | Outside an exclusive range. Args: `from`, `to`. |
+| `FieldsRequiredWith` | `fields.required-with` | Required because a companion field was supplied. |
+| `FieldsAllOrNone` | `fields.all-or-none` | Some but not all of a group were supplied. |
+| `FieldsMutuallyExclusive` | `fields.mutually-exclusive` | More than one of a mutually exclusive group was supplied. |
+| `FieldsExactlyOne` | `fields.exactly-one` | Exactly one of a group was required. |
+| `FieldsOnlyOne` | `fields.only-one` | At most one of a group was allowed. |
+| `FieldsAtLeastOne` | `fields.at-least-one` | None of a group was supplied. |
+| `EnumNameUndefined` | `enum.name-undefined` | The supplied name is not a member of the enum. Args: `allowed`, the permitted member names as a JSON array of strings, ordinally sorted. |
+| `EnumUndefined` | `enum.undefined` | A numeric value parsed but is not a defined member. Args: `allowed`, the same list the name failure carries — the remedy is identical, so a client is told its options whichever form it sent. |
+| `MoneyCurrencyMismatch` | `money.currency-mismatch` | An operation combined two different currencies. Args: `expected`, `actual`. |
+| `MoneyNegativeResult` | `money.negative-result` | The operation would produce a negative amount. |
+| `SchedulePeriodsOverlap` | `schedule.periods-overlap` | Weekly periods overlap, including across the week boundary; touching endpoints are allowed. |
+| `PageSizeOutOfRange` | `page-size.out-of-range` | Page size not positive, or above the maximum. |
+| `HttpBadRequest` | `http.bad-request` | An upstream HTTP response was 400. |
+| `HttpUnprocessableContent` | `http.unprocessable-content` | An upstream HTTP response was 422. |
+| `HttpForbidden` | `http.forbidden` | An upstream HTTP response was 403. |
+| `HttpConflict` | `http.conflict` | An upstream HTTP response was 409. |
+| `EtagMalformed` | `etag.malformed` | An ETag header value could not be parsed. |
+| `CursorMalformed` | `cursor.malformed` | A pagination cursor could not be decoded. |
+| `AttributeInvalid` | `attribute.invalid` | An actor attribute was missing or not valid. |
+
+`ValidationCodes.FormatCodeFor(Type)` returns the `format.*` code for "this input could not be read as that type", unwrapping a nullable value type first and falling back to `format.conversion`. Every producer that turns a parse failure into a code routes through it — the query/route binder, the scalar JSON converters, and the composite JSON converter — so the mapping exists once rather than once per producer, and a new producer cannot quietly invent a different answer for a failure the framework already names.
+
+`FaultCodes` carries the non-validation reason codes — these describe a failure of the *system* or of the request's fate rather than of the input, so they live apart from the validation vocabulary:
+
+| Constant | Wire value | Emitted when |
+| --- | --- | --- |
+| `RateLimitExceeded` | `rate-limit.exceeded` | ASP.NET Core rate-limiting middleware rejected the request before endpoint execution. Carried by `Error.RateLimited`; emitted by `Trellis.Asp`'s `UseTrellisRejectionHandler`. |
+| `DefaultInitialized` | `default-initialized` | A `Result` was default-initialized and never assigned. |
+| `UnhandledException` | `unhandled-exception` | An exception escaped to a boundary that converts it into a failed `Result`. |
+| `NotImplemented` | `not-implemented` | A boundary reached a path the framework does not implement. Carried by `Error.Unexpected`; surfaces as HTTP 501. |
+| `ConcurrentModification` | `concurrent-modification` | A write lost a race — the row changed between read and save. Carried by `Error.Conflict`; surfaces as 412 when the request carried `If-Match`, otherwise 409. |
+| `StateMachineInvalidTransition` | `state-machine.invalid-transition` | A trigger was rejected because the aggregate's current state forbids it. Carried by `Error.InvariantViolation`; surfaces as 422. Emitted by `Trellis.StateMachine`'s `FireResult`. |
+| `HttpResponseNotSuccess` | `http.response-not-success` | A response carried a non-success status on a path that needed its body. Carried by `Error.Unexpected`; emitted by `Trellis.Http`'s `ReadJsonAsync` / `ReadJsonMaybeAsync`. |
+| `HttpResponseNoBody` | `http.response-no-body` | A response that had to carry a body did not — `204`/`205`, or a zero-length payload. Carried by `Error.Unexpected`; emitted by `Trellis.Http`. |
+| `HttpResponseInvalidBody` | `http.response-invalid-body` | A response body could not be deserialized, or deserialized to `null`. Carried by `Error.Unexpected`; emitted by `Trellis.Http`. `Detail` reports JSON line/byte position only, never body content. |
+| `HttpResponseFault` | `http.response-fault` | A response status has no more specific mapping in the status-to-error table. Carried by `Error.Unexpected`; emitted by `Trellis.Http`'s `ToResultAsync`. |
+| `ResponseLocationUnresolved` | `response.location-unresolved` | A response was configured to emit a `Location` header but the URI could not be resolved. Carried by `Error.Unexpected`; emitted by `Trellis.Asp`. |
+
+`RateLimitExceeded`, the `http.response-*` family, and `ResponseLocationUnresolved` are *not* dispatch keys —
+nothing branches on them to pick a status code. They are constants for the other reason a code exists: they
+are what a caller groups on. The HTTP-response and location failures previously passed
+`Guid.NewGuid().ToString("N")` as the `Code` positional argument
+of the `Error.Unexpected` constructor — `Unexpected(string Code, string? FaultId = null)` — which gave
+every single incident its own `code`
+on the wire — an unbounded cardinality that no dashboard can aggregate — while leaving `FaultId`, the field
+that exists for exactly that per-incident value, null. The identifier now goes to `FaultId` and the code
+stays stable. `RateLimitExceeded` instead gives the ASP rate-limiter adapter an explicit code where a bare
+`Error.RateLimited` would otherwise emit `error.unspecified`.
+
+`NotImplemented` and `ConcurrentModification` are *control* values: the framework matches on them to select
+HTTP behaviour, so they are dispatch keys as well as presentation. That is exactly why they belong here as
+constants — while they were bare literals scattered across `Trellis.Http`, `Trellis.Asp` and
+`Trellis.EntityFrameworkCore`, the shape tests in `ValidationCodesTests` could not see them, which is how
+`not_implemented` and `concurrent_modification` kept a `snake_case` spelling the convention forbids.
+
+Three distinctions are easy to get wrong and are worth stating outright:
+
+- **`value.not-null` vs `value.not-empty`** — absent versus present-but-blank. Producers keep these apart so a client can tell "you omitted this" from "you sent it blank" without parsing prose.
+- **`value.not-empty` vs `value.not-default`** — an empty string is empty; `Guid.Empty` and `0` are *default*, not empty.
+- **`enum.name-undefined` vs `enum.undefined`** — the name was not a member at all, versus a numeric value that parsed into an undefined member. A "did you mean?" affordance needs the first.
+
+`ValidationCodes.Unspecified` (`error.unspecified`) is the neutral sentinel, emitted when a producer genuinely has no code to report — a `Must(...)` predicate, or a message-only API. `ValidationCodes.LegacyUnspecified` (`validation.error`) is the pre-vocabulary placeholder, retained so the string is documented and not reused; do not emit it. `ReasonCodeVocabularyAnalyzer` flags it at the producer, which is where it is worth catching — no boundary rewrites it, because a code Trellis did not choose reaches a consumer exactly as its producer spelled it.
+
+**Producer independence.** The same failure reports the same code regardless of which part of the framework noticed it. A malformed integer is `format.integer` whether it arrived through query-string binding, a JSON body, or a generated `TryCreate`. This is what makes a single client branch sufficient, and it is enforced by `ProducerIndependenceTests`.
+
+#### `ValidationArgs` and `ValidationArgValue`
+
+`ValidationArgs.Of(...)` builds the `Args` dictionary carried by a violation — the machine-readable operands of the rule, such as the `50` in "must be at most 50" or the `0`/`255` bounds on a byte.
+
+```csharp
+Error.InvalidInput.ForField(field: "age", code: ValidationCodes.ValueBetweenInclusive,
+    args: ValidationArgs.Of("from", 0, "to", 150), detail: "Age is unrealistically high.");
+```
+
+Values are `ValidationArgValue`, a **closed union** with four cases. Because it is closed, a client can switch over it exhaustively, and the JSON shape of an arg follows from its case rather than from whatever a producer happened to pass:
+
+| Case | Declaration | JSON |
+|---|---|---|
+| `ValidationArgValue.Text` | `sealed record Text(string Value)` | `"red"` |
+| `ValidationArgValue.Number` | `sealed record Number(decimal Value)` | `50` |
+| `ValidationArgValue.Bool` | `sealed record Bool(bool Value)` | `true` |
+| `ValidationArgValue.List` | `sealed record List(EquatableArray<ValidationArgValue> Items)` | `["red","green"]` |
+
+The cases are JSON's self-describing values: its three scalars, plus a list of them. JSON's other two constructs are deliberately absent. `null` would give the dictionary two spellings of the same thing, because an arg with no value is an arg that is simply not there — omit the key. An object would mean a client needs a schema per reason code to know what it is looking at, which gives up the property that makes the union worth having (the shape follows from the case) and turns args into an open-ended payload, which is a poor thing to echo back to a caller. Both are rejected with `JsonException` on read.
+
+> [!IMPORTANT]
+> A numeric operand reaches the wire as a **JSON number**, not a quoted string: `{"maxLength": 50}`, not `{"maxLength": "50"}`. A client comparing a bound against a length no longer has to parse it back out and guess at the format.
+
+`Number` holds a `decimal` — one case rather than one per CLR numeric type, because JSON has a single number type and a client could not observe the distinction. It is written invariantly, so a German server and an American one emit the same bytes.
+
+> [!NOTE]
+> **`Bool` exists to model the format, not to encourage boolean args.** A boolean is rarely interpolated into a rendered message — you cannot put `true` into a localized sentence — and a flag that selects *which* message to render usually belongs in the reason code, which is the branch point a client is meant to switch on. But without the case, a producer with a boolean operand would write `Text("true")`, reintroducing the quoted-primitive problem the union removes, and a boolean sent by a non-.NET producer would fail the entire error payload rather than one arg.
+
+Build values implicitly. `string`, `int`, `long`, `decimal`, and `bool` all convert on their own, so ordinary calls need no ceremony; use `ValidationArgValue.ListOf(...)` (or `ListFrom(...)` for a sequence) for the list case:
+
+```csharp
+ValidationArgs.Of("maxLength", 50);                         // {"maxLength": 50}
+ValidationArgs.Of("expected", "USD", "actual", "EUR");      // both text
+ValidationArgs.Of("allowed", ValidationArgValue.ListOf("red", "green"));
+```
+
+For three or more operands — a scale-and-precision failure carries four — use the `params` overload, which takes name/value pairs:
+
+```csharp
+ValidationArgs.Of(
+    ("expectedPrecision", 3),
+    ("expectedScale", 1),
+    ("actualScale", 4),
+    ("digits", 5));
+```
+
+> [!NOTE]
+> There is deliberately **no `IFormattable` overload**. Adding one would make `ValidationArgs.Of("max", 255)` *ambiguous* — an `int` converts to `IFormattable` by boxing and to `ValidationArgValue` by a user-defined conversion, and neither target is better than the other, so the call fails with `CS0121`. Its absence is what lets the implicit conversions bind. Format a value with no numeric or textual meaning of its own, such as a timestamp, explicitly and invariantly at the call site.
+
+##### `ValidationArgs.Allowed(...)` — the permitted-members entry
+
+`ValidationArgs.Allowed(names)` builds the `allowed` entry naming the members a symbolic value may take, and is what every producer that rejects a value for not being one of a fixed set calls:
+
+```csharp
+ValidationArgs.Allowed(Enum.GetNames(typeof(Colour)));   // {"allowed": ["Green", "Red"]}
+```
+
+It exists as a helper rather than as a convention because the producers derive their members from unrelated places — `Enum.GetNames` for query binding and the body converter, a registry of declared statics for `RequiredEnum` — and nothing else would force those to agree on either the entry's name or its order. The names are sorted **ordinally**, which makes the order total and culture-independent; sorting by the current culture would let the same enum serialize differently on two machines. A client may therefore compare or cache the list across producers.
+
+Passing no names yields an empty array rather than omitting the entry: "nothing is permitted" is a real answer, where a missing entry reads as "this violation forgot to say".
+
+**A list longer than `ValidationArgs.MaxAllowedMembers` (64) is dropped whole and replaced by `allowedCount`.**
+
+```csharp
+ValidationArgs.Allowed(isoCountryNames);   // {"allowedCount": 248}
+```
+
+The bound exists because a list a client cannot act on is not worth what it costs to send. The 248 ISO country names serialize to roughly 3 KB attached to *every* rejection, and a request carrying several invalid enum fields multiplies that — a small request provoking a large response is an amplification vector, not merely waste. Past a few dozen options a client is not rendering "choose one of…" from an error payload anyway; it wants a schema or an enumeration endpoint.
+
+The list is dropped rather than **truncated** because a client cannot distinguish a shortened list from a complete one. A truncated `allowed` is a false statement: it tells a client that a member it omitted is not permitted, so a client rendering a chooser shows a wrong set and a client validating against it rejects valid input. Omission is a case every client already handles, because a blank value carries no list either — `allowedCount` is what separates "too many to send" from "not applicable here".
+
+The bound counts members rather than serialized bytes because member names are identifiers in every producer — CLR enum names, or the static field names behind a `RequiredEnum` — so their length is already bounded in practice, and a count is something a client can be told and can predict.
+
+The same bound governs the human-readable `Detail`. `RequiredEnum.TryCreate` and `RequiredEnumJsonConverter` spell their members into prose (`"'x' is not a valid Colour. Valid values: Green, Red"`), which for 248 countries is another 2.8 KB — more than the arg it accompanies. Above the bound that clause is dropped too, leaving `"'x' is not a valid Country."`, which is the sentence the body converter already emits.
+
+`ValidationArgValueJsonConverter` is applied to the union by attribute, so serialization needs no registration. It is public because the `System.Text.Json` source generator cannot resolve an internal converter: a trimmed or AOT-published application whose `JsonSerializerContext` roots a violation payload fails at compile time with `SYSLIB1220` otherwise.
+
+> [!IMPORTANT]
+> **Reading a number a `decimal` cannot hold exactly throws `JsonException`.** `Utf8JsonReader.GetDecimal()` rounds silently — `1E-100` arrives as `0`, and `0.00000000000000000000000000009` arrives as `0.0000000000000000000000000001` — and an arg is an operand a client renders a bound from, so a rounded value states a limit the producer never wrote. The converter refuses such tokens instead. Exactness is judged on significant digits rather than on text, so the ordinary spellings a non-.NET producer may emit (`1e2`, `1.50`, `-0`) are all accepted and compare equal to their plain forms.
+
+**Never put the rejected value itself in `Args`** — it would be reflected back in the error response and into anything that logs it.
+
+`Error.InvalidInput.ForField` and `ForRule` each have an overload taking `args` directly.
+
+---
+
+### `InputPointer` locations
+
+A pointer carries *where* a value came from as well as *which* value it was. The location is what lets the boundary decide whether the accompanying path is resolvable as a document location or is merely a parameter name.
+
+| Member | Returns | Purpose |
+| --- | --- | --- |
+| `public InputPointer(string Path)` | — | A pointer with `In = InputLocation.Unspecified`. Throws `ArgumentException` when `Path` is neither empty nor `/`-rooted, or when it contains an escape other than `~0` / `~1`. |
+| `public InputPointer(string Path, InputLocation In)` | — | As above, stamping an explicit location. |
+| `public InputLocation In { get; init; }` | `InputLocation` | Which part of the input the value came from. |
+| `public static InputPointer ForProperty(string propertyName)` | `InputPointer` | Escapes a simple name (`~`→`~0`, `/`→`~1`) and prepends `/`; passes an already-`/`-rooted pointer through unchanged. Leaves `In` unspecified. |
+| `public static InputPointer ForBody(string jsonPointer)` | `InputPointer` | `ForProperty` semantics, stamped `InputLocation.Body` — so `ForBody("/items/0/quantity")` addresses a nested value rather than a field literally named that. Empty input yields the root path stamped `Body`, which is deliberately not `Root`: a whole-body violation is idiomatically the root pointer, and stamping it is what makes it project as `body` rather than `unknown`. |
+| `public static InputPointer ForQuery(string name)` | `InputPointer` | A query-string parameter, addressed by name. |
+| `public static InputPointer ForPath(string name)` | `InputPointer` | A route parameter, addressed by name. |
+| `public static InputPointer ForHeader(string name)` | `InputPointer` | A request header, addressed by name. |
+| `public InputPointer AppendProperty(string propertyName)` | `InputPointer` | Appends one literal property-name segment, escaping `~` and `/` even at the start of the name. Empty means an empty-name property, not root; null throws `ArgumentNullException`. Preserves `In`. |
+| `public InputPointer AppendIndex(int index)` | `InputPointer` | Appends a zero-based index with invariant decimal formatting. Negative indexes throw `ArgumentOutOfRangeException`. Preserves `In`. |
+| `public void Deconstruct(out string Path)` | `void` | Path only — preserves the single-element deconstruction the original positional record offered. |
+| `public void Deconstruct(out string Path, out InputLocation In)` | `void` | Path and location. |
+
+The three name factories store the name as **one** escaped token, so a parameter named `a/b` becomes `/a~1b` — one parameter, not two segments. Unlike `ForProperty` and `ForBody` they escape a leading `/` rather than treating it as an already-formed pointer, because a parameter named `/id` is a name and a name factory must never reinterpret it as a location. They reject an empty name rather than collapsing to root, since the root pointer is meaningful for a body and meaningless for a named parameter.
+
+`Equals` and `GetHashCode` compare `Path` **and** `In`. Path alone would make two pointers that project to different wire locations compare equal, and de-duplication would then collapse distinct failures into one.
+
+Build nested paths without string concatenation:
+
+```csharp
+var field = InputPointer.ForBody("/openingHours")
+    .AppendProperty("periods").AppendIndex(1).AppendProperty("open");
+// Path: /openingHours/periods/1/open; In: Body
+```
+
+`AppendProperty` takes a **literal name**, not a pre-escaped pointer: appending `"/name"`
+produces the segment `~1name`, and appending `"~1"` produces `~01`. Existing parent
+segments are not re-escaped. Appending to `Root` or a default pointer works identically.
+
+---
+
+### Moved HTTP transport types
+
+`AuthChallenge`, `EntityTagValue`, `RetryAfterValue`, `PreconditionKind`, `RepresentationMetadata`, `WriteOutcome<T>`, and `AggregateETagExtensions` are no longer part of `Trellis.Core`.
+Use [Trellis.Http.Abstractions](trellis-api-http-abstractions.md#use-this-file-when) when you need header-aware HTTP payloads, conditional-request helpers, representation metadata, or HTTP-shaped write outcomes.
+
+The base record's constructor is `private`; new cases cannot be added by consumers.
+
+---
+### `public sealed class RailwayTrackAttribute : Attribute`
+
+Annotates result helpers with whether they operate on the success or failure railway.
+
+#### Properties
+
+| Name | Type |
+| --- | --- |
+| `Track` | `TrackBehavior` |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public RailwayTrackAttribute(TrackBehavior track)` | Constructor |
+
+#### Factory Methods
+
+None.
+
+---
+
+### `public enum TrackBehavior`
+
+Values: `Success`, `Failure`.
+
+---
+
+### `public static class ResultDebugSettings`
+
+Global debug switch for result tracing.
+
+#### Properties
+
+| Name | Type |
+| --- | --- |
+| `EnableDebugTracing` | `bool` |
+
+#### Methods
+
+None.
+
+#### Factory Methods
+
+None.
+
+---
+
+### `public static class ResultsTraceProviderBuilderExtensions`
+
+OpenTelemetry helper for Trellis result instrumentation. Lives in `Trellis.Core\src\ResultsTraceProviderBuilderExtensions.cs` and takes a hard dependency on the `OpenTelemetry.Trace` package — `Trellis.Core` references the OpenTelemetry SDK so consumers do not need a separate package reference to opt in.
+
+#### Fields
+
+| Signature | Notes |
+| --- | --- |
+| `public const string ActivitySourceName` | The name of the ROP `ActivitySource`: `"Trellis.Results"`. `AddTrellisResultsInstrumentation` is the recommended way to subscribe; use `ResultsTraceProviderBuilderExtensions.ActivitySourceName` when composing a source list by hand, filtering in a processor, or configuring a backend from code, so the name is never duplicated as a literal. |
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static TracerProviderBuilder AddTrellisResultsInstrumentation(this TracerProviderBuilder builder)` | Registers the Trellis ROP `ActivitySource` (named `"Trellis.Results"`, exposed as `ResultsTraceProviderBuilderExtensions.ActivitySourceName`) with the supplied OpenTelemetry tracer-provider builder. Returns the same builder for chaining. |
+
+#### Performance characteristics
+
+The per-operation tracing is essentially free when no listener is registered. `AddTrellisResultsInstrumentation` is the Trellis-provided helper for registering the `"Trellis.Results"` source with OpenTelemetry; consumers may also call `AddSource("Trellis.Results")` directly or attach an `ActivityListener`. Measured on .NET 10 / x64 with an ambient ASP.NET request activity present (benchmark in `Trellis.Benchmark/TracingOverheadBenchmarks.cs`):
+
+| Pipeline depth | No listener | Listener attached (`AllDataAndRecorded` sampling) |
+|---|---|---|
+| 1-step `Bind` | ~20 ns, 0 B | ~228 ns, 400 B |
+| 5-step `Bind` chain | ~107 ns, 0 B | ~1,135 ns, 2,000 B |
+| 10-step `Bind` chain | ~242 ns, 0 B | ~2,266 ns, 4,000 B |
+| 10-step `Map` chain | ~115 ns, 0 B | ~2,227 ns, 4,000 B |
+| 10-step `Tap` chain | ~176 ns, 0 B | ~2,281 ns, 4,096 B |
+
+**No listener registered (default):** ~14–20 ns per `Bind`/`Map`/`Tap`, **0 bytes allocated**. The per-extension `using var activity = ActivitySource.StartActivity(...)` returns null almost immediately when no consumer has registered the `"Trellis.Results"` source. Trellis does not set status or `result.error.code` on an ambient ASP.NET or Mediator activity from ROP operators unless that activity was started by the Trellis ROP `ActivitySource`. On a failure the tags are `result.error.code` (`Error.Code`, the same string the HTTP boundary writes) and `result.error.type` (the error class name, which keeps the cases whose wire code is the sentinel distinguishable).
+
+**With `AddTrellisResultsInstrumentation` registered:** each combinator costs ~200 ns and allocates ~400 B (the Activity object + name + tags). At 10 000 RPS with a 10-step pipeline that's ~22 ms/sec of CPU and ~40 MB/sec of GC pressure — material at high throughput.
+
+#### Granularity guidance
+
+Per-Result-extension spans add limited signal beyond the outer pipeline span (`Trellis.Mediator.TracingBehavior`) or the ASP.NET request span. They appear as a deeply nested tree under the outer span with no business context — most observability backends collapse or charge per span.
+
+- **Production / high-throughput services**: instrument at the pipeline-behavior altitude (already covered by `Trellis.Mediator.TracingBehavior`) and the HTTP-boundary altitude (`AddAspNetCoreInstrumentation`); skip `AddTrellisResultsInstrumentation`.
+- **Development / debugging / low-rate paths**: register `AddTrellisResultsInstrumentation` to get step-by-step ROP visibility. The cost is intentional — you opted in.
+
+The cost is bounded by the consumer's choice; the framework does not gate it further. If `AddTrellisResultsInstrumentation` is registered, the spans appear; if not, they don't, and the cost is noise-floor.
+
+---
+
+### `public static class ValidationMetrics`
+
+The `Meter` and instruments Trellis publishes for validation failures. Lives in `Trellis.Core\src\ValidationMetrics.cs`.
+
+#### What it is for
+
+Validation failures look like user error, and that label is why nobody watches them. Server-side validation is a **backstop**: when a client enforces the same rules before sending, this counter sits near zero, and that expected value is what makes it alertable. A rising count means client-side validation has drifted from the server's, a client broke against you, or you tightened a rule without noticing — your defect, arriving disguised as theirs. Alert on a *code's rate changing* rather than on absolute volume, and expect a non-zero floor when third parties call you.
+
+`validation.code` is what makes it actionable, and why an HTTP-status metric is not a substitute: a 4xx rate says something drifted, the code says **which rule** did. There is deliberately no field or route tag — both are unbounded — so detection lives in the metric and diagnosis in the trace, whose JSON pointer names the field.
+
+A second, narrower use is the framework's own: whether a reason code the framework can emit is ever actually emitted. A trace answers that only for sampled requests, so a zero-volume code is indistinguishable from one whose traces were all sampled away. A code that never fires may also be *shadowed* by an earlier check rather than unused.
+
+#### Fields
+
+| Signature | Notes |
+| --- | --- |
+| `public const string MeterName` | `"Trellis.Validation"` — the meter carrying Trellis validation instruments. |
+| `public const string FailuresInstrumentName` | `"trellis.validation.failures"` — a `Counter<long>` incremented once per violation, unit `{failure}`. |
+| `public const string OtherCode` | `"other"` — the `validation.code` tag value substituted for any code outside the framework vocabulary. |
+
+#### Tags
+
+| Tag | Values |
+| --- | --- |
+| `validation.code` | A `ValidationCodes` constant, or `other`. |
+| `validation.violation` | `field` or `rule`, matching `FieldViolation` and `RuleViolation`. |
+
+#### Where the count happens
+
+**A violation is counted where it is created:** the `FieldViolation.ReasonCode` and `RuleViolation.ReasonCode` initializers.
+
+The counting site is the violation, not the `Error.InvalidInput` that carries it, and the distinction is load-bearing. The carrying failure is *rebuilt* during re-projection — `JsonValidationPathRebase` re-roots pointers by constructing a fresh `InvalidInput` from an existing one's violations, and the ASP validation context aggregates collected violations into a final one — so counting there would count a single rule firing two or three times. The violation is the atom: created once when a rule fires, only copied thereafter.
+
+Nor can the count live at a reporting boundary. A validation failure surfaces at the HTTP boundary, at the mediator pipeline, at both, or — in a worker — at neither, so no reporting site observes each failure exactly once. Coordinating between them fails on a language detail: an `AsyncLocal` assigned inside an awaited `Send` is **not** visible to the caller afterwards, because a callee's assignment does not flow back up.
+
+A `with`-expression does not recount. The synthesized copy constructor copies backing fields rather than re-running initializers, which is what makes re-projection free — the rebase path rewrites a pointer with `violation with { Field = ... }` and the count is unaffected.
+
+The consequence worth stating plainly: the counter measures rules firing, not responses sent. A violation created and then discarded is still counted.
+
+One case deserves calling out, because it looks like a miscount and is not. `Trellis.Http` maps an upstream `400` or `422` response into an `Error.InvalidInput` carrying `ValidationCodes.HttpBadRequest` or `ValidationCodes.HttpUnprocessableContent`, so a *client* process increments the counter for a failure a *server* produced. That is honest — the client really did construct that violation — and the two codes are distinct members of the vocabulary, so they never blur into the counts for locally-evaluated rules.
+
+A corollary for framework code: an `Error.InvalidInput` built only to key a lookup on its runtime type must carry no violations, or it records a failure that never happened. `ScalarValidationStatus` does exactly this, and constructs its shared probe as `new Error.InvalidInput(EquatableArray<FieldViolation>.Empty)`.
+
+#### Why unknown codes are bucketed
+
+An application code reaches the wire verbatim: `ValidationCodeProjection` passes through anything it does not reserve. Tagging those verbatim would let an application minting a code per entity or per tenant create an unbounded number of time series. Framework codes are a closed set and are the only ones the dead-rule question is about, so everything else folds into `OtherCode`. The total stays exact; only the breakdown is bucketed. The known set is read from the `ValidationCodes` constants themselves, so a newly added code is tagged under its own name with no second list to maintain.
+
+---
+
+### `public static class ValidationMeterProviderBuilderExtensions`
+
+OpenTelemetry helper for collecting Trellis validation metrics. Lives in `Trellis.Core\src\ValidationMeterProviderBuilderExtensions.cs`.
+
+#### Methods
+
+| Signature | Notes |
+| --- | --- |
+| `public static MeterProviderBuilder AddTrellisValidationInstrumentation(this MeterProviderBuilder builder)` | Subscribes the meter provider to `ValidationMetrics.MeterName` (`"Trellis.Validation"`), so validation counts are collected. Returns the same builder for chaining. Throws `ArgumentNullException` when `builder` is null. Equivalent to `AddMeter("Trellis.Validation")`. |
+
+> **This gap is silent.** Trellis counts violations as they are created, but a counter with no listener records nothing. Until this is called the instrument is inert, and nothing reports the omission — a metric that never appears reads exactly like a rule that never fires, which is the ambiguity the counter exists to remove.
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics => metrics
+        .AddTrellisValidationInstrumentation()
+        .AddOtlpExporter());
+```
+
+---
+
+### `public readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>`
+
+Wraps `ImmutableArray<T>` so records and other value-equal types get sequence equality. Built-in `record` equality compares arrays by reference; this wrapper restores element-wise comparison. A default-initialized `EquatableArray<T>` represents an empty sequence — two `default` values compare equal, and `Items` always returns `ImmutableArray<T>.Empty` instead of an uninitialized array.
+
+> **LINQ / FluentAssertions / `IEnumerable<T>` consumers.** `EquatableArray<T>` exposes a duck-typed `GetEnumerator()` (allocation-free `foreach`) but **does not implement `IEnumerable<T>`** — this is intentional, to keep the value-type sequence-equality wrapper allocation-free. Methods that bind on `IEnumerable<T>` (`Select`, `Where`, `Any`, `ToList`, FluentAssertions' `Should().ContainSingle()` / `Should().HaveCount(...)` / `Should().BeEquivalentTo(...)`, `string.Join`, etc.) won't see the contents directly. **Project through `.Items` first** (which returns the wrapped `ImmutableArray<T>`, an `IEnumerable<T>`):
+>
+> ```csharp
+> // ❌ Doesn't compile: 'EquatableArray<RuleViolation>' does not contain a definition for 'Where'
+> unproc.Rules.Where(r => r.ReasonCode == "...");
+>
+> // ❌ FluentAssertions: 'object does not contain a definition for ContainSingle'
+> unproc.Rules.Should().ContainSingle();
+>
+> // ✅ Use .Items
+> unproc.Rules.Items.Where(r => r.ReasonCode == "...");
+> unproc.Rules.Items.Should().ContainSingle().Which.ReasonCode.Should().Be("...");
+> ```
+
+#### Properties
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `Items` | `ImmutableArray<T>` | The wrapped array. Returns `ImmutableArray<T>.Empty` for default-initialized values rather than the uninitialized default. |
+| `Length` | `int` | Number of items. |
+| `IsEmpty` | `bool` | True when the wrapped array is empty. |
+| `this[int index]` | `T` | Indexer over the wrapped array. |
+| `Empty` | `EquatableArray<T>` | Static empty instance, mirrors `ImmutableArray<T>.Empty`. |
+
+#### Methods
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public EquatableArray(ImmutableArray<T> items)` | — | Wraps an existing immutable array. |
+| `public static EquatableArray<T> Create(params T[] items)` | `EquatableArray<T>` | Builds from a `params` array. |
+| `public static EquatableArray<T> From(IEnumerable<T> items)` | `EquatableArray<T>` | Builds from any enumerable. |
+| `public ImmutableArray<T>.Enumerator GetEnumerator()` | `ImmutableArray<T>.Enumerator` | Allocation-free `foreach` support. |
+| `public bool Equals(EquatableArray<T> other)` | `bool` | Sequence equality using `EqualityComparer<T>.Default`. |
+| `public override bool Equals(object? obj)` | `bool` | Object equality. |
+| `public override int GetHashCode()` | `int` | Combines hashes of all items via `HashCode`. |
+
+#### Operators
+
+| Signature | Notes |
+| --- | --- |
+| `public static bool operator ==(EquatableArray<T> left, EquatableArray<T> right)` | Equality |
+| `public static bool operator !=(EquatableArray<T> left, EquatableArray<T> right)` | Inequality |
+| `public static implicit operator EquatableArray<T>(ImmutableArray<T> items)` | Implicit conversion from `ImmutableArray<T>` |
+
+---
+
+### `public static class EquatableArray`
+
+Non-generic factory companion that allows type inference at the call site.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static EquatableArray<T> Create<T>(params T[] items)` | `EquatableArray<T>` | Inferred-`T` factory; equivalent to `EquatableArray<T>.Create(items)`. |
+| `public static EquatableArray<T> From<T>(IEnumerable<T> items)` | `EquatableArray<T>` | Inferred-`T` factory; equivalent to `EquatableArray<T>.From(items)`. |
+
+---
+
+## Extension Methods
+
+### `MaybeExtensions`
+
+| Signature |
+| --- |
+| `public static Maybe<T> AsMaybe<T>(this T? value) where T : struct` |
+| `public static Maybe<T> AsMaybe<T>(this T value) where T : class` |
+| `public static T? AsNullable<T>(in this Maybe<T> value) where T : struct` |
+| `public static Result<TValue> ToResult<TValue>(in this Maybe<TValue> maybe, Error error) where TValue : notnull` |
+| `public static Result<TValue> ToResult<TValue>(in this Maybe<TValue> maybe, Func<Error> ferror) where TValue : notnull` |
+| `public static Result<TValue> ToResult<TValue>(this TValue value)` |
+
+`ToResult(..., Func<Error> ferror)` validates `ferror` before inspecting the `Maybe<T>` state. A null factory throws `ArgumentNullException` even when the maybe currently has a value; async overloads validate the factory before awaiting the receiver.
+
+### `MaybeExtensionsAsync`
+
+| Signature |
+| --- |
+| `public static Task<Result<TValue>> ToResultAsync<TValue>(this Task<Maybe<TValue>> maybeTask, Error error) where TValue : notnull` |
+| `public static ValueTask<Result<TValue>> ToResultAsync<TValue>(this ValueTask<Maybe<TValue>> maybeTask, Error error) where TValue : notnull` |
+| `public static Task<Result<TValue>> ToResultAsync<TValue>(this Task<Maybe<TValue>> maybeTask, Func<Error> ferror) where TValue : notnull` |
+| `public static ValueTask<Result<TValue>> ToResultAsync<TValue>(this ValueTask<Maybe<TValue>> maybeTask, Func<Error> ferror) where TValue : notnull` |
+| `public static Task<TResult> MatchAsync<TValue, TResult>(this Task<Maybe<TValue>> maybeTask, Func<TValue, TResult> some, Func<TResult> none) where TValue : notnull` |
+| `public static ValueTask<TResult> MatchAsync<TValue, TResult>(this ValueTask<Maybe<TValue>> maybeTask, Func<TValue, TResult> some, Func<TResult> none) where TValue : notnull` |
+| `public static Task<TResult> MatchAsync<TValue, TResult>(this Task<Maybe<TValue>> maybeTask, Func<TValue, Task<TResult>> some, Func<Task<TResult>> none) where TValue : notnull` |
+| `public static ValueTask<TResult> MatchAsync<TValue, TResult>(this ValueTask<Maybe<TValue>> maybeTask, Func<TValue, ValueTask<TResult>> some, Func<ValueTask<TResult>> none) where TValue : notnull` |
+
+### `MaybeChooseExtensions`
+
+| Signature |
+| --- |
+| `public static IEnumerable<T> Choose<T>(this IEnumerable<Maybe<T>> source) where T : notnull` |
+| `public static IEnumerable<TResult> Choose<T, TResult>(this IEnumerable<Maybe<T>> source, Func<T, TResult> selector) where T : notnull` |
+
+### `MaybeLinqExtensions`
+
+| Signature |
+| --- |
+| `public static Maybe<TOut> Select<TIn, TOut>(this Maybe<TIn> maybe, Func<TIn, TOut> selector) where TIn : notnull where TOut : notnull` |
+| `public static Maybe<TResult> SelectMany<TSource, TCollection, TResult>(this Maybe<TSource> source, Func<TSource, Maybe<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+
+### `MaybeLinqExtensionsTaskAsync` / `MaybeLinqExtensionsTaskLeftAsync` / `MaybeLinqExtensionsTaskRightAsync`
+
+LINQ query syntax over `Task<Maybe<T>>`. Closes the syntactic gap so `from x in FindAsync()` compiles when `FindAsync()` returns `Task<Maybe<T>>`. Mirrors the Result LINQ async surface.
+
+| Signature |
+| --- |
+| `public static Task<Maybe<TOut>> Select<TIn, TOut>(this Task<Maybe<TIn>> maybeTask, Func<TIn, TOut> selector) where TIn : notnull where TOut : notnull` |
+| `public static Task<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this Task<Maybe<TSource>> source, Func<TSource, Task<Maybe<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static Task<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this Task<Maybe<TSource>> source, Func<TSource, Maybe<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static Task<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this Maybe<TSource> source, Func<TSource, Task<Maybe<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static Task<Maybe<TSource>> Where<TSource>(this Task<Maybe<TSource>> source, Func<TSource, bool> predicate) where TSource : notnull` |
+
+### `MaybeLinqExtensionsValueTaskAsync` / `MaybeLinqExtensionsValueTaskLeftAsync` / `MaybeLinqExtensionsValueTaskRightAsync`
+
+LINQ query syntax over `ValueTask<Maybe<T>>` for zero-allocation scenarios. Same shape as the Task overloads.
+
+| Signature |
+| --- |
+| `public static ValueTask<Maybe<TOut>> Select<TIn, TOut>(this ValueTask<Maybe<TIn>> maybeTask, Func<TIn, TOut> selector) where TIn : notnull where TOut : notnull` |
+| `public static ValueTask<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this ValueTask<Maybe<TSource>> source, Func<TSource, ValueTask<Maybe<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static ValueTask<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this ValueTask<Maybe<TSource>> source, Func<TSource, Maybe<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static ValueTask<Maybe<TResult>> SelectMany<TSource, TCollection, TResult>(this Maybe<TSource> source, Func<TSource, ValueTask<Maybe<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector) where TSource : notnull where TCollection : notnull where TResult : notnull` |
+| `public static ValueTask<Maybe<TSource>> Where<TSource>(this ValueTask<Maybe<TSource>> source, Func<TSource, bool> predicate) where TSource : notnull` |
+
+### `MaybeTaskAdapterExtensions`
+
+| Signature |
+| --- |
+| `public static Task<Maybe<T>> AsTask<T>(this Maybe<T> maybe) where T : notnull` |
+| `public static ValueTask<Maybe<T>> AsValueTask<T>(this Maybe<T> maybe) where T : notnull` |
+
+Wraps a synchronous `Maybe<T>` in a completed `Task` / `ValueTask` for participation in async pipelines and disambiguation of overloads at call sites.
+
+### `MaybeCollectionExtensions`
+
+| Signature |
+| --- |
+| `public static Maybe<T> TryFirst<T>(this IEnumerable<T> source) where T : notnull` |
+| `public static Maybe<T> TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate) where T : notnull` |
+| `public static Maybe<T> TryLast<T>(this IEnumerable<T> source) where T : notnull` |
+| `public static Maybe<T> TryLast<T>(this IEnumerable<T> source, Func<T, bool> predicate) where T : notnull` |
+
+### Result pipeline extension families
+
+The result API contains a large generated extension surface. Exact public families:
+
+| Static Class | Public Surface |
+| --- | --- |
+| `BindExtensions`, `BindExtensionsAsync` | `Bind`/`BindAsync` for `Result<T>` plus generated tuple overloads for arities 2-9 |
+| `BindZipExtensions`, `BindZipExtensionsAsync` | Zips one result into another result-producing function, with sync/`Task`/`ValueTask` combinations and tuple arities |
+| `CheckExtensions`, `CheckExtensionsAsync` | Runs side-effect validations that return `Result<T>` (use `Result<Unit>` for no-payload validators) while preserving original success value |
+| `CheckIfExtensions`, `CheckIfExtensionsAsync` | Conditional `Check` variants |
+| `CombineExtensions`, `CombineExtensionsAsync`, `CombineErrorExtensions` | Combines results, including tuple and enumerable forms |
+| `DiscardExtensions`, `DiscardTaskExtensions`, `DiscardValueTaskExtensions` | Drops the `Result<T>` value entirely (returns `void`/`Task`/`ValueTask`) for intentional fire-and-forget pipelines |
+| `EnsureExtensions`, `EnsureExtensionsAsync`, `EnsureAllExtensions`, `EnsureAllExtensionsAsync` | Predicate-based validation on successful values; includes collection-wide validation |
+| `GetValueOrDefaultExtensions` | Non-throwing value fallback helpers |
+| `GetValueOrThrowExtensions` | Production-safe throwing extractor for trust-boundary crossings (DTO → entity rehydration, JSON deserialization). Mirrors `Maybe<T>.GetValueOrThrow(string?)`; throws `InvalidOperationException` on failure. Sync + `Task<Result<T>>` + `ValueTask<Result<T>>` overloads. See cookbook Recipe 30. |
+| `ResultLinqExtensions`, `ResultLinqExtensionsTaskAsync`, `ResultLinqExtensionsTaskLeftAsync`, `ResultLinqExtensionsTaskRightAsync`, `ResultLinqExtensionsValueTaskAsync`, `ResultLinqExtensionsValueTaskLeftAsync`, `ResultLinqExtensionsValueTaskRightAsync` | LINQ query syntax support via `Select`/`SelectMany`/`Where` for `Result<T>`, `Task<Result<T>>` and `ValueTask<Result<T>>` (mixed sync/async sources and continuations) |
+| `MapExtensions`, `MapExtensionsAsync`, `MapIfExtensions`, `MapOnFailureExtensions` | Success-path mapping, conditional mapping, and failure remapping; tuple overloads generated for arities 2-9 |
+| `MatchExtensions`, `MatchExtensionsAsync`, `MatchTupleExtensions`, `MatchTupleExtensionsAsync` | Terminal branching for normal and tuple results. (The previous `MatchErrorExtensions` API was removed — use `result.Match(_ => ..., e => e switch { Error.NotFound nf => ..., ... })` against the closed catalog.) |
+| `NullableExtensions`, `NullableExtensionsAsync` | Converts nullable reference/value types to `Result<T>` |
+| `RecoverExtensions`, `RecoverExtensionsAsync`, `RecoverOnFailureExtensions`, `RecoverOnFailureExtensionsAsync` | Converts failures into fallback success values or results |
+| `TapExtensions`, `TapExtensionsAsync`, `TapOnFailureExtensions`, `TapOnFailureExtensionsAsync` | Side effects on success or failure; tuple overloads generated for arities 2-9 |
+| `ToMaybeExtensions`, `ToMaybeExtensionsAsync` | Converts `Result<T>` to `Maybe<T>` |
+| `TraverseExtensions`, `SequenceAllExtensions`, `TraverseAllExtensions` | Traverses collections through result-producing functions; `*All` variants accumulate failures via `Error.Combine` instead of short-circuiting |
+| `WhenExtensions`, `WhenExtensionsAsync`, `WhenAllExtensionsAsync` | Conditional execution and async fan-in utilities |
+
+Representative exact signatures:
+
+```csharp
+public static Result<TResult> Bind<TValue, TResult>(this Result<TValue> result, Func<TValue, Result<TResult>> func)
+public static Task<Result<TResult>> BindAsync<TValue, TResult>(this Result<TValue> result, Func<TValue, Task<Result<TResult>>> func)
+public static Result<TOut> Map<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> map)
+public static Result<TValue> Ensure<TValue>(this Result<TValue> result, Func<TValue, bool> predicate, Error error)
+public static TOut Match<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> onSuccess, Func<Error, TOut> onFailure)
+public static Result<T> ToResult<T>(this T? obj, Error error) where T : class
+public static Maybe<T> ToMaybe<T>(this Result<T> result) where T : notnull
+public static Result<TValue> Recover<TValue>(this Result<TValue> result, Func<Error, TValue> fallbackFunc)
+public static Result<TValue> TapOnFailure<TValue>(this Result<TValue> result, Action<Error> action)
+```
+
+For tuple-enabled families, generated overloads cover the declared arity ranges shown above; no `ValueTuple` arities higher than 9 are public in this package.
+
+---
+
+### Extension class catalog (full signatures)
+
+The reference signatures below cover every `Result*Extensions(Async)` static class shipped by `Trellis.Core`. Each subsection lists the static class name(s), a methods table, and one representative usage example. All members live in the `Trellis` namespace.
+
+#### Task adapter family — `ResultTaskAdapterExtensions`
+
+Adapters for returning a synchronous `Result<T>` from an async-shaped API without target-typed `new(...)` wrappers.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Task<Result<T>> AsTask<T>(this Result<T> result)` | `Task<Result<T>>` | Wraps the exact result state in a completed `Task`. |
+| `public static ValueTask<Result<T>> AsValueTask<T>(this Result<T> result)` | `ValueTask<Result<T>>` | Wraps the exact result state in a completed `ValueTask`. |
+
+```csharp
+public ValueTask<Result<OrderId>> Handle(CreateOrderCommand cmd, CancellationToken ct) =>
+    OrderId.TryCreate(cmd.OrderId)
+        .Bind(id => Order.Create(id))
+        .Tap(repo.Add)
+        .Map(order => order.Id)
+        .AsValueTask();
+```
+
+#### Bind family — `BindExtensions`, `BindExtensionsAsync`, `BindZipExtensions`, `BindZipExtensionsAsync`
+
+Sequential composition of result-producing functions. `Bind` is the monadic flatMap; `BindZip` keeps the upstream value in scope by zipping it into the next stage. For no-payload steps, return `Result<Unit>` and use `_` to ignore the `Unit` argument in the next lambda.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TResult> Bind<TValue, TResult>(this Result<TValue> result, Func<TValue, Result<TResult>> func)` | `Result<TResult>` | Generic-to-generic flatMap. Short-circuits on failure. |
+| `public static Task<Result<TResult>> BindAsync<TValue, TResult>(this Task<Result<TValue>> resultTask, Func<TValue, Task<Result<TResult>>> func)` | `Task<Result<TResult>>` | Six non-tuple overloads: `Result<T>` receivers accept `Task` or `ValueTask` delegates; `Task<Result<T>>` receivers accept sync or `Task` delegates; `ValueTask<Result<T>>` receivers accept sync or `ValueTask` delegates. Mixed `Task`/`ValueTask` families require explicit adaptation or awaiting the receiver first. |
+| `public static Result<(T1, T2)> BindZip<T1, T2>(this Result<T1> result, Func<T1, Result<T2>> func)` | `Result<(T1, T2)>` | Zips upstream value with the bind result so downstream stages see both. Tuple arities 2–9 are generated. |
+| `public static Task<Result<(T1, T2)>> BindZipAsync<T1, T2>(this Task<Result<T1>> resultTask, Func<T1, Task<Result<T2>>> func)` | `Task<Result<(T1, T2)>>` | Async BindZip; generated for every Result/Task/ValueTask combination. |
+
+```csharp
+Result<Order> Place(OrderId id) =>
+    LoadCustomer(id)
+        .BindZip(c => LoadCart(c.Id))    // Result<(Customer, Cart)>
+        .Bind((customer, cart) => Charge(customer, cart));
+```
+
+> **Async-lambda overload resolution.** The sync-`Result<T>`-receiver `BindAsync` / `MapAsync` /
+> `TapAsync` / `CheckAsync` / `EnsureAsync` / `MatchAsync` Task-delegate overloads carry
+> `[OverloadResolutionPriority(1)]` so inline `async` lambdas whose return type would otherwise
+> be ambiguous between `Task<Result<R>>` and `ValueTask<Result<R>>` resolve to the Task overload.
+> Callers who specifically want the ValueTask overload still get it by passing a strongly-typed
+> `Func<T, ValueTask<Result<R>>>` delegate (the Task overload is not applicable, so priority is
+> not consulted). The LINQ `SelectMany` overloads in `Trellis.Core/src/Result/Extensions/Linq.*Right.cs`
+> are an exception: the priority attribute is applied for documentation but does not currently
+> disambiguate across the two distinct extension classes; LINQ query syntax over async Result
+> composition still benefits from a typed local delegate when the async return type is ambiguous.
+
+#### Map family — `MapExtensions`, `MapExtensionsAsync`, `MapIfExtensions`, `MapOnFailureExtensions`
+
+Pure transformation of the success value (or failure error). Use `Map` when the lambda returns a plain value; switch to `Bind` when it returns a `Result`.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TOut> Map<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> func)` | `Result<TOut>` | Synchronous map on `Result<T>`. The selector contract requires a non-null return for reference types — `Map` does not null-check the result and downstream stages will see a `Result<TOut>` carrying a `null` value. Use `Bind` if a step can legitimately produce no value. |
+| `public static Task<Result<TOut>> MapAsync<TIn, TOut>(this Task<Result<TIn>> resultTask, Func<TIn, Task<TOut>> func)` | `Task<Result<TOut>>` | `MapExtensionsAsync` exposes all Task/ValueTask × sync-/async-lambda combinations (6 overloads). |
+| `public static Result<T> MapOnFailure<T>(this Result<T> result, Func<Error, Error> map)` | `Result<T>` | Replaces the failure `Error`. |
+| `public static Task<Result<T>> MapOnFailureAsync<T>(this Task<Result<T>> resultTask, Func<Error, Task<Error>> mapAsync)` | `Task<Result<T>>` | `MapOnFailureExtensions` exposes all sync/Task/ValueTask combinations of `MapOnFailure`/`MapOnFailureAsync`. |
+
+```csharp
+Task<Result<OrderDto>> Pipeline(OrderId id) =>
+    LoadOrderAsync(id)
+        .MapAsync(o => OrderDto.From(o))
+        .MapOnFailureAsync(e => e is Error.NotFound ? new Error.Gone(ResourceRef.For<Order>(id)) : e);
+```
+
+#### Tap and TapOnFailure families — `TapExtensions`, `TapExtensionsAsync`, `TapOnFailureExtensions`, `TapOnFailureExtensionsAsync`
+
+Side effects without altering the result. `Tap` runs on success; `TapOnFailure` runs on failure.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TValue> Tap<TValue>(this Result<TValue> result, Action action)` | `Result<TValue>` | Sync side effect on success when the callback does not need the carried value. |
+| `public static Result<TValue> Tap<TValue>(this Result<TValue> result, Action<TValue> action)` | `Result<TValue>` | Sync side effect on success. |
+| `public static Task<Result<TValue>> TapAsync<TValue>(this Task<Result<TValue>> resultTask, Func<TValue, Task> func)` | `Task<Result<TValue>>` | `TapExtensionsAsync` covers all sync/Task/ValueTask × value-/no-value-lambda combinations (12 overloads). |
+| `public static Result<TValue> TapOnFailure<TValue>(this Result<TValue> result, Action<Error> action)` | `Result<TValue>` | Sync side effect on failure. |
+| `public static Task<Result<TValue>> TapOnFailureAsync<TValue>(this Task<Result<TValue>> resultTask, Func<Error, Task> func)` | `Task<Result<TValue>>` | `TapOnFailureExtensionsAsync` covers all sync/Task/ValueTask × error-/no-arg-lambda combinations (12 non-tuple overloads; tuple arities 2–9 generate the same set per arity). |
+
+```csharp
+Task<Result<Order>> Save(Order o) =>
+    repo.SaveAsync(o)
+        .TapAsync(saved => logger.LogInformationAsync($"saved {saved.Id}"))
+        .TapOnFailureAsync(err => logger.LogWarningAsync($"failed: {err.Code}"));
+```
+
+#### Match family — `MatchExtensions`, `MatchExtensionsAsync`, `MatchTupleExtensions`, `MatchTupleExtensionsAsync`
+
+Terminal branching: produce a value (`Match`) or run side effects (`Switch`).
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TOut Match<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> onSuccess, Func<Error, TOut> onFailure)` | `TOut` | Sync match on `Result<T>`. |
+| `public static void Switch<TIn>(this Result<TIn> result, Action<TIn> onSuccess, Action<Error> onFailure)` | `void` | Sync side-effect terminal. |
+| `public static Task<TOut> MatchAsync<TIn, TOut>(this Task<Result<TIn>> resultTask, Func<TIn, Task<TOut>> onSuccess, Func<Error, Task<TOut>> onFailure)` | `Task<TOut>` | `MatchExtensionsAsync` covers all sync/Task/ValueTask × sync-/async-/cancellation-lambda combinations (~10 overloads). |
+| `public static Task SwitchAsync<TIn>(this Task<Result<TIn>> resultTask, Func<TIn, Task> onSuccess, Func<Error, Task> onFailure)` | `Task` | `SwitchAsync` overloads cover Task and ValueTask, with optional `CancellationToken` variants. |
+| `public static Task<TOut> MatchAsync<T1, T2, TOut>(this Result<(T1, T2)> result, Func<T1, T2, Task<TOut>> onSuccess, Func<Error, Task<TOut>> onFailure)` | `Task<TOut>` | `MatchTupleExtensions` (sync) and `MatchTupleExtensionsAsync` (async) generate `MatchAsync` / `SwitchAsync` for tuple arities 2–9. |
+
+```csharp
+IActionResult Render(Result<Order> r) =>
+    r.Match(
+        order => Ok(OrderDto.From(order)),
+        err   => err switch
+        {
+            Error.NotFound nf            => NotFound(nf.Resource.Id),
+            Error.InvalidInput u => UnprocessableEntity(u.Fields),
+            _                            => Problem(err.GetDisplayMessage()),
+        });
+```
+
+#### Recover family — `RecoverExtensions`, `RecoverExtensionsAsync`, `RecoverOnFailureExtensions`, `RecoverOnFailureExtensionsAsync`
+
+Convert failures back into successes (`Recover`) or chain a fallback result-producing operation (`RecoverOnFailure`).
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TValue> Recover<TValue>(this Result<TValue> result, Func<Error, TValue> fallbackFunc)` | `Result<TValue>` | Three sync overloads on `RecoverExtensions`: constant fallback, `Func<TValue>`, `Func<Error, TValue>`. |
+| `public static Task<Result<TValue>> RecoverAsync<TValue>(this Task<Result<TValue>> resultTask, Func<Error, Task<TValue>> fallbackFunc)` | `Task<Result<TValue>>` | `RecoverExtensionsAsync` covers all Task/ValueTask × sync-/async-lambda combinations. |
+| `public static Result<T> RecoverOnFailure<T>(this Result<T> result, Func<Error, Result<T>> func)` | `Result<T>` | Four sync overloads on `RecoverOnFailureExtensions`: with/without `Error` argument, with/without predicate gate. |
+| `public static Task<Result<T>> RecoverOnFailureAsync<T>(this Task<Result<T>> resultTask, Func<Error, Task<Result<T>>> funcAsync)` | `Task<Result<T>>` | `RecoverOnFailureExtensionsAsync` exposes ~16 overloads for Task/ValueTask × predicate-gated/ungated × value-/error-lambda. |
+
+```csharp
+Task<Result<Settings>> Load(UserId id) =>
+    settingsRepo.LoadAsync(id)
+        .RecoverOnFailureAsync(
+            e => e is Error.NotFound,
+            err => Task.FromResult(Result.Ok(Settings.Defaults)));
+```
+
+#### Ensure family — `EnsureExtensions`, `EnsureExtensionsAsync`, `EnsureAllExtensions`, `EnsureAllExtensionsAsync`
+
+Predicate-based validation. `Ensure` short-circuits on the first failed predicate; `EnsureAll` accumulates every failure via `Error.Combine` (homogeneous `Error.InvalidInput` failures merge into a single `Error.InvalidInput`; heterogeneous failures fold into `Error.Aggregate`) for applicative-style validation.
+
+**Static guards need no receiver.** `Result.Ensure(condition, () => error)` returns
+`Result<Unit>` and constructs no error on success. The predicate and async-predicate
+static overloads also accept `Func<Error>`. Factories run exactly once on a false result,
+never while an async predicate is pending or after a predicate throws, faults, or cancels.
+Null delegates throw `ArgumentNullException` before evaluating the predicate, even for a
+passing guard. A factory returning null on failure also throws `ArgumentNullException`
+(parameter `error`), consistent with `Result.Fail` and the value-threaded lazy `Ensure`.
+Delegate exceptions and cancellation propagate; async failures are carried by the returned
+task. Tracing retains the static guard's `Ensure` activity name and success/failure status.
+The eager `Error` overloads have higher overload-resolution priority so existing bare
+null-literal calls remain unambiguous and keep their existing behavior.
+
+```csharp
+var guard = Result.Ensure(end != start, () =>
+    Error.InvalidInput.ForField(field: "end", code: ValidationCodes.ValueMustNotEqual,
+        args: ValidationArgs.Of("comparisonProperty", "start"), detail: "End must differ from start."));
+```
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TValue> Ensure<TValue>(this Result<TValue> result, Func<TValue, bool> predicate, Error error)` | `Result<TValue>` | Sync ensure with predicate + `Error`. Five sync overloads (with/without value arg, factory error, embedded result). |
+| `public static Result<TValue> Ensure<TValue>(this Result<TValue> result, Func<TValue, bool> predicate, Func<TValue, Error> errorPredicate)` | `Result<TValue>` | Sync ensure with lazy error factory. |
+| `public static Result<string> EnsureNotNullOrWhiteSpace(this string? str, Error error)` | `Result<string>` | Lifts a possibly-blank string to `Result<string>`. |
+| `public static Result<T> EnsureNotNull<T>(this Result<T?> result, Error error) where T : class` | `Result<T>` | Reference-type `EnsureNotNull` overload that strips the nullable annotation. |
+| `public static Result<T> EnsureNotNull<T>(this Result<T?> result, Error error) where T : struct` | `Result<T>` | Value-type `EnsureNotNull` overload that unwraps the nullable. |
+| `public static Task<Result<TValue>> EnsureAsync<TValue>(this Task<Result<TValue>> resultTask, Func<TValue, Task<bool>> predicate, Error error)` | `Task<Result<TValue>>` | `EnsureExtensionsAsync` covers all `Result<T>`/`Task<Result<T>>`/`ValueTask<Result<T>>` receivers × `Func<TValue, bool>`/`Task<bool>`/`ValueTask<bool>` predicates × constant-, factory-, async-factory- and embedded-`Result<TValue>` error producers (~34 overloads across the six `Ensure.*` partial files). |
+| `public static Result<TValue> EnsureAll<TValue>(this Result<TValue> result, params (Func<TValue, bool> predicate, Error error)[] checks)` | `Result<TValue>` | Applicative validation: runs every check and folds failures via `error.Combine(...)` into one `Error.Aggregate`. |
+| `public static Task<Result<TValue>> EnsureAllAsync<TValue>(this Task<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Error error)[] checks)` | `Task<Result<TValue>>` | Task overload of `EnsureAllAsync`. |
+| `public static ValueTask<Result<TValue>> EnsureAllAsync<TValue>(this ValueTask<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Error error)[] checks)` | `ValueTask<Result<TValue>>` | ValueTask overload of `EnsureAllAsync`. |
+| `public static Result<TValue> EnsureAll<TValue>(this Result<TValue> result, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `Result<TValue>` | Lazy accumulation: each failed check calls its factory exactly once with the successful value; passing checks never create errors. |
+| `public static Task<Result<TValue>> EnsureAllAsync<TValue>(this Task<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `Task<Result<TValue>>` | Awaits the receiver, then applies lazy accumulation. |
+| `public static ValueTask<Result<TValue>> EnsureAllAsync<TValue>(this ValueTask<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `ValueTask<Result<TValue>>` | ValueTask receiver with lazy accumulation. |
+
+Both `EnsureAll` families preserve upstream failures (including persist-on-failure intent)
+without invoking predicates or factories. Empty checks preserve the original result. A
+null checks array throws; on success, null predicates/factories throw with their check
+index. A factory returning null throws `InvalidOperationException` instead of silently
+dropping the failure. Delegate exceptions propagate. Factories are synchronous; the async
+overloads await the receiver, not the predicates or factories. The constant-error overloads
+have higher overload-resolution priority, preserving existing `EnsureAll()`,
+`EnsureAll(null!)`, and null-error tuple calls.
+
+```csharp
+Result<Quote> Validate(Quote q) =>
+    Result.Ok(q).EnsureAll(
+        (x => x.Total > 0,            _ => Error.InvalidInput.ForField(field: "total", code: ValidationCodes.ValueGreaterThan)),
+        (x => x.Currency.Length == 3, _ => Error.InvalidInput.ForField(field: "currency", code: ValidationCodes.StringCurrencyCode)));
+
+Result<string> NotBlank(string? raw) =>
+    raw.EnsureNotNullOrWhiteSpace(Error.InvalidInput.ForField(field: InputPointer.Root, code: ValidationCodes.ValueNotEmpty));
+```
+
+#### Check / CheckIf families — `CheckExtensions`, `CheckExtensionsAsync`, `CheckIfExtensions`, `CheckIfExtensionsAsync`
+
+Run a side-effect validator that returns its own `Result`/`Result<TK>` while preserving the upstream success value. `CheckIf` adds a conditional gate.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<T> Check<T, TK>(this Result<T> result, Func<T, Result<TK>> func)` | `Result<T>` | Validator returning `Result<TK>`; original value is preserved on success. For no-payload validators, return `Result<Unit>`. |
+| `public static Task<Result<T>> CheckAsync<T, TK>(this Task<Result<T>> resultTask, Func<T, Task<Result<TK>>> func)` | `Task<Result<T>>` | `CheckExtensionsAsync` covers all Task/ValueTask combinations. |
+| `public static Result<T> CheckIf<T, TK>(this Result<T> result, bool condition, Func<T, Result<TK>> func)` | `Result<T>` | Boolean-gated check; runs only when `condition` is true. |
+| `public static Result<T> CheckIf<T, TK>(this Result<T> result, Func<T, bool> predicate, Func<T, Result<TK>> func)` | `Result<T>` | Predicate-gated check. |
+| `public static Task<Result<T>> CheckIfAsync<T, TK>(this Task<Result<T>> resultTask, bool condition, Func<T, Task<Result<TK>>> func)` | `Task<Result<T>>` | `CheckIfExtensionsAsync` covers all Task/ValueTask × bool-/predicate-gated combinations. |
+
+```csharp
+Result<Quote> q = Result.Ok(quote)
+    .Check(QuoteValidators.AllItemsInStock)
+    .CheckIf(quote.IsExpedited, QuoteValidators.HonorsCutoff);
+```
+
+#### Combine family — `CombineExtensions`, `CombineExtensionsAsync`, `CombineErrorExtensions`
+
+Aggregates results into tuples (success-track) or merges errors via `Error.Aggregate` (failure-track). Tuple arities 2–9 are generated.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<(T1, T2)> Combine<T1, T2>(this Result<T1> t1, Result<T2> t2)` | `Result<(T1, T2)>` | Tuple combine; failures fold via `Error.Combine` (two `Error.InvalidInput` merge into one `Error.InvalidInput`; otherwise `Error.Aggregate`). When either operand is `Result<Unit>`, `Unit` becomes the next tuple element (use `_` in the destructuring lambda to ignore it). |
+| `public static Task<Result<(T1, T2)>> CombineAsync<T1, T2>(this Task<Result<T1>> tt1, Task<Result<T2>> tt2)` | `Task<Result<(T1, T2)>>` | `CombineExtensionsAsync` covers every Task/ValueTask × Task/ValueTask combination. Task overloads validate null `Task` inputs before awaiting either side. |
+| `public static Error Combine(this Error? left, Error right)` | `Error` | On `CombineErrorExtensions`: if both errors are `Error.InvalidInput`, merges their `Fields`/`Rules` into a single `Error.InvalidInput`; otherwise combines into an `Error.Aggregate` (flattening nested aggregates). Treats `null` left as right. |
+
+```csharp
+return Result.Combine(streetCity, contact)
+    .Map(_ => new Address(cmd.Street, cmd.City));
+```
+
+#### Discard family — `DiscardExtensions`, `DiscardTaskExtensions`, `DiscardValueTaskExtensions`
+
+Drop the success value entirely (returns `void`/`Task`/`ValueTask`) for intentional fire-and-forget pipelines.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static void Discard<T>(this Result<T> result)` | `void` | Documents intent that the success value is intentionally ignored. |
+| `public static Task DiscardAsync<T>(this Task<Result<T>> resultTask)` | `Task` | Awaits and discards; on `DiscardTaskExtensions`. |
+| `public static ValueTask DiscardAsync<T>(this ValueTask<Result<T>> resultTask)` | `ValueTask` | ValueTask variant on `DiscardValueTaskExtensions`. |
+
+```csharp
+await SendEmailAsync(msg).DiscardAsync(); // intentionally fire-and-forget the value
+```
+
+#### AsUnit family — `AsUnitExtensions`
+
+Async wrappers around `Result<T>.AsUnit()` that strip the value while preserving success/failure state.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Task<Result<Unit>> AsUnitAsync<T>(this Task<Result<T>> resultTask)` | `Task<Result<Unit>>` | Awaits and projects to `Result<Unit>`. |
+| `public static ValueTask<Result<Unit>> AsUnitAsync<T>(this ValueTask<Result<T>> resultTask)` | `ValueTask<Result<Unit>>` | ValueTask variant. |
+
+```csharp
+Task<Result<Unit>> done = pipeline.RunAsync(input).AsUnitAsync();
+```
+
+#### Debug family — `ResultDebugExtensions`, `ResultDebugExtensionsAsync`
+
+Non-allocating diagnostic taps gated by `ResultDebugSettings`. They never alter the result; they only emit through `Debug.WriteLine` / configured sinks.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TValue> Debug<TValue>(this Result<TValue> result, string message = "")` | `Result<TValue>` | Logs success or failure with the optional message. |
+| `public static Result<TValue> DebugDetailed<TValue>(this Result<TValue> result, string message = "")` | `Result<TValue>` | Includes the success value and full error in the log. |
+| `public static Result<TValue> DebugWithStack<TValue>(this Result<TValue> result, string message = "", bool includeStackTrace = true)` | `Result<TValue>` | Adds the current stack trace. |
+| `public static Result<TValue> DebugOnSuccess<TValue>(this Result<TValue> result, Action<TValue> action)` | `Result<TValue>` | Custom sink invoked only on success. |
+| `public static Result<TValue> DebugOnFailure<TValue>(this Result<TValue> result, Action<Error> action)` | `Result<TValue>` | Custom sink invoked only on failure. |
+| `public static Task<Result<TValue>> DebugAsync<TValue>(this Task<Result<TValue>> resultTask, string message = "")` | `Task<Result<TValue>>` | `ResultDebugExtensionsAsync` mirrors every sync overload (`DebugDetailedAsync`, `DebugWithStackAsync`, `DebugOnSuccessAsync`, `DebugOnFailureAsync`) for `Task<Result<T>>` — including `Func<T, Task>` / `Func<Error, Task>` async sinks. |
+
+```csharp
+return await LoadAsync(id)
+    .DebugAsync("after-load")
+    .BindAsync(ChargeAsync)
+    .DebugDetailedAsync("after-charge");
+```
+
+#### LINQ query-syntax family — `ResultLinqExtensions`, `ResultLinqExtensionsTaskAsync`, `ResultLinqExtensionsTaskLeftAsync`, `ResultLinqExtensionsTaskRightAsync`, `ResultLinqExtensionsValueTaskAsync`, `ResultLinqExtensionsValueTaskLeftAsync`, `ResultLinqExtensionsValueTaskRightAsync`
+
+LINQ query expression support for `Result<T>`, `Task<Result<T>>`, and `ValueTask<Result<T>>`. The async overloads let `from ... in ...` clauses chain async result-producing operations directly — without `await`-ing each step into a sync block. Failures short-circuit subsequent steps with the same semantics as `Bind` / `Map` / `Ensure`.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<TOut> Select<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> selector)` | `Result<TOut>` | Sync `Select` — projects a successful value (delegates to `Map`). |
+| `public static Result<TResult> SelectMany<TSource, TCollection, TResult>(this Result<TSource> source, Func<TSource, Result<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `Result<TResult>` | Sync `SelectMany` — enables multi-`from` chains. |
+| `public static Result<TSource> Where<TSource>(this Result<TSource> source, Func<TSource, bool> predicate)` | `Result<TSource>` | Sync `Where` — converts to a generic "filtered out" failure when the predicate is false. Prefer `Ensure` for meaningful errors. |
+| `public static Task<Result<TOut>> Select<TIn, TOut>(this Task<Result<TIn>> resultTask, Func<TIn, TOut> selector)` | `Task<Result<TOut>>` | `Select` over an async receiver. |
+| `public static Task<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this Task<Result<TSource>> source, Func<TSource, Task<Result<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `Task<Result<TResult>>` | `SelectMany` — async source, async continuation. |
+| `public static Task<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this Task<Result<TSource>> source, Func<TSource, Result<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `Task<Result<TResult>>` | `SelectMany` — async source, sync continuation (`.Left`). |
+| `public static Task<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this Result<TSource> source, Func<TSource, Task<Result<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `Task<Result<TResult>>` | `SelectMany` — sync source, async continuation (`.Right`). |
+| `public static Task<Result<TSource>> Where<TSource>(this Task<Result<TSource>> source, Func<TSource, bool> predicate)` | `Task<Result<TSource>>` | `Where` over an async receiver. |
+| `public static ValueTask<Result<TOut>> Select<TIn, TOut>(this ValueTask<Result<TIn>> resultTask, Func<TIn, TOut> selector)` | `ValueTask<Result<TOut>>` | `Select` over a `ValueTask` receiver. |
+| `public static ValueTask<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this ValueTask<Result<TSource>> source, Func<TSource, ValueTask<Result<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `ValueTask<Result<TResult>>` | `SelectMany` — `ValueTask` source and continuation. |
+| `public static ValueTask<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this ValueTask<Result<TSource>> source, Func<TSource, Result<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `ValueTask<Result<TResult>>` | `SelectMany` — `ValueTask` source, sync continuation (`.Left`). |
+| `public static ValueTask<Result<TResult>> SelectMany<TSource, TCollection, TResult>(this Result<TSource> source, Func<TSource, ValueTask<Result<TCollection>>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector)` | `ValueTask<Result<TResult>>` | `SelectMany` — sync source, `ValueTask` continuation (`.Right`). |
+| `public static ValueTask<Result<TSource>> Where<TSource>(this ValueTask<Result<TSource>> source, Func<TSource, bool> predicate)` | `ValueTask<Result<TSource>>` | `Where` over a `ValueTask` receiver. |
+
+```csharp
+// All-async LINQ — Task<Result<T>> participates in query syntax directly.
+var orderDto = await (
+    from user  in GetUserAsync(id)         // Task<Result<User>>
+    from order in GetOrderAsync(user)      // Task<Result<Order>>
+    select new OrderDto(user, order));
+
+// Mixed sync/async — sync source flows into an async continuation (.Right).
+var summary = await (
+    from u in LoadCachedUser(id)           // Result<User>
+    from o in FetchOrderAsync(u)           // Task<Result<Order>>
+    select new Summary(u, o));
+
+// And the reverse — async source with a sync validation step (.Left).
+var validated = await (
+    from u in LoadUserAsync(id)            // Task<Result<User>>
+    from p in ValidatePermissions(u)       // Result<Permissions>
+    select new Authorized(u, p));
+```
+
+> **CancellationToken pattern.** Closure-capture a `CancellationToken` from the surrounding method and call `ct.ThrowIfCancellationRequested()` inside any async selector that needs to honor cancellation; the query expression itself does not introduce a token parameter.
+>
+> **Exceptions.** Exceptions thrown inside selectors propagate through the `await` (matching `BindAsync` / `MapAsync` semantics). They are not converted to `Result.Fail`.
+
+#### Traverse — `TraverseExtensions`
+
+Folds a sequence of inputs through a `Result`-producing selector into a single `Result<IReadOnlyList<TOut>>`.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<IReadOnlyList<TOut>> Traverse<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, Result<TOut>> selector)` | `Result<IReadOnlyList<TOut>>` | Sync traversal; short-circuits on the first failure. |
+| `public static Task<Result<IReadOnlyList<TOut>>> TraverseAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, Task<Result<TOut>>> selector)` | `Task<Result<IReadOnlyList<TOut>>>` | Async traversal; sequential evaluation. |
+| `public static Task<Result<IReadOnlyList<TOut>>> TraverseAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, Task<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<IReadOnlyList<TOut>>>` | Cancellation-token overload. |
+| `public static ValueTask<Result<IReadOnlyList<TOut>>> TraverseAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, ValueTask<Result<TOut>>> selector)` | `ValueTask<Result<IReadOnlyList<TOut>>>` | ValueTask variant. |
+| `public static ValueTask<Result<IReadOnlyList<TOut>>> TraverseAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, ValueTask<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `ValueTask<Result<IReadOnlyList<TOut>>>` | ValueTask + cancellation-token variant. |
+| `public static Task<Result<Unit>> TraverseAsync<TIn>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, Task<Result<Unit>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<Unit>>` | No-payload selector overload — short-circuits on the first failure and returns `Result<Unit>` for void-flavoured fan-out. |
+| `public static Result<IReadOnlyList<T>> Sequence<T>(this IEnumerable<Result<T>> source)` | `Result<IReadOnlyList<T>>` | Identity-selector form of `Traverse`. Lifts an `IEnumerable<Result<T>>` to `Result<IReadOnlyList<T>>`; short-circuits on the first failure. |
+| `public static Result<Unit> Sequence(this IEnumerable<Result<Unit>> source)` | `Result<Unit>` | No-payload `Sequence` overload for void-flavoured pipelines; short-circuits on the first failure. |
+
+```csharp
+Task<Result<IReadOnlyList<Order>>> orders =
+    ids.TraverseAsync((id, ct) => repo.LoadAsync(id, ct), cancellationToken);
+
+// Sequence: when you already have IEnumerable<Result<T>> from a Select.
+Result<IReadOnlyList<Money>> subtotals =
+    lineItems.Select(item => item.ComputeSubtotal()).Sequence();
+```
+
+#### TraverseAll / SequenceAll — `TraverseAllExtensions`, `SequenceAllExtensions`
+
+Accumulating-error counterparts to `Traverse` / `Sequence`. Run the selector over every item (no short-circuit) and fold failures via the existing `Error.Combine` extension. A single failure returns unchanged (no `Error.Aggregate` wrap); multiple `InvalidInput` failures merge their fields/rules; heterogeneous failures flatten into `Error.Aggregate`. Use these when you need to surface every failure (form-style validation) rather than the first.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<IReadOnlyList<TOut>> TraverseAll<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, Result<TOut>> selector)` | `Result<IReadOnlyList<TOut>>` | Accumulating sync traversal; folds every failure via `Error.Combine`. |
+| `public static Result<IReadOnlyList<TOut>> TraverseAll<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, int, Result<TOut>> selector)` | `Result<IReadOnlyList<TOut>>` | Indexed sync traversal; the selector receives the item's zero-based position in source enumeration order, including failed items. |
+| `public static Task<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, Task<Result<TOut>>> selector)` | `Task<Result<IReadOnlyList<TOut>>>` | Accumulating async traversal; selectors are awaited sequentially. |
+| `public static Task<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, Task<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<IReadOnlyList<TOut>>>` | Accumulating async traversal with cancellation; mirrors `TraverseAsync` shape. |
+| `public static ValueTask<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, ValueTask<Result<TOut>>> selector)` | `ValueTask<Result<IReadOnlyList<TOut>>>` | Accumulating `ValueTask` traversal for zero-allocation scenarios. |
+| `public static ValueTask<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, ValueTask<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `ValueTask<Result<IReadOnlyList<TOut>>>` | Accumulating `ValueTask` traversal with cancellation. |
+| `public static Task<Result<Unit>> TraverseAllAsync<TIn>(this IEnumerable<TIn> source, Func<TIn, CancellationToken, Task<Result<Unit>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<Unit>>` | Accumulating `Result<Unit>` traversal with cancellation; void-flavoured pipelines. |
+| `public static Task<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, int, CancellationToken, Task<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<IReadOnlyList<TOut>>>` | Indexed Task traversal; sequentially awaits every selector, forwarding its source index and token. |
+| `public static ValueTask<Result<IReadOnlyList<TOut>>> TraverseAllAsync<TIn, TOut>(this IEnumerable<TIn> source, Func<TIn, int, CancellationToken, ValueTask<Result<TOut>>> selector, CancellationToken cancellationToken = default)` | `ValueTask<Result<IReadOnlyList<TOut>>>` | Indexed ValueTask traversal with the same ordering, accumulation, and cancellation semantics. |
+| `public static Task<Result<Unit>> TraverseAllAsync<TIn>(this IEnumerable<TIn> source, Func<TIn, int, CancellationToken, Task<Result<Unit>>> selector, CancellationToken cancellationToken = default)` | `Task<Result<Unit>>` | Indexed no-payload Task traversal; returns no list of Unit values. |
+| `public static Result<IReadOnlyList<T>> SequenceAll<T>(this IEnumerable<Result<T>> source)` | `Result<IReadOnlyList<T>>` | Identity-selector accumulating sequence; visits every item, folds failures. |
+| `public static Result<Unit> SequenceAll(this IEnumerable<Result<Unit>> source)` | `Result<Unit>` | Accumulating `Sequence` over `Result<Unit>` for void-flavoured pipelines. |
+
+```csharp
+// Form-style validation: collect every field error in one pass.
+Result<IReadOnlyList<EmailAddress>> emails =
+    raw.TraverseAll(value => EmailAddress.TryCreate(value));
+//   ↳ on multiple invalid entries, returns one Error.InvalidInput
+//     whose Fields/Rules concatenate every per-item violation.
+
+// Heterogeneous failures flatten into Error.Aggregate:
+Result<IReadOnlyList<Order>> orders =
+    operations.SequenceAll();   // Result<NotFound> + Result<Conflict> → Error.Aggregate
+
+// Original positions remain available for per-item validation pointers.
+Result<IReadOnlyList<EmailAddress>> indexedEmails =
+    raw.TraverseAll((value, index) => EmailAddress.TryCreate(value,
+        InputPointer.Root.AppendProperty("emails").AppendIndex(index).Path));
+```
+
+**Indexed traversal.** The source is enumerated once, and indices start at zero for each call
+and advance for every item, whether that item succeeds or fails. Empty input succeeds without
+invoking the selector. Values and accumulated errors retain source order; a single error is
+preserved unchanged, and persist-on-failure intent follows the existing aggregation rules.
+An index beyond `int.MaxValue` throws `OverflowException` rather than wrapping.
+
+Indexed async selectors always take `(item, index, cancellationToken)`. The call-site token
+is optional; ignore the third selector parameter with `_` when it is not needed. There is
+deliberately no indexed two-parameter async selector: it would collide with the existing
+`(item, cancellationToken)` shape. Inline async lambdas prefer the indexed Task overload;
+pass a ValueTask-returning delegate to select that overload.
+
+Async selectors are awaited sequentially, not run in parallel. Cancellation is checked
+before each invocation and the token is forwarded to the selector. Null sources/selectors
+throw `ArgumentNullException` before enumeration; async overloads carry these exceptions
+through their returned awaitables. Selector/enumeration exceptions and cancellation propagate
+rather than becoming validation failures, abandoning accumulated state. The unindexed sync
+overload has higher overload-resolution priority to preserve existing null-literal calls.
+
+The unindexed `TraverseAll` family matches `Traverse`'s full async surface: sync, `Task`, `Task` + `CancellationToken`, `ValueTask`, `ValueTask` + `CancellationToken`, plus a `Task<Result<Unit>>` + `CancellationToken` overload. Indexed traversal additionally supports sync, Task, ValueTask, and no-payload Task selectors as listed above. `SequenceAll` is sync-only because the existing `Sequence` is sync-only; if `Sequence` ever gains async siblings, `SequenceAll` follows at the same time.
+
+#### When / WhenAll — `WhenExtensions`, `WhenExtensionsAsync`, `WhenAllExtensionsAsync`
+
+Conditional execution and async fan-in.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<T> When<T>(this Result<T> result, Func<T, bool> predicate, Func<T, Result<T>> operation)` | `Result<T>` | Runs `operation` only when the predicate holds. |
+| `public static Result<T> Unless<T>(this Result<T> result, Func<T, bool> predicate, Func<T, Result<T>> operation)` | `Result<T>` | Inverse of `When`. |
+| `public static Task<Result<T>> WhenAsync<T>(this Result<T> result, Func<T, bool> predicate, Func<T, Task<Result<T>>> operation)` | `Task<Result<T>>` | `WhenExtensionsAsync` covers Task/ValueTask × predicate-/no-predicate × Result/Task-Result combinations for both `WhenAsync` and `UnlessAsync`. |
+| `public static Task<Result<T>> UnlessAsync<T>(this Task<Result<T>> resultTask, Func<T, bool> predicate, Func<T, Task<Result<T>>> operation)` | `Task<Result<T>>` | Async inverse-`When` (a `bool condition` overload also exists). |
+| `public static Task<Result<(T1, T2)>> WhenAllAsync<T1, T2>(this (Task<Result<T1>> t1, Task<Result<T2>> t2) tasks)` | `Task<Result<(T1, T2)>>` | `WhenAllExtensionsAsync` runs tasks concurrently via `Task.WhenAll` and folds the results. Tuple arities 2–9 are generated. |
+
+```csharp
+Task<Result<(Profile, Preferences)>> bundle =
+    (LoadProfileAsync(id), LoadPreferencesAsync(id)).WhenAllAsync();
+```
+
+#### ToMaybe — `ToMaybeExtensions`, `ToMaybeExtensionsAsync`
+
+Project a `Result<T>` to a `Maybe<T>` (failure → `None`).
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Maybe<TValue> ToMaybe<TValue>(this Result<TValue> result) where TValue : notnull` | `Maybe<TValue>` | Sync projection. |
+| `public static Task<Maybe<TValue>> ToMaybeAsync<TValue>(this Task<Result<TValue>> resultTask) where TValue : notnull` | `Task<Maybe<TValue>>` | Awaits and projects. |
+| `public static ValueTask<Maybe<TValue>> ToMaybeAsync<TValue>(this ValueTask<Result<TValue>> resultTask) where TValue : notnull` | `ValueTask<Maybe<TValue>>` | ValueTask variant. |
+
+```csharp
+Maybe<Order> maybe = await repo.TryLoadAsync(id).ToMaybeAsync();
+```
+
+#### Nullable to Result — `NullableExtensions`, `NullableExtensionsAsync`
+
+Bridge a plain nullable value (`T?` for reference or value types) into the Result track. Mirrors `Maybe<T>.ToResult` for repositories that return raw nullables instead of `Maybe<T>`. The async overloads extend `Task<T?>` and `ValueTask<T?>` directly, so call sites can chain `.ToResultAsync(error)` onto a repository call without an intermediate `await` — matching the receiver pattern used by `BindAsync` / `EnsureAsync` / `MapAsync`.
+
+The `Func<Error>` async overloads delegate to the sync `ToResult` after awaiting, so the `ArgumentNullException.ThrowIfNull(errorFactory)` check fires on the awaited continuation rather than synchronously. The thrown exception still surfaces from the returned `Task` / `ValueTask`. This intentionally differs from `MaybeExtensionsAsync.ToResultAsync(Func<Error>)`, which validates the factory before awaiting.
+
+**Sync — `NullableExtensions` (4 overloads)**
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<T> ToResult<T>(this T? nullable, Error error) where T : struct` | `Result<T>` | Value-type variant. `null` → `Fail(error)`; otherwise `Ok(nullable.Value)`. |
+| `public static Result<T> ToResult<T>(this T? nullable, Func<Error> errorFactory) where T : struct` | `Result<T>` | Value-type factory variant. Throws `ArgumentNullException` when `errorFactory` is `null`. |
+| `public static Result<T> ToResult<T>(this T? obj, Error error) where T : class` | `Result<T>` | Reference-type variant. |
+| `public static Result<T> ToResult<T>(this T? obj, Func<Error> errorFactory) where T : class` | `Result<T>` | Reference-type factory variant. |
+
+**Async — `NullableExtensionsAsync` (8 overloads)**
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Error error) where T : struct` | `Task<Result<T>>` | `Task<T?>` value-type variant. |
+| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Func<Error> errorFactory) where T : struct` | `Task<Result<T>>` | `Task<T?>` value-type factory variant. |
+| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Error error) where T : class` | `Task<Result<T>>` | `Task<T?>` reference-type variant — the canonical "repo returns `Task<User?>`" bridge. |
+| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Func<Error> errorFactory) where T : class` | `Task<Result<T>>` | `Task<T?>` reference-type factory variant. |
+| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Error error) where T : struct` | `ValueTask<Result<T>>` | `ValueTask<T?>` value-type variant. |
+| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Func<Error> errorFactory) where T : struct` | `ValueTask<Result<T>>` | `ValueTask<T?>` value-type factory variant. |
+| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Error error) where T : class` | `ValueTask<Result<T>>` | `ValueTask<T?>` reference-type variant — the canonical "repo returns `ValueTask<Order?>`" bridge. |
+| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Func<Error> errorFactory) where T : class` | `ValueTask<Result<T>>` | `ValueTask<T?>` reference-type factory variant. |
+
+```csharp
+// Repository returns ValueTask<Order?>. ToResultAsync extends the task receiver
+// directly, so no intermediate await + sync ToResult call is required.
+private ValueTask<Result<Order>> LoadOrderAsync(OrderId id, CancellationToken ct) =>
+    _orderRepository.FindByIdAsync(id, ct)
+        .ToResultAsync(new Error.NotFound(ResourceRef.For<Order>(id)));
+```
+
+---
+
+## Pagination
+
+Storage-neutral request validation, typed continuation state, and page assembly. `Cursor`, `PageSize`, `PageRequest`, and `Page<T>` are **sealed record classes**, not structs: `default` is `null`, not a valid empty page or size. Use `Page.Empty<T>(...)` for an empty result. No pagination DI registration is required.
+
+### `public sealed record Cursor`
+
+```csharp
+public sealed record Cursor
+{
+    public Cursor(string token);
+    public string Token { get; }
+    public static Result<Cursor> TryCreate(string? token, string? fieldName = null);
+}
+```
+
+`Token` is opaque: clients echo it unchanged. The trusted constructor throws `ArgumentException` for null/empty strings; `TryCreate` additionally rejects whitespace-only input with `Error.InvalidInput`, field `fieldName ?? "cursor"`, reason `cursor.malformed`. Neither validates a codec-specific payload. Absence belongs to `Cursor?` / `PageRequest`; `Cursor.TryCreate(null)` is a failure.
+
+### `public sealed record PageRequest`
+
+```csharp
+public sealed record PageRequest
+{
+    public PageSize Size { get; }
+    public Cursor? Cursor { get; }
+
+    public static Result<PageRequest> TryCreate(
+        string? cursor, int? limit,
+        int max = PageSize.Max, int defaultSize = PageSize.Default,
+        PageSizeLimitPolicy policy = PageSizeLimitPolicy.Clamp,
+        string? cursorFieldName = null, string? limitFieldName = null);
+
+    public Result<Maybe<TState>> Decode<TState>(
+        ICursorCodec<TState> codec, string? fieldName = null)
+        where TState : notnull;
+}
+```
+
+There is no public constructor. `TryCreate` validates size first, then token presence/shape. Missing (`null`) cursor means the first page; an empty or whitespace cursor fails rather than restarting pagination. Missing limit uses the configured default; zero and negative limits fail. Explicit above-cap limits clamp by default; opt into `PageSizeLimitPolicy.Reject` to reject instead. Fields default to `"cursor"` and `"limit"` respectively.
+
+`Decode(codec)` returns success with `Maybe<TState>.None` for the first page and decodes only supplied cursors through `CursorCodec.TryDecodeOptional`. It preserves codec failures; a codec returning successful null state violates its contract and throws `InvalidOperationException`, rather than silently becoming first-page absence. Pass `fieldName` again when decoding a differently named cursor field: field-name overrides are not stored in the request. A null codec throws `ArgumentNullException`.
+
+### `public sealed record PageSize`
+
+```csharp
+public sealed record PageSize
+{
+    public const int Default = 50;
+    public const int Max = 100;
+    public const int MaxApplied = int.MaxValue - 1;
+
+    public PageSize(int requested, int applied);
+    public int Requested { get; }
+    public int Applied { get; }
+    public bool WasCapped { get; }
+
+    public static PageSize FromRequested(int? requested, int max = Max);
+    public static Result<PageSize> TryCreate(
+        int? requested, int max = Max, string? fieldName = null,
+        PageSizeLimitPolicy policy = PageSizeLimitPolicy.Clamp,
+        int defaultSize = Default);
+}
+
+public enum PageSizeLimitPolicy { Clamp, Reject }
+```
+
+| Input / member | Behavior |
+| --- | --- |
+| Missing requested size | `Requested = defaultSize`, `Applied = min(defaultSize, max)`, including under `Reject`. |
+| Explicit size `<= 0` | Failed result, `Error.InvalidInput`, reason `page-size.out-of-range`, field `fieldName ?? "pageSize"`. |
+| Explicit size above `max` | `Clamp` preserves `Requested` and caps `Applied`; `Reject` returns the same field-specific reason code. |
+| `WasCapped` | `Applied < Requested`; survives page assembly and DTO projection. |
+| `PageSize(int requested, int applied)` | Trusted constructor: `requested > 0`, `0 < applied <= requested`, and `applied <= MaxApplied`; otherwise `ArgumentOutOfRangeException`. |
+| `FromRequested(int?, int)` | Trusted, throwing convenience using the same default/clamp policy as `TryCreate`. **Non-positive input throws**, rather than becoming the default. Use `TryCreate` / `PageRequest.TryCreate` for request data. |
+| Server configuration | Invalid `max` (`<= 0` or `> MaxApplied`), non-positive `defaultSize`, or undefined policy throws `ArgumentOutOfRangeException`; these are not client failures. |
+
+The `MaxApplied` bound keeps `Applied + 1` safe for over-fetching. `Requested` may be larger than `MaxApplied` when the applied size is capped safely.
+
+### `public sealed record Page<T>`
+
+```csharp
+public sealed record Page<T>
+{
+    public Page(
+        IReadOnlyList<T> Items, Cursor? Next, Cursor? Previous,
+        int RequestedLimit, int AppliedLimit);
+
+    public IReadOnlyList<T> Items { get; }
+    public Cursor? Next { get; }
+    public Cursor? Previous { get; }
+    public int RequestedLimit { get; }
+    public int AppliedLimit { get; }
+    public int DeliveredCount { get; }
+    public bool WasCapped { get; }
+    public Page<TOut> Map<TOut>(Func<T, TOut> selector);
+}
+```
+
+The constructor snapshots items into immutable storage; equality/hash code use item sequence contents, both cursors, and both limits. Null `Items` throws `ArgumentNullException`. Limits must be positive, `AppliedLimit <= RequestedLimit`, and `AppliedLimit <= PageSize.MaxApplied`; violations throw `ArgumentOutOfRangeException`. `DeliveredCount` is `Items.Count`; `WasCapped` means `AppliedLimit < RequestedLimit`.
+
+`Next` and `Previous` are independently optional. Construct a page directly when a provider supplies continuation tokens — wrap each present provider token in `Cursor` and do not decode it with a Trellis codec or manufacture an over-fetch batch. A provider may supply a continuation even with no items; item count alone does not establish exhaustion for such stores.
+
+### `public static class Page`
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Page<T> Empty<T>(int requestedLimit, int appliedLimit)` | `Page<T>` | Validated empty page with neither cursor. |
+
+### `Page<T>.Map<TOut>`
+
+`public Page<TOut> Map<TOut>(Func<T, TOut> selector)` projects items while preserving `Next`, `Previous`, `RequestedLimit`, and `AppliedLimit`. A null selector throws `ArgumentNullException`. It does not encode new cursors from projected DTOs.
+
+### `ICursorCodec<TState>`
+
+```csharp
+public interface ICursorCodec<TState> where TState : notnull
+{
+    Cursor Encode(TState state);
+    Result<TState> TryDecode(Cursor? cursor, string? fieldName = null);
+}
+```
+
+The state is the **complete continuation boundary**, not necessarily an ID. Implementations own serialization, validation, and any query-context binding/protection. `TryDecode(null)` on a built-in codec is malformed; use `PageRequest.Decode` to model optional absence.
+
+### `public static class CursorCodec`
+
+```csharp
+public static class CursorCodec
+{
+    public const int MaxEncodedTokenLength = 1024;
+
+    public static ICursorCodec<T> Scalar<T>() where T : notnull, IParsable<T>;
+
+    public static ICursorCodec<(TPrimary Primary, TSecondary Secondary)>
+        Composite<TPrimary, TSecondary>()
+        where TPrimary : notnull, IParsable<TPrimary>
+        where TSecondary : notnull, IParsable<TSecondary>;
+
+    public static ICursorCodec<(TPrimary Primary, TSecondary Secondary)>
+        Composite<TPrimary, TSecondary>(
+            ICursorCodec<TPrimary> primary, ICursorCodec<TSecondary> secondary)
+        where TPrimary : notnull where TSecondary : notnull;
+
+    public static ICursorCodec<TState> Create<TState>(
+        string schema, Func<TState, string> format,
+        Func<string, string?, Result<TState>> parse) where TState : notnull;
+
+    public static ICursorCodec<TState> Map<TWire, TState>(
+        ICursorCodec<TWire> wireCodec, Func<TState, TWire> toWire,
+        Func<TWire, string?, Result<TState>> fromWire)
+        where TWire : notnull where TState : notnull;
+
+    public static Cursor Encode<T>(T id) where T : notnull, IParsable<T>;
+    public static Cursor Encode<TPrimary, TSecondary>(TPrimary primary, TSecondary secondary)
+        where TPrimary : notnull, IParsable<TPrimary>
+        where TSecondary : notnull, IParsable<TSecondary>;
+    public static Result<T> TryDecode<T>(Cursor? cursor, string? fieldName = null)
+        where T : notnull, IParsable<T>;
+    public static Result<Maybe<TState>> TryDecodeOptional<TState>(
+        Cursor? cursor, ICursorCodec<TState> codec, string? fieldName = null)
+        where TState : notnull;
+    public static Result<(TPrimary Primary, TSecondary Secondary)>
+        TryDecodeComposite<TPrimary, TSecondary>(Cursor? cursor, string? fieldName = null)
+        where TPrimary : notnull, IParsable<TPrimary>
+        where TSecondary : notnull, IParsable<TSecondary>;
+    public static Result<(DateTimeOffset CreatedAt, TKey Id)> TryDecodeComposite<TKey>(
+        Cursor? cursor, string? fieldName = null) where TKey : notnull, IParsable<TKey>;
+}
+```
+
+| Factory | Contract |
+| --- | --- |
+| `Scalar<T>()` | Invariant parsing/formatting. Requires `IParsable<T>` at compile time and `IFormattable` (or `string`) at factory creation; unsupported formatting throws `NotSupportedException` before a query runs. Generated scalar IDs satisfying both contracts work; otherwise project `.Value` or supply an explicit codec. |
+| `Composite<TPrimary,TSecondary>()` | Uses scalar codecs for any supported primary/secondary types, not only timestamps and IDs. |
+| `Composite(primary, secondary)` | Composes arbitrary codecs, including nested composites. Each component is encoded by its own codec; length-prefix framing keeps delimiters inside strings unambiguous. |
+| `Create(schema, format, parse)` | Explicit serializer/parser, not an implicit JSON fallback. Schema must be 1–64 ASCII letters, digits, or hyphens. The parser validates domain bounds/context and returns field-specific invalid-input errors for bad client state. |
+| `Map(wireCodec, toWire, fromWire)` | Maps a wire representation into named, validated domain state without rewriting serialization. `fromWire` runs on decode and during encode validation. See [Recipe 40](trellis-api-cookbook.md#recipe-40--computed-pagination-with-validated-query-bound-continuation-state). |
+
+`TryDecodeOptional(cursor, codec, fieldName)` is the shared optional-state adapter used by `PageRequest.Decode` and EF pagination: only a null cursor means `Maybe<TState>.None`; otherwise codec failures propagate and successful non-null state becomes present. A null codec throws `ArgumentNullException`; a codec returning successful null state throws `InvalidOperationException`. This is distinct from scalar `TryDecode`, which rejects an absent cursor.
+
+**Wire contract.** The entire UTF-8 frame is URL-safe base64 without padding. Decoded frames start with `1:s:` (scalar), `1:c:` (composite), or `1:x-<schema>:` (explicit codec). Composite payloads contain the decimal length of the first component token, `:`, that token, and the second component token. Nesting is supported within the overall size limit. **Old unversioned tokens are intentionally rejected; no migration decoder is provided.**
+
+**Round-trip contract.** `Encode` parses the emitted state and verifies equality against the input; invalid server state or a lossy formatter throws `ArgumentException` instead of emitting a cursor that cannot continue correctly. Use state with appropriate value equality (for example a record). Scalar floating-point values must be finite; NaN and infinities are rejected. `DateTime` / `DateTimeOffset` use round-trip `"O"` formatting and parsing to preserve ticks and kind/offset, not a rounded display timestamp. Built-in codecs enforce `MaxEncodedTokenLength = 1024` on both encoding and decoding, including the outer frame of nested composites.
+
+**Failure boundary.** Malformed base64, invalid UTF-8/framing/version, oversized input, and unparseable scalar state return `Error.InvalidInput` with `cursor.malformed` on `fieldName ?? "cursor"`. Custom parsers must return failures for expected bad input; arbitrary parser/formatter and infrastructure exceptions are not silently converted to input errors. A parser, mapped-state converter, or component codec returning successful null state throws `InvalidOperationException` on decode or encode validation: this is a broken codec contract, not invalid client input or first-page absence. `Create`, `Map`, and composite decoding enforce that distinction.
+
+**Opacity is not protection.** Built-ins are AOT-friendly and require no JSON serializer, but do not sign or encrypt tokens. Context binding (tenant, filters, origin, sort direction, algorithm version) belongs to the application codec. Wrap/replace `ICursorCodec<TState>` for signing/protection; authorization filters still apply to every query.
+
+### `public static class PageBuilder`
+
+```csharp
+public static class PageBuilder
+{
+    public static Page<T> FromOverFetch<T>(
+        IReadOnlyList<T> overFetched, PageSize pageSize,
+        Func<T, Cursor> cursorSelector);
+}
+```
+
+**Pure assembly only.** The caller filters, seeks, orders, and fetches `pageSize.Applied + 1` rows first. The builder keeps at most `Applied` rows and invokes `cursorSelector` on the **last retained item exactly once, only when more rows exist**. On an empty, short, or exactly full final batch, the callback is never called and `Next` is null. `Previous` is always null. A null argument throws `ArgumentNullException`; a callback returning null throws `InvalidOperationException`.
+
+The callback returns a **Cursor**, not a raw key. There are no scalar-key or timestamp-selector overloads:
+
+```csharp
+var codec = CursorCodec.Composite<DateTimeOffset, Guid>();
+var page = PageBuilder.FromOverFetch(
+    orderedAndSoughtRows, pageSize,
+    row => codec.Encode((row.CreatedAt, row.Id)));
+```
+
+The encoded boundary must match the upstream ordering and tie-breaker. Use EF [`SeekDefinition`](trellis-api-efcore.md#seekdefinition) / [`PaginationQueryableExtensions`](trellis-api-efcore.md#paginationqueryableextensions) for provider-translatable ordering/seek, or [Recipe 40](trellis-api-cookbook.md#recipe-40--computed-pagination-with-validated-query-bound-continuation-state) for application-owned computed pagination. Provider-owned continuation tokens should use the direct `Page<T>` constructor instead.
+
+**Wire shape.** `Trellis.Asp` maps `Result<Page<T>>` to `200 OK` with a JSON envelope and RFC 8288 `Link` header; see [`pagination response mapping`](trellis-api-asp.md#use-this-file-when). Neither Core assembly nor EF helpers implement reverse-seek, signing, geospatial queries, or snapshot isolation. A direct `Page<T>` can still preserve a provider-supplied `Previous`.
+
+---
+
+## Error Cases (closed ADT)
+
+| Case | Constructor | Code | Kind slug |
+| --- | --- | --- | --- |
+| `Error.InvalidInput` | `(EquatableArray<FieldViolation> Fields, EquatableArray<RuleViolation> Rules = default)` | `error.unspecified` (reasons live on the violations) | `invalid-input` |
+| `Error.InvariantViolation` | `(string Code, ResourceRef? Resource = null)` | required, positional | `invariant-violation` |
+| `Error.NotFound` | `(ResourceRef Resource)` | optional, `{ Code = ... }` or the factories' leading `code` argument | `not-found` |
+| `Error.Forbidden` | `(string Code, ResourceRef? Resource = null)` | required, positional; also readable as `PolicyId` | `forbidden` |
+| `Error.Conflict` | `(string Code, ResourceRef? Resource = null)` — plus `[JsonIgnore]` init-only `ConstraintName`/`ConstraintTableName` (telemetry-only, set by EF Core helpers such as `TryInsertUniqueAsync`) | required, positional | `conflict` |
+| `Error.Gone` | `(ResourceRef Resource)` | optional, `{ Code = ... }` or the factories' leading `code` argument | `gone` |
+| `Error.AuthenticationRequired` | `(string? Scheme = null)` | optional, `{ Code = ... }` | `authentication-required` |
+| `Error.Unavailable` | `(RetryAdvice? Retry = null)` | optional, `{ Code = ... }` | `unavailable` |
+| `Error.RateLimited` | `(RetryAdvice? Retry = null)` | optional, `{ Code = ... }` | `rate-limited` |
+| `Error.Unexpected` | `(string Code, string? FaultId = null)` | required, positional | `unexpected` |
+| `Error.Aggregate` | `(EquatableArray<Error> Errors)` <br> `(IEnumerable<Error> errors)` <br> `(params Error[] errors)` | `error.unspecified` (reasons live on the children) | `aggregate` |
+| `Error.TransportFault` | `(ITransportFault Fault)` | the wrapped `ICodedTransportFault`'s code, else `error.unspecified` | `transport-fault` |
+
+---
+
+## Examples
+
+### Result flow
+
+```csharp
+using Trellis;
+
+Result<int> Divide(int left, int right) =>
+    Result.Ensure(right != 0, () => Error.InvalidInput.ForRule(code: "divisor.must-not-be-zero", detail: "Right operand must not be zero"))
+        .Map(_ => left / right);
+```
+
+### Maybe to Result
+
+```csharp
+using Trellis;
+
+Maybe<string> maybeEmail = Maybe.From("user@example.com");
+
+Result<string> emailResult = maybeEmail.ToResult(
+    () => Error.InvalidInput.ForField(field: "email", code: ValidationCodes.ValueNotNull, detail: "Email is required"));
+```
+
+### Reading errors without throwing
+
+```csharp
+using Trellis;
+
+Result<Order> result = await mediator.SendAsync(new PlaceOrder(...));
+
+// Pattern-matching: result.Error is null on success, never throws
+if (!result.TryGetValue(out var order, out var error))
+{
+    return error switch
+    {
+        Error.NotFound nf            => NotFound(nf.Resource.Id),
+        Error.InvalidInput uc => UnprocessableEntity(uc.Fields),
+        Error.Conflict c             => Conflict(c.Code),
+        _                            => Problem(error.GetDisplayMessage()),
+    };
+}
+
+return Ok(order);
+```
+
+### Multi-field validation
+
+```csharp
+using Trellis;
+
+var streetCity = MaybeInvariant.AllOrNone(cmd.Street, cmd.City, "street", "city");
+var contact    = MaybeInvariant.ExactlyOne(cmd.Email, cmd.Phone, "email", "phone");
+
+// Combine merges any InvalidInput.Fields/Rules from multiple results
+return Result.Combine(streetCity, contact)
+    .Map(_ => new Address(cmd.Street, cmd.City));
+```
+
+
+---
+
+## Domain-Driven Design
+
+The DDD primitives (`Aggregate<T>`, `Entity<T>`, `ValueObject`, `Specification<T>`, ...) live in `Trellis.Core`. They share the `Trellis` namespace.
+
+### Types
+
+### `IEntity`
+
+```csharp
+public interface IEntity
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `CreatedAt` | `DateTimeOffset` | UTC timestamp for the first successful persistence of the entity. |
+| `LastModified` | `DateTimeOffset` | UTC timestamp for the latest successful persistence update. |
+
+### `Entity<TId>`
+
+```csharp
+public abstract class Entity<TId> : IEntity where TId : notnull
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Id` | `TId` | Immutable identity value for the entity. |
+| `CreatedAt` | `DateTimeOffset` | Infrastructure-managed creation timestamp. |
+| `LastModified` | `DateTimeOffset` | Infrastructure-managed last-modified timestamp. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `protected Entity(TId id)` | — | Initializes the entity identity. |
+| `public override bool Equals(object? obj)` | `bool` | Returns `true` for the same reference before checking default IDs; otherwise compares exact runtime type and non-default IDs. |
+| `public static bool operator ==(Entity<TId>? a, Entity<TId>? b)` | `bool` | Identity-based equality operator. |
+| `public static bool operator !=(Entity<TId>? a, Entity<TId>? b)` | `bool` | Identity-based inequality operator. |
+| `public override int GetHashCode()` | `int` | Combines runtime type and `Id`. |
+
+### `IAggregate`
+
+```csharp
+public interface IAggregate : IChangeTracking
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `ETag` | `string` | Optimistic concurrency token for the aggregate. |
+| `IsChanged` | `bool` | Inherited from `IChangeTracking`; implemented by `Aggregate<TId>` as domain-event-based change tracking by default. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `IReadOnlyList<IDomainEvent> UncommittedEvents()` | `IReadOnlyList<IDomainEvent>` | Returns the domain events raised since the last `AcceptChanges()`. |
+| `void AcceptChanges()` | `void` | Inherited from `IChangeTracking`; marks the aggregate as committed. |
+
+### `Aggregate<TId>`
+
+```csharp
+public abstract class Aggregate<TId> : Entity<TId>, IAggregate, IETagStampable, IReconstitutionStampable where TId : notnull
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `DomainEvents` | `List<IDomainEvent>` | Protected mutable event buffer for derived aggregate methods. |
+| `ETag` | `string` | Persistence-managed optimistic concurrency token. |
+| `IsChanged` | `bool` | `[JsonIgnore]` virtual change-tracking flag; default implementation is `DomainEvents.Count > 0`. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `protected Aggregate(TId id)` | — | Initializes the aggregate identity. |
+| `public IReadOnlyList<IDomainEvent> UncommittedEvents()` | `IReadOnlyList<IDomainEvent>` | Returns a read-only snapshot of current domain events. |
+| `public void AcceptChanges()` | `void` | Clears `DomainEvents`. |
+
+### `IETagStampable`
+
+```csharp
+public interface IETagStampable
+```
+
+Persistence-infrastructure seam for stamping an aggregate's optimistic-concurrency token (`IAggregate.ETag`) without reflection. `Aggregate<TId>` implements it **explicitly**, so the method stays off the domain surface and is reachable only by casting to `IETagStampable`. The EF Core integration stamps the ETag through its change-tracker interceptor; non-EF persistence adapters (Dapper, raw ADO, Cosmos SDK) use this seam instead — on load to restore the stored token, on save to apply a fresh one.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `void StampETag(string etag)` | `void` | Sets `IAggregate.ETag` to `etag`, which must be a valid unquoted RFC 9110 opaque tag (e.g. `Guid.NewGuid().ToString("N")`). Throws `ArgumentNullException` for null and `ArgumentException` for empty/whitespace or non-opaque-tag characters. |
+
+### `IReconstitutionStampable`
+
+```csharp
+public interface IReconstitutionStampable
+```
+
+Persistence-infrastructure seam for restoring a reconstituted aggregate's persistence-managed metadata (audit timestamps and the optimistic-concurrency token) and clearing its uncommitted domain events, through an explicit infra-only method. `Aggregate<TId>` implements it **explicitly**. The aggregate author rebuilds *domain* state via its own `Reconstitute(...)` factory (private constructor + assigning get-only properties and private child collections); a non-EF adapter then casts to `IReconstitutionStampable` to restore the *infrastructure* metadata it loaded from storage. Post-conditions: timestamps and ETag restored, no uncommitted domain events (so `IsChanged == false` under the default event-based change tracking). The EF Core integration does the equivalent via its materializer and interceptors.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `void StampReconstitutedState(DateTimeOffset createdAt, DateTimeOffset lastModified, string etag)` | `void` | Restores audit timestamps and the optimistic-concurrency token, and clears uncommitted domain events. `etag` must be a valid unquoted RFC 9110 opaque tag; throws `ArgumentNullException` for null and `ArgumentException` for empty/whitespace or non-opaque-tag characters. |
+
+### `IDomainEvent`
+
+```csharp
+public interface IDomainEvent
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `OccurredAt` | `DateTimeOffset` | Timestamp (with explicit UTC offset) for when the domain event occurred. |
+
+### `IIntegrationEvent`
+
+```csharp
+public interface IIntegrationEvent
+```
+
+Represents an integration event - the stable, published contract a bounded context emits to the outside world (other services or bounded contexts), as distinct from an [`IDomainEvent`](#idomainevent) which stays inside the context and is raised by aggregates.
+
+Domain events are internal: they are raised by aggregates, dispatched in-process to `IDomainEventHandler<T>`, and free to expose the domain's ubiquitous language because only the owning context observes them. Integration events are external: they are versioned wire contracts other systems depend on, so they should be deliberately shaped, stable, and free of internal domain types.
+
+Integration events are typically translated from domain events: a domain-event handler observes a domain event and produces one or more integration events describing the same business fact in contract terms. Publish them through the transactional outbox so external delivery is atomic with the state change and survives a crash. The outbox relays integration events through `IIntegrationEventPublisher`, whose default implementation fans out to in-process `IIntegrationEventHandler<T>` registrations and can be replaced with a message-broker adapter.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `OccurredAt` | `DateTimeOffset` | Timestamp (with explicit UTC offset) for when the business fact this integration event describes occurred. Use this as the single event timestamp. |
+
+### `IntegrationEventNameAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+public sealed class IntegrationEventNameAttribute(string name) : Attribute
+```
+
+Declares the stable, on-the-wire name of an `IIntegrationEvent` so producers and consumers in **different** services can agree on the type a message carries.
+
+```csharp
+[IntegrationEventName("orders.order-placed.v1")]
+public sealed record OrderPlaced(Guid OrderId, DateTimeOffset OccurredAt) : IIntegrationEvent;
+```
+
+In-process relaying identifies an event by `Type.AssemblyQualifiedName`, which is fine while producer and consumer share a process. On a message broker it is unusable: the consumer's assemblies differ from the producer's, and the string embeds an assembly version, so it can stop resolving after a routine version bump. A logical name is owned by the contract rather than by the CLR layout, so each side maps it to whatever local type it likes.
+
+**Choose a versioned name.** Once a message carrying the name exists on a queue or in another team's code, changing it is a breaking change. Include a version segment so an incompatible payload change can ship as a new name consumed side-by-side rather than as a silent break.
+
+Broker transports resolve the name through [`IntegrationEventNameMap`](trellis-api-mediator.md#integrationeventnamemap). Names compare with the **ordinal** comparer — casing is significant.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Name` | `string` | The stable wire name identifying this event's contract. |
+
+### `ITrackedAggregateSource`
+
+```csharp
+public interface ITrackedAggregateSource
+```
+
+Sidecar contract for a unit-of-work that snapshots the aggregates it persisted during the most recent successful commit. Read by `Trellis.Mediator.TrackedAggregateDomainEventDispatchBehavior<,>` so it can drain events from each tracked aggregate after the commit succeeds, regardless of the command's response shape. `Trellis.EntityFrameworkCore.EfUnitOfWork<TContext>` implements this interface; custom `IUnitOfWork` implementations that need to compose with the tracked dispatcher must also implement it (`AddTrellisUnitOfWork<TContext>()` forwards via cast from `IUnitOfWork` and throws `InvalidOperationException` at first resolve if the cast fails).
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `CommittedAggregates` | `IReadOnlyList<IAggregate>` | The aggregates the unit-of-work persisted on its most recent successful commit. Empty before any commit, empty after a failed or thrown commit (cleared before save and only repopulated on success), and unchanged during deferred nested commits — only the outermost commit owns the snapshot. |
+
+### `ValueObject`
+
+```csharp
+public abstract class ValueObject : IComparable<ValueObject>, IComparable, IEquatable<ValueObject>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| — | — | No public or protected properties. Equality and ordering are driven by methods. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `protected abstract void GetEqualityComponents(ref EqualityComponents components)` | `void` | Appends the ordered components used for equality, comparison, and hash-code generation onto `components`. Components at the same position with different runtime types are ordered by type name before same-typed components use their native comparison. Allocation-free: the base class supplies stack storage for up to 8 components and rents from `ArrayPool<IComparable?>.Shared` beyond that. |
+| `protected static IComparable? MaybeComponent<T>(Maybe<T> maybe) where T : notnull, IComparable` | `IComparable?` | Converts `Maybe<T>` to an equality component by returning the inner value or `null`. Prefer `components.Add(maybe)`, which does the same conversion inline. |
+| `public override bool Equals(object? obj)` | `bool` | Delegates to `Equals(ValueObject? other)`. |
+| `public bool Equals(ValueObject? other)` | `bool` | Structural equality check against the same runtime type. |
+| `public override int GetHashCode()` | `int` | Computes and caches a hash code from the equality components. |
+| `public virtual int CompareTo(ValueObject? other)` | `int` | Compares equality components in order. Null sorts before non-null (`value.CompareTo(null) > 0`). Throws `ArgumentException` for a non-null value object of a different runtime type. |
+| `public static bool operator ==(ValueObject? a, ValueObject? b)` | `bool` | Structural equality operator. |
+| `public static bool operator !=(ValueObject? a, ValueObject? b)` | `bool` | Structural inequality operator. |
+| `public static bool operator <(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator <=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator >(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+| `public static bool operator >=(ValueObject? left, ValueObject? right)` | `bool` | Ordering operator based on `CompareTo(ValueObject?)`: null sorts first; different non-null runtime types throw `ArgumentException`. |
+
+### `EqualityComponents`
+
+```csharp
+public ref struct EqualityComponents
+```
+
+The sink passed to `ValueObject.GetEqualityComponents(ref EqualityComponents)`. It is a `ref struct`, so it cannot be boxed, captured in a lambda, stored in a field, or used across an `await` — collect components and return.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public void Add(IComparable? component)` | `void` | Appends one component. Order is significant: equality compares positionally and `CompareTo` returns on the first differing position. |
+| `public void Add<T>(Maybe<T> component) where T : notnull, IComparable` | `void` | Appends an optional component, adding the inner value when present and `null` when empty. |
+| `public readonly int Count` | `int` | Number of components added so far. |
+
+```csharp
+public sealed class Address(string street, string city) : ValueObject
+{
+    public string Street { get; } = street;
+    public string City { get; } = city;
+    public Maybe<string> Apartment { get; private set; } = Maybe<string>.None;
+
+    protected override void GetEqualityComponents(ref EqualityComponents components)
+    {
+        components.Add(Street);
+        components.Add(City);
+        components.Add(Apartment);
+    }
+}
+```
+
+Derived types forward to their base before adding their own components, so base components keep the lower positions:
+
+```csharp
+protected override void GetEqualityComponents(ref EqualityComponents components)
+{
+    base.GetEqualityComponents(ref components);
+    components.Add(Country);
+}
+```
+
+> **Breaking change.** `GetEqualityComponents` previously returned `IEnumerable<IComparable?>` and was written with `yield return`. The iterator allocated on every `Equals`, `CompareTo`, and uncached `GetHashCode` call. Migrate by changing the signature to `protected override void GetEqualityComponents(ref EqualityComponents components)`, replacing each `yield return X;` with `components.Add(X);`, and replacing `foreach (var c in base.GetEqualityComponents()) yield return c;` with `base.GetEqualityComponents(ref components);`. Equality and ordering results are unchanged, and the hash combination algorithm is unchanged with one edge case: the hash cache now uses `0` as its "not yet computed" sentinel, so an instance whose components combine to exactly `0` caches and returns `1` instead. Equal instances still produce equal hash codes. `GetHashCode` values were never stable across processes (`HashCode.Combine` and `string.GetHashCode` are seeded per process), so they must not be persisted or asserted as literals.
+
+### `ScalarValueObject<TSelf, T>`
+
+```csharp
+public abstract class ScalarValueObject<TSelf, T> : ValueObject, IConvertible, IFormattable
+where TSelf : ScalarValueObject<TSelf, T>, IScalarValue<TSelf, T>
+where T : IComparable
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `T` | Wrapped scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `protected ScalarValueObject(T value)` | — | Stores the wrapped scalar value. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Default scalar equality uses only `Value`. |
+| `public override string ToString()` | `string` | Returns `Value?.ToString() ?? string.Empty`. |
+| `public static implicit operator T(ScalarValueObject<TSelf, T> valueObject)` | `T` | Unwraps the scalar value object to its primitive value. |
+| `public static TSelf Create(T value)` | `TSelf` | Calls `TSelf.TryCreate(value)` and throws `InvalidOperationException` on failure. This is the **concrete-type dispatch** entry point — invoked when the call site names a derived class (e.g. `EmailAddress.Create("…")`). The `IScalarValue<TSelf, TPrimitive>.Create(TPrimitive)` static-virtual member on the interface is the **generic-constraint dispatch** entry point used from generic code (`T.Create(value)` where `T : IScalarValue<T, P>`); the two methods coexist because C# does not route concrete-type calls through interface static-virtual defaults. |
+| `public TypeCode GetTypeCode()` | `TypeCode` | Returns `Type.GetTypeCode(typeof(T))`. |
+| `public bool ToBoolean(IFormatProvider? provider)` | `bool` | Converts `Value` with `Convert.ToBoolean`. |
+| `public byte ToByte(IFormatProvider? provider)` | `byte` | Converts `Value` with `Convert.ToByte`. |
+| `public char ToChar(IFormatProvider? provider)` | `char` | Converts `Value` with `Convert.ToChar`. |
+| `public DateTime ToDateTime(IFormatProvider? provider)` | `DateTime` | Converts `Value` with `Convert.ToDateTime`. |
+| `public decimal ToDecimal(IFormatProvider? provider)` | `decimal` | Converts `Value` with `Convert.ToDecimal`. |
+| `public double ToDouble(IFormatProvider? provider)` | `double` | Converts `Value` with `Convert.ToDouble`. |
+| `public short ToInt16(IFormatProvider? provider)` | `short` | Converts `Value` with `Convert.ToInt16`. |
+| `public int ToInt32(IFormatProvider? provider)` | `int` | Converts `Value` with `Convert.ToInt32`. |
+| `public long ToInt64(IFormatProvider? provider)` | `long` | Converts `Value` with `Convert.ToInt64`. |
+| `public sbyte ToSByte(IFormatProvider? provider)` | `sbyte` | Converts `Value` with `Convert.ToSByte`. |
+| `public float ToSingle(IFormatProvider? provider)` | `float` | Converts `Value` with `Convert.ToSingle`. |
+| `public string ToString(IFormatProvider? provider)` | `string` | Converts `Value` with `Convert.ToString`. |
+| `public string ToString(string? format, IFormatProvider? formatProvider)` | `string` | Uses `IFormattable` when the wrapped value supports it; otherwise uses `Convert.ToString`. |
+| `public object ToType(Type conversionType, IFormatProvider? provider)` | `object` | Converts `Value` to an arbitrary type via `Convert.ChangeType`. |
+| `public ushort ToUInt16(IFormatProvider? provider)` | `ushort` | Converts `Value` with `Convert.ToUInt16`. |
+| `public uint ToUInt32(IFormatProvider? provider)` | `uint` | Converts `Value` with `Convert.ToUInt32`. |
+| `public ulong ToUInt64(IFormatProvider? provider)` | `ulong` | Converts `Value` with `Convert.ToUInt64`. |
+
+### `AggregateETagExtensions`
+
+Defined in `Trellis.Http.Abstractions`; listed here because the extension methods remain in `namespace Trellis` and are commonly used alongside aggregates.
+
+```csharp
+public static class AggregateETagExtensions
+```
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<T> OptionalETag<T>(this Result<T> result, EntityTagValue[]? expectedETags) where T : IAggregate` | `Result<T>` | If `expectedETags` is `null`, returns the original result unchanged; otherwise enforces strong ETag matching. Failure modes wrap `HttpError.PreconditionFailed` in `Error.TransportFault`; `EntityTagValue.Wildcard()` short-circuits to success. |
+| `public static Result<T> RequireETag<T>(this Result<T> result, EntityTagValue[]? expectedETags) where T : IAggregate` | `Result<T>` | Requires an `If-Match` value and enforces strong ETag matching. Missing headers now produce `Error.TransportFault(new HttpError.PreconditionRequired(PreconditionKind.IfMatch))`; all other failure modes wrap `HttpError.PreconditionFailed`. |
+| `public static Task<Result<T>> OptionalETagAsync<T>(this Task<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate` | `Task<Result<T>>` | Async `Task` wrapper for `OptionalETag<T>`. |
+| `public static ValueTask<Result<T>> OptionalETagAsync<T>(this ValueTask<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate` | `ValueTask<Result<T>>` | Async `ValueTask` wrapper for `OptionalETag<T>`. |
+| `public static Task<Result<T>> RequireETagAsync<T>(this Task<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate` | `Task<Result<T>>` | Async `Task` wrapper for `RequireETag<T>`. |
+| `public static ValueTask<Result<T>> RequireETagAsync<T>(this ValueTask<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate` | `ValueTask<Result<T>>` | Async `ValueTask` wrapper for `RequireETag<T>`. |
+
+### `Specification<T>`
+
+```csharp
+public abstract class Specification<T>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `CacheCompilation` | `bool` | Protected virtual switch that controls whether `IsSatisfiedBy(T entity)` reuses a lazily compiled delegate. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `protected Specification()` | — | Initializes the lazy compiled delegate cache. |
+| `public abstract Expression<Func<T, bool>> ToExpression()` | `Expression<Func<T, bool>>` | Returns the canonical expression tree for the specification. |
+| `public bool IsSatisfiedBy(T entity)` | `bool` | Evaluates the specification in memory. |
+| `public Specification<T> And(Specification<T> other)` | `Specification<T>` | Returns a composed AND specification. |
+| `public Specification<T> Or(Specification<T> other)` | `Specification<T>` | Returns a composed OR specification. |
+| `public Specification<T> Not()` | `Specification<T>` | Returns a negated specification. |
+| `public static implicit operator Expression<Func<T, bool>>(Specification<T> spec)` | `Expression<Func<T, bool>>` | Converts the specification directly to its expression tree. |
+
+### `TrellisJsonValidationException`
+
+```csharp
+namespace Trellis;
+
+public sealed class TrellisJsonValidationException : System.Text.Json.JsonException
+```
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public TrellisJsonValidationException()` | — | Default constructor. |
+| `public TrellisJsonValidationException(string message)` | — | Creates an instance with a curated, user-safe message. |
+| `public TrellisJsonValidationException(string message, Exception innerException)` | — | Wraps an inner exception with the supplied message. |
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `InvalidInput` | `Error.InvalidInput?` (init-only) | Optional structured payload describing per-field violations recovered during deserialization. Populated by `CompositeValueObjectJsonConverter<T>` when a composite VO's `TryCreate` returns an `Error.InvalidInput`. When non-null with at least one `FieldViolation`, `Trellis.Asp`'s `ScalarValueValidationMiddleware` emits one wire entry per `FieldViolation` keyed `<parentPath>.<leaf>` (MVC dot+bracket convention) instead of collapsing all leaves into the single `;`-joined `Message`. When `null` or `Fields` is empty (e.g., rules-only `Error.InvalidInput`), the middleware falls back to a single entry under the translated parent path with `Message` as the value, preserving the curated message. |
+
+Marker subclass of `System.Text.Json.JsonException` thrown by Trellis JSON converters when a structured value object's invariants are violated during deserialization (e.g., `CompositeValueObjectJsonConverter<Money>` rejecting a negative amount). `Trellis.Asp`'s `ScalarValueValidationMiddleware` recognizes this subtype and surfaces its content in the resulting Problem Details payload — preferring the structured per-field shape from `Error.InvalidInput` when present (one entry per `FieldViolation`), and falling back to surfacing `Message` and `JsonException.Path` as a single entry otherwise. Plain `JsonException` instances are deliberately not surfaced because their messages can include internal type names; converters opt in to message surfacing by throwing this subclass with a curated message (e.g., `error.GetDisplayMessage()` from a `Result` failure).
+
+### `TrellisValidationFormatException`
+
+```csharp
+namespace Trellis;
+
+public sealed class TrellisValidationFormatException : FormatException
+```
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public TrellisValidationFormatException()` | — | Default constructor. |
+| `public TrellisValidationFormatException(string? message)` | — | The flattened parse message, unchanged from what callers saw before. |
+| `public TrellisValidationFormatException(string? message, Exception? innerException)` | — | Wraps an inner exception. |
+| `public TrellisValidationFormatException(string? message, Error.InvalidInput? invalidInput)` | — | Carries the structured failure alongside the flattened message. |
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `InvalidInput` | `Error.InvalidInput?` (init-only) | The structured failure the parse produced, when there was one. |
+
+A parse failure has to satisfy two contracts at once and no single exception type satisfies both: `IParsable<TSelf>` requires malformed input to be signalled with a `FormatException`, while the ASP boundary recognizes a structured failure only through `TrellisJsonValidationException`, which is a `JsonException`. So the failure crosses in two hops — `Parse` throws this type, and `ParsableJsonConverter<T>` rethrows it as a `TrellisJsonValidationException` carrying the same `InvalidInput`.
+
+Deriving from `FormatException` rather than adding a sibling type is what keeps existing `catch (FormatException)` sites matching, and the base message is the unchanged flattened message, so a caller that catches and logs sees exactly what it saw before. The structure is strictly additional. It lives in `Trellis.Core` and is public because it is thrown from `Trellis.Primitives` and caught in `Trellis.Core`: internal would put it out of reach of the throwing sites, and moving it to `Trellis.Primitives` would make Core's converter reference Primitives and invert the dependency.
+
+> **Status side effect.** Routing `RequiredEnum<TSelf>` and collection wrong-token parse failures through this carrier moves them from **400** to **422**. That is a correction, not a regression: 400 is for bytes that are not valid JSON, whereas these parsed fine and failed *semantic* validation — and the identical failure already returned 422 when it arrived through `CompositeValueObjectJsonConverter<T>`.
+
+
+## Primitive value object base classes
+
+These types ship in `Trellis.Core`. They are the building blocks for strongly-typed primitive value objects — derive a `partial class` from one of the `Required*<TSelf>` bases and the bundled `Trellis.Core.Generator` source generator emits the `TryCreate` / `Create` / `Parse` / `TryParse` / `JsonConverter` boilerplate. The validation attributes (`StringLengthAttribute`, `RangeAttribute`, `EnumValueAttribute`), opt-in behavior attributes (`NotDefaultAttribute`, `TrimAttribute`), and numeric sign attributes (`PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, `NonPositiveAttribute`) attach declarative metadata that the generator wires into validation. The concrete primitives that derive from these bases (`EmailAddress`, `Money`, etc.) live in `Trellis.Primitives` — see [trellis-api-primitives.md](trellis-api-primitives.md#types).
+
+#### `Required*<TSelf>` default behavior and opt-outs
+
+Every `Required*<TSelf>` base is **lenient by default**. The generated `TryCreate` rejects `null` for every base and accepts every concrete value. Use `[NotDefault]` to opt into sentinel rejection for a given base, and `[Trim]` to opt into string trimming on `RequiredString<TSelf>`.
+
+| Base | Default rejects | Opt-in attributes |
+|---|---|---|
+| `RequiredString<TSelf>` | `null` only (accepts `""`, whitespace; no auto-trim) | `[NotDefault]` rejects `""`; `[Trim]` enables trimming; combine for strict trim-then-reject-empty |
+| `RequiredGuid<TSelf>` | `null` only (accepts `Guid.Empty`) | `[NotDefault]` rejects `Guid.Empty` |
+| `RequiredDateTime<TSelf>` | `null` only (accepts `DateTime.MinValue`) | `[NotDefault]` rejects `DateTime.MinValue` |
+| `RequiredDateTimeOffset<TSelf>` | `null` only (accepts `DateTimeOffset.MinValue`) | `[NotDefault]` rejects `DateTimeOffset.MinValue` |
+| `RequiredInt<TSelf>` | `null` only (accepts `0`) | `[NotDefault]` rejects `0` |
+| `RequiredLong<TSelf>` | `null` only (accepts `0L`) | `[NotDefault]` rejects `0L` |
+| `RequiredDecimal<TSelf>` | `null` only (accepts `0m`) | `[NotDefault]` rejects `0m` |
+| `RequiredBool<TSelf>` | `null` | (no sentinel — `false` remains valid) |
+| `RequiredEnum<TSelf>` | `null`, undeclared member names | (smart-enum lookup via `TryCreate`) |
+
+`RequiredString<TSelf>` validation order: `null` check → trim (only if `[Trim]` present) → empty check (only if `[NotDefault]` present) → `[StringLength]` → `ValidateAdditional`. `[Trim]` without `[NotDefault]` trims the value before storage but does not reject `""` or whitespace-only input. Combine `[Trim, NotDefault]` for trim-then-reject-empty behavior.
+
+Numeric Required bases (`RequiredInt`, `RequiredLong`, `RequiredDecimal`) accept four convenience sign-check attributes — `[Positive]`, `[NonNegative]`, `[Negative]`, `[NonPositive]` — mutually exclusive with each other. `RequiredInt` and `RequiredLong` translate them into the equivalent `[Range]` bounds; `RequiredDecimal` emits a direct sign comparison (the full `decimal` range exceeds what `double`-backed `[Range]` could express). Applying a convenience attribute to a non-numeric base is TRLS043; applying more than one is TRLS044. Note: a `[Range(1, 100)] RequiredInt` rejects `0` via the range message ("must be at least 1"), not a sentinel message — no `[NotDefault]` needed when a range already excludes zero.
+
+The lenient defaults also drive the EF Core `TrellisScalarConverter` read path: only `null` triggers `TrellisPersistenceMappingException` during materialization. When `[NotDefault]` is present, persisted sentinel values also throw. Add `[NotDefault]` for columns where the sentinel is never valid persisted domain state.
+
+#### Overriding a constraint's reason code
+
+`RangeAttribute`, `StringLengthAttribute`, `NotDefaultAttribute`, `PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, and `NonPositiveAttribute` each carry an optional `Code` that replaces the framework reason code on the resulting `FieldViolation`. `TrimAttribute` carries none, because trimming normalizes and cannot fail. The four sign attributes share `RangeAttribute`'s slot, since they synthesize into the same range emission. An empty or whitespace `Code` is `TRLS060`.
+
+The framework vocabulary stays frozen and stays the default; the freeze constrains Trellis, not the application. `ValidateAdditional` also has a four-argument overload — `(T value, string fieldName, ref string? errorMessage, ref string? errorCode)` — that names a custom rule's failure instead of reporting `error.unspecified`; declaring both overloads is `TRLS061`. See [trellis-api-primitives.md](trellis-api-primitives.md#overriding-the-reason-code--code) for the full treatment.
+
+### `ResultRequiresExplicitHttpMappingConverter`
+
+```csharp
+public sealed class ResultRequiresExplicitHttpMappingConverter : JsonConverterFactory
+```
+
+Default `[JsonConverter]` factory attached to `Result<T>`, `IResult`, and `IResult<T>`. Throws `NotSupportedException` on any direct `JsonSerializer.Serialize` / `Deserialize` call, with an actionable message that names the canonical fix:
+
+1. **HTTP path** — call `.ToHttpResponse()` (Trellis.Asp) on the result. The returned `Microsoft.AspNetCore.Http.IResult` writes the body itself; the struct never reaches STJ.
+2. **Non-HTTP path** — unwrap the value with `Match` / `TryGetValue` before serialization.
+3. **Explicit override** — register a converter (or a `JsonConverterFactory`) in `JsonSerializerOptions.Converters`. Option-registered converters take precedence over the type-level `[JsonConverter]` attribute. **The override must match the declared static type:** a `JsonConverter<Result<T>>` only covers `Result<T>`-declared values; `IResult<T>`-declared values need `JsonConverter<IResult<T>>`; `IResult`-declared values need `JsonConverter<IResult>`. Use a `JsonConverterFactory` whose `CanConvert` matches every shape to cover the mixed case in one registration.
+
+The attribute lives on both the struct AND the interfaces because STJ resolves `[JsonConverter]` against the static declared type: an endpoint declared as `Task<IResult<int>> GetAsync()` would otherwise bypass a converter attached only to the struct, silently producing a public-state dump (for example, `{"IsSuccess": true, "IsFailure": false, "Error": null}` for a success, with no success value) instead of using the explicit HTTP mapping the converter exists to enforce.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override bool CanConvert(Type typeToConvert)` | `bool` | `true` for `Result<T>`, `IResult<T>`, and the non-generic `IResult` interface. |
+| `public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)` | `JsonConverter` | Always throws `NotSupportedException` directly — the factory is terminal and never returns a typed converter. Throwing here (instead of returning a converter that throws on `Read` / `Write`) keeps the path AOT-safe: no `MakeGenericType` / `Activator.CreateInstance` reflection is needed, so Native AOT consumers see the actionable Trellis message instead of a "native code not available" error before the message can fire. The exception message names the declared shape (`Result<T>`, `IResult<T>`, or `IResult`) so the consumer sees the exact type to register an override for. |
+
+### `RangeAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class RangeAttribute : Attribute
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Code` | `string?` | Replaces the framework reason code on both directional failures. `null` keeps `value.greater-than-or-equal` / `value.less-than-or-equal`. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public RangeAttribute(int minimum, int maximum)` | `RangeAttribute` | Range metadata for `RequiredInt<TSelf>` and whole-number `RequiredDecimal<TSelf>`. |
+| `public RangeAttribute(long minimum, long maximum)` | `RangeAttribute` | Range metadata for `RequiredLong<TSelf>`. |
+| `public RangeAttribute(double minimum, double maximum)` | `RangeAttribute` | Fractional range metadata for `RequiredDecimal<TSelf>`. |
+
+### `StringLengthAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class StringLengthAttribute : Attribute
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `MaximumLength` | `int` | Inclusive maximum length. |
+| `MinimumLength` | `int` | Inclusive minimum length; defaults to `0`. |
+| `Code` | `string?` | Replaces the framework reason code on both length failures. `null` keeps `string.min-length` / `string.max-length`. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public StringLengthAttribute(int maximumLength)` | `StringLengthAttribute` | Length metadata for `RequiredString<TSelf>`. |
+
+### `NotDefaultAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class NotDefaultAttribute : Attribute
+```
+
+Opt-in attribute consumed by `Trellis.Core.Generator`. When present, the generated `TryCreate` rejects the type's sentinel value in addition to `null`. On `RequiredString<TSelf>`, rejects `""` (after any trimming applied by `[Trim]`). On `RequiredGuid<TSelf>`, rejects `Guid.Empty`. On numeric bases, rejects `0` / `0L` / `0m`. On date bases, rejects `DateTime.MinValue` or `DateTimeOffset.MinValue`.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public NotDefaultAttribute()` | `NotDefaultAttribute` | Marker only — no constructor arguments. |
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Code` | `string?` | Replaces the framework reason code on the sentinel rejection. `null` keeps `value.not-default`, or `value.not-empty` on `RequiredString<TSelf>`. |
+
+### `TrimAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class TrimAttribute : Attribute
+```
+
+Opt-in attribute consumed by `Trellis.Core.Generator`. When present on `RequiredString<TSelf>`, the generated `TryCreate` trims leading and trailing whitespace before applying further checks. When combined with `[NotDefault]`, whitespace-only input trims to `""` and is rejected. Without `[NotDefault]`, trimming normalizes the stored value but does not reject `""` or whitespace-only input.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public TrimAttribute()` | `TrimAttribute` | Marker only — no constructor arguments. |
+
+### `EnumValueAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+public sealed class EnumValueAttribute : Attribute
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Canonical symbolic name for a `RequiredEnum<TSelf>` member. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public EnumValueAttribute(string value)` | `EnumValueAttribute` | Overrides the default field-name-based symbolic value. |
+
+### `ResourceCollectionNameAttribute`
+
+```csharp
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
+public sealed class ResourceCollectionNameAttribute : Attribute
+```
+
+Overrides the default URI collection name (`{TypeName.ToLowerInvariant()}s`) used when `Trellis.Asp` synthesises `ProblemDetails.Instance` from a failing `ResourceRef`. Apply to the aggregate type whose default naive plural is wrong or unwanted (for example `[ResourceCollectionName("people")]` on `Person`, or `[ResourceCollectionName("statuses")]` on `Status`).
+
+The attribute validates the supplied name at construction time so misconfiguration fails fast at host start when `services.AddResourceCollectionNames(...)` scans the assembly. The name must be a non-empty single URL path segment composed entirely of RFC 3986 `unreserved` characters: ASCII letters and digits plus `-`, `.`, `_`, and `~`. Reserved characters (`/`, `?`, `#`), percent (`%`), `+`, and whitespace are rejected because the value is emitted unencoded into the synthesised URI. When the attribute is absent and no DI override is registered, the writer falls back to `{TypeName.ToLowerInvariant()}s`.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Name` | `string` | The URL collection segment (for example `"people"`). |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public ResourceCollectionNameAttribute(string name)` | `ResourceCollectionNameAttribute` | Throws `ArgumentNullException` if `name` is `null`; throws `ArgumentException` if `name` is empty/whitespace or contains any character outside RFC 3986 `unreserved`. |
+| `public static bool IsSafePathSegment(string? name)` | `bool` | Predicate used by the attribute constructor and by `Trellis.Asp.ResourceCollectionNameRegistry` to validate names from DI helpers. Returns `false` for `null`, empty, or whitespace input. Exposed publicly so other layers can apply the same rule. |
+
+### `StringExtensions`
+
+```csharp
+public static class StringExtensions
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| — | — | Static helper type. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static string NormalizeFieldName(this string? fieldName, string defaultName)` | `string` | Returns `defaultName` verbatim only when `fieldName` is `null`; otherwise camel-cases `fieldName`. An empty string is preserved as the root/current-pointer sentinel used by pointer-aware validation pipelines. |
+| `public static T ParseScalarValue<T>(string? s) where T : class, IScalarValue<T, string>` | `T` | Throws `FormatException` based on `T.TryCreate`. |
+| `public static bool TryParseScalarValue<T>([NotNullWhen(true)] string? s, [MaybeNullWhen(false)] out T result) where T : class, IScalarValue<T, string>` | `bool` | Safe parsing helper based on `T.TryCreate`. |
+| `public static string ToCamelCase(this string? str)` | `string` | Lowercases the first character only. |
+
+### `RequiredEnumJsonConverter<TRequiredEnum>`
+
+```csharp
+public sealed class RequiredEnumJsonConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TRequiredEnum> : JsonConverter<TRequiredEnum>
+    where TRequiredEnum : RequiredEnum<TRequiredEnum>, IScalarValue<TRequiredEnum, string>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| — | — | Converter type; no public properties. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override bool HandleNull` | `bool` | `true`; routes JSON `null` tokens through the converter so required enums can reject them explicitly. |
+| `public override TRequiredEnum? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `TRequiredEnum?` | Accepts only JSON `string`; string values are resolved through `TRequiredEnum.TryCreate(name)`, and `null` throws `JsonException`. |
+| `public override void Write(Utf8JsonWriter writer, TRequiredEnum value, JsonSerializerOptions options)` | `void` | Writes `value.Value` as a JSON string. |
+
+### `RequiredString<TSelf>`
+
+```csharp
+public abstract class RequiredString<TSelf> : ScalarValueObject<TSelf, string>
+    where TSelf : RequiredString<TSelf>, IScalarValue<TSelf, string>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Inherited scalar value. |
+| `Length` | `int` | Convenience access to `Value.Length`. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public bool StartsWith(string value)` | `bool` | Delegates to `string.StartsWith(string)` for EF Core-translatable query predicates. Culture-sensitive in memory — see [Comparison semantics](#comparison-semantics-of-the-single-argument-query-helpers). |
+| `public bool StartsWith(string value, StringComparison comparisonType)` | `bool` | Delegates to `string.StartsWith(string, StringComparison)`. This overload is not EF Core translatable; use the single-argument overload for queries. |
+| `public bool Contains(string value)` | `bool` | Delegates to `string.Contains(string)` for EF Core-translatable query predicates. Ordinal in memory — see [Comparison semantics](#comparison-semantics-of-the-single-argument-query-helpers). |
+| `public bool Contains(string value, StringComparison comparisonType)` | `bool` | Delegates to `string.Contains(string, StringComparison)`. This overload is not EF Core translatable; use the single-argument overload for queries. |
+| `public bool Contains(char value, StringComparison comparisonType)` | `bool` | Delegates to `string.Contains(char, StringComparison)`. This overload is not EF Core translatable; use the single-argument overload for queries. |
+| `public bool EndsWith(string value)` | `bool` | Delegates to `string.EndsWith(string)` for EF Core-translatable query predicates. Culture-sensitive in memory — see [Comparison semantics](#comparison-semantics-of-the-single-argument-query-helpers). |
+| `public bool EndsWith(string value, StringComparison comparisonType)` | `bool` | Delegates to `string.EndsWith(string, StringComparison)`. This overload is not EF Core translatable; use the single-argument overload for queries. |
+| `public static TSelf Create(string value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+#### Comparison semantics of the single-argument query helpers
+
+The single-argument `StartsWith`, `Contains`, and `EndsWith` exist so EF Core's
+`ScalarValueExpressionRewriter` can translate them: it maps `Name.StartsWith(x)` to
+`((string)Name).StartsWith(x)`, and a two-argument call carrying a `StringComparison`
+would not translate. The consequence is that they inherit the BCL's comparison
+semantics verbatim — **and the BCL is not self-consistent here**:
+
+| Helper | In-memory comparison |
+| --- | --- |
+| `StartsWith(string)` | Culture-sensitive (`StringComparison.CurrentCulture`) |
+| `EndsWith(string)` | Culture-sensitive (`StringComparison.CurrentCulture`) |
+| `Contains(string)` | **Ordinal** |
+
+The divergence is observable on any data containing characters a culture treats as
+ignorable. With the soft hyphen `U+00AD`, the same receiver and the same argument give
+opposite answers:
+
+```csharp
+var name = ProductName.Create("cooper\u00ADative");
+
+name.StartsWith("coopera"); // true  — culture-sensitive, ignores the soft hyphen
+name.EndsWith("rative");    // true  — likewise
+name.Contains("rative");    // false — ordinal, the soft hyphen is a real character
+```
+
+Two further consequences worth planning for:
+
+- **In-memory and SQL evaluation can disagree.** Translated to SQL, the comparison is
+  performed by the database using the provider's own string-matching functions,
+  operators, and collations — which may match neither the culture-sensitive nor the
+  ordinal .NET result. The rules are provider-specific rather than universally the
+  column's collation: SQL Server translates these to `LIKE`, which honours the column
+  collation, whereas the SQLite provider translates `Contains` to `instr`, which does
+  not. The same specification can therefore return different results when evaluated
+  against a `DbSet` versus an in-memory list — which matters for tests that use
+  in-memory collections to stand in for the database.
+- **Host configuration changes the answer.** A host running with
+  `InvariantGlobalization=true` collapses culture-sensitive comparison to ordinal-like
+  behavior, so `StartsWith`/`EndsWith` change results while `Contains` does not.
+
+When the semantics must be explicit and the call is not part of an EF Core query, use the
+two-argument overload and pass `StringComparison.Ordinal` explicitly.
+
+### `RequiredGuid<TSelf>`
+
+```csharp
+public abstract class RequiredGuid<TSelf> : ScalarValueObject<TSelf, Guid>
+    where TSelf : RequiredGuid<TSelf>, IScalarValue<TSelf, Guid>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `Guid` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TSelf Create(Guid value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredInt<TSelf>`
+
+```csharp
+public abstract class RequiredInt<TSelf> : ScalarValueObject<TSelf, int>
+    where TSelf : RequiredInt<TSelf>, IScalarValue<TSelf, int>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `int` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TSelf Create(int value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredDecimal<TSelf>`
+
+```csharp
+public abstract class RequiredDecimal<TSelf> : ScalarValueObject<TSelf, decimal>
+    where TSelf : RequiredDecimal<TSelf>, IScalarValue<TSelf, decimal>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `decimal` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TSelf Create(decimal value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredLong<TSelf>`
+
+```csharp
+public abstract class RequiredLong<TSelf> : ScalarValueObject<TSelf, long>
+    where TSelf : RequiredLong<TSelf>, IScalarValue<TSelf, long>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `long` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TSelf Create(long value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredBool<TSelf>`
+
+```csharp
+public abstract class RequiredBool<TSelf> : ScalarValueObject<TSelf, bool>
+    where TSelf : RequiredBool<TSelf>, IScalarValue<TSelf, bool>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `bool` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TSelf Create(bool value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredDateTime<TSelf>`
+
+```csharp
+public abstract class RequiredDateTime<TSelf> : ScalarValueObject<TSelf, DateTime>
+    where TSelf : RequiredDateTime<TSelf>, IScalarValue<TSelf, DateTime>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `DateTime` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override string ToString()` | `string` | Formats `Value` using invariant round-trip format `"O"`. |
+| `public static TSelf Create(DateTime value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredDateTimeOffset<TSelf>`
+
+```csharp
+public abstract class RequiredDateTimeOffset<TSelf> : ScalarValueObject<TSelf, DateTimeOffset>
+    where TSelf : RequiredDateTimeOffset<TSelf>, IScalarValue<TSelf, DateTimeOffset>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `DateTimeOffset` | Inherited scalar value. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override string ToString()` | `string` | Formats `Value` using invariant round-trip format `"O"`. |
+| `public static TSelf Create(DateTimeOffset value)` | `TSelf` | Inherited throwing scalar factory. Source-generated overloads are listed below. |
+
+### `RequiredEnum<TSelf>`
+
+```csharp
+public abstract class RequiredEnum<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TSelf>
+    : IEquatable<RequiredEnum<TSelf>>, IComparable<RequiredEnum<TSelf>>, IComparable
+    where TSelf : RequiredEnum<TSelf>, IScalarValue<TSelf, string>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Canonical symbolic identity; defaults to the public static field name unless `[EnumValue]` overrides it. |
+| `Ordinal` | `int` | Declaration-order metadata; not a wire/storage identity. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static IReadOnlyCollection<TSelf> GetAll()` | `IReadOnlyCollection<TSelf>` | Returns all discovered public static readonly members. |
+| `public bool Is(params TSelf[] values)` | `bool` | True when this instance matches any provided member. |
+| `public bool IsNot(params TSelf[] values)` | `bool` | Negation of `Is(params TSelf[])`. |
+| `public override string ToString()` | `string` | Returns `Value`. |
+| `public override int GetHashCode()` | `int` | Case-insensitive hash of `Value`. |
+| `public override bool Equals(object? obj)` | `bool` | Case-insensitive symbolic equality. |
+| `public bool Equals(RequiredEnum<TSelf>? other)` | `bool` | Case-insensitive symbolic equality. |
+| `public static bool operator ==(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Equality operator. |
+| `public static bool operator !=(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Inequality operator. |
+| `public static implicit operator string(RequiredEnum<TSelf> value)` | `string` | Unwraps the member to its symbolic `Value`, matching the implicit unwrap on `ScalarValueObject<TSelf, T>`-derived primitives so every `Required*` value object converts to its primitive transparently. Member-to-member `==` keeps its case-insensitive `Value` semantics — the exact-match operator above wins over a double conversion to `string`. |
+| `public int CompareTo(RequiredEnum<TSelf>? other)` | `int` | Orders by `Ordinal` (declaration order), like the C# `enum` it replaces; stays consistent with `Value`-based equality (`Value` and `Ordinal` are both unique per member); `null` sorts first. |
+| `int IComparable.CompareTo(object? obj)` | `int` | Non-generic comparison; enables members to be used as composite `ValueObject` equality components and sorted by the default comparer. Throws `ArgumentException` when `obj` is non-null and not a `RequiredEnum<TSelf>` (consistent with `Equals(object?)`). |
+| `public static bool operator <(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Less-than by declaration order. |
+| `public static bool operator <=(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Less-than-or-equal by declaration order. |
+| `public static bool operator >(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Greater-than by declaration order. |
+| `public static bool operator >=(RequiredEnum<TSelf>? left, RequiredEnum<TSelf>? right)` | `bool` | Greater-than-or-equal by declaration order. |
+
+### `ParsableJsonConverter<T>`
+
+```csharp
+public class ParsableJsonConverter<T> : JsonConverter<T>
+    where T : IParsable<T>
+```
+
+Core-owned JSON converter emitted by the `Required*<TSelf>` source generator for non-enum generated primitives. It reads JSON strings, numbers, and booleans; JSON `null` is rejected outright with a `JsonException`, before any parse is attempted, because generated scalar value objects are non-nullable. Numeric scalar value objects write JSON numbers when their string representation parses invariantly as a decimal, `bool`-backed scalars write JSON `true`/`false`, and all other values write JSON strings.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override bool HandleNull => true` | `bool` | Opts the converter into receiving `null` tokens. Without it, `System.Text.Json` bypasses `Read` for a `null` token on a reference-type target and yields a null reference, silently violating the primitive's non-nullable contract. |
+| `public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `T?` | Converts supported JSON token types to invariant strings and calls `T.Parse(raw, CultureInfo.InvariantCulture)`. A parse or validation failure is wrapped in a `JsonException` whose `InnerException` is the original parse exception — a `FormatException` for the generated primitives, or an `ArgumentException` / `OverflowException` from a hand-written `IParsable<T>`. |
+| `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes numeric scalar primitives as numbers and `bool`-backed scalars as JSON booleans when possible; otherwise writes `value.ToString()` as a JSON string. |
+
+> **Failures surface as `JsonException`.** `Parse` itself still throws `FormatException` (the `IParsable<T>` contract), but deserialization wraps it so every converter failure — bad token type, `null` for a non-nullable target, malformed value, failed validation — reaches the caller as `JsonException`. This matters at HTTP boundaries: minimal APIs and `ReadFromJsonAsync` translate `JsonException` into a `400 Bad Request`, whereas an escaping `FormatException` becomes a `500`. Only `FormatException`, `ArgumentException`, and `OverflowException` are translated; any other exception from a custom `Parse` propagates unchanged.
+
+> **`null` is rejected, not silently accepted.** A JSON `null` — whether at the top level or in a property position such as `{"Number":null}` — throws `JsonException` rather than producing a null reference. This depends on `HandleNull` being `true`; a custom `JsonConverter<T>` for a non-nullable value object that omits that override will silently deserialize `null` into the reference, defeating the primitive's invariant. Serialization is unaffected: a null reference still writes JSON `null`.
+
+### `PrimitiveValueObjectTrace`
+
+```csharp
+public static class PrimitiveValueObjectTrace
+```
+
+Core-owned trace source used by generated `Required*<TSelf>` value objects and concrete primitives. The activity source name remains `"Trellis.Primitives"` for telemetry compatibility and is exposed as `PrimitiveValueObjectTrace.ActivitySourceName`; register it with `AddTrellisPrimitivesInstrumentation()` from `Trellis.Primitives` when using the primitives package, or call `TracerProviderBuilder.AddSource(PrimitiveValueObjectTrace.ActivitySourceName)` directly for Core-only generated primitives.
+
+> **Versioning:** the OpenTelemetry activity source `Version` is stamped from the assembly that physically contains this type — `Trellis.Core` — even when consumers depend on `Trellis.Primitives`. The two packages ship lockstep from a single `version.json`, so the version reported in spans is the version of both packages.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `ActivitySource` | `ActivitySource` | Activity source used by generated primitive creation/parsing/validation operations. |
+| `ActivitySourceName` | `string` | Public activity source name for Core-only OpenTelemetry wiring. |
+
+### Source-generated members
+
+The incremental generator at `Trellis.Core/generator/RequiredPartialClassGenerator.cs` (bundled inside `Trellis.Core.nupkg` at `analyzers/dotnet/cs/Trellis.Core.Generator.dll`) augments partial classes that inherit a `Required*<TSelf>` base type.
+
+#### `RequiredString<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(string? value, string? fieldName = null)
+public static TSelf Create(string? value, string? fieldName = null)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(string value)
+static partial void ValidateAdditional(string value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null`. `""` and whitespace-only input are accepted without trimming by default. Add `[NotDefault]` to also reject `""`, `[Trim]` to enable trimming, or `[Trim, NotDefault]` for strict trim-then-reject-empty. `[StringLength]` operates after any applied trim.
+
+#### `RequiredGuid<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static TSelf NewUniqueV4()
+public static TSelf NewUniqueV7()
+public static TSelf NewUniqueV7(TimeProvider timeProvider)
+public static Result<TSelf> TryCreate(Guid value, string? fieldName = null)
+public static Result<TSelf> TryCreate(Guid? requiredGuidOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static new TSelf Create(Guid value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(Guid value)
+static partial void ValidateAdditional(Guid value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null`; `Guid.Empty` is accepted. Add `[NotDefault]` to also reject `Guid.Empty` when the all-zero GUID is not valid domain state.
+- `NewUniqueV7(TimeProvider timeProvider)` uses `timeProvider.GetUtcNow()` as the Version 7 timestamp and throws `ArgumentNullException` when `timeProvider` is `null`.
+
+#### `RequiredInt<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(int value, string? fieldName = null)
+public static Result<TSelf> TryCreate(int? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)
+public static new TSelf Create(int value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(int value)
+static partial void ValidateAdditional(int value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null` for nullable inputs; `0` is accepted. Optional `[Range(int, int)]` and sign-check attributes run after the null check. Add `[NotDefault]` to also reject `0`.
+
+#### `RequiredDecimal<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(decimal value, string? fieldName = null)
+public static Result<TSelf> TryCreate(decimal? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)
+public static new TSelf Create(decimal value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(decimal value)
+static partial void ValidateAdditional(decimal value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null` for nullable inputs; `0m` is accepted. Optional `[Range(int, int)]`, `[Range(double, double)]`, and sign-check attributes run after the null check. Add `[NotDefault]` to also reject `0m`.
+- String parsing: the plain `TryCreate(string?, string?)` overload uses invariant culture; use the `IFormatProvider` overload for culture-aware decimal formats.
+
+#### `RequiredLong<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(long value, string? fieldName = null)
+public static Result<TSelf> TryCreate(long? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)
+public static new TSelf Create(long value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(long value)
+static partial void ValidateAdditional(long value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null` for nullable inputs; `0L` is accepted. Optional `[Range(long, long)]` and sign-check attributes run after the null check. Add `[NotDefault]` to also reject `0L`.
+
+#### `RequiredBool<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(bool value, string? fieldName = null)
+public static Result<TSelf> TryCreate(bool? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static new TSelf Create(bool value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(bool value)
+static partial void ValidateAdditional(bool value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null` for nullable inputs; both `true` and `false` are valid. There is no strictness opt-out for `RequiredBool<TSelf>`.
+- JSON wire format: serializes as a JSON boolean (`true` / `false`). Deserialization accepts both JSON booleans and the JSON strings `"true"` / `"false"`.
+
+#### `RequiredDateTime<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(DateTime value, string? fieldName = null)
+public static Result<TSelf> TryCreate(DateTime? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)
+public static new TSelf Create(DateTime value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(DateTime value)
+static partial void ValidateAdditional(DateTime value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null`; `DateTime.MinValue` is accepted. Add `[NotDefault]` to also reject `DateTime.MinValue` when the BCL minimum value is not valid domain state.
+
+#### `RequiredDateTimeOffset<TSelf>`
+
+```csharp
+[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(DateTimeOffset value, string? fieldName = null)
+public static Result<TSelf> TryCreate(DateTimeOffset? valueOrNothing, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? stringOrNull, string? fieldName = null)
+public static Result<TSelf> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)
+public static new TSelf Create(DateTimeOffset value)
+public static TSelf Create(string stringValue)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static explicit operator TSelf(DateTimeOffset value)
+static partial void ValidateAdditional(DateTimeOffset value, string fieldName, ref string? errorMessage)
+```
+
+- Built-in validation: rejects `null`; `DateTimeOffset.MinValue` is accepted. Add `[NotDefault]` to also reject `DateTimeOffset.MinValue` when the BCL minimum value is not valid domain state.
+
+#### `RequiredEnum<TSelf>`
+
+```csharp
+[JsonConverter(typeof(RequiredEnumJsonConverter<TSelf>))]
+public static Result<TSelf> TryCreate(string value)
+public static Result<TSelf> TryCreate(string? value, string? fieldName = null)
+public static TSelf Parse(string s, IFormatProvider? provider)
+public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out TSelf result)
+public static TSelf Create(string value)
+```
+
+- `TryCreate(string)` / `TryCreate(string?, string?)` are inherited from the `RequiredEnum<TSelf>` base — an enum's creation is a uniform symbolic lookup, so it is not generated per type. `Create`, `Parse`, and `TryParse` are generated and route through `TryCreate`.
+- The enum JSON converter resolves through `TryCreate`; there is no `TryFromValue` or `TryFromName` API.
+
+### Building your own primitive
+
+```csharp
+using System.Globalization;
+using Trellis;
+
+namespace Demo;
+
+[StringLength(50)]
+public partial class CustomerName : RequiredString<CustomerName> { }
+
+public partial class OrderId : RequiredGuid<OrderId> { }
+
+[Range(1, 999)]
+public partial class LineCount : RequiredInt<LineCount> { }
+
+public partial class SubmittedAt : RequiredDateTime<SubmittedAt> { }
+
+public partial class OrderState : RequiredEnum<OrderState>
+{
+    public static readonly OrderState Draft = new();
+
+    [EnumValue("submitted")]
+    public static readonly OrderState Submitted = new();
+}
+
+public static class Example
+{
+    public static void Run()
+    {
+        var orderId = OrderId.NewUniqueV7();
+        var name = CustomerName.Create("Ada");
+        var lines = LineCount.TryCreate("42", CultureInfo.InvariantCulture).GetValueOrThrow();
+        var submittedAt = SubmittedAt.Parse("2026-01-15T12:00:00Z", CultureInfo.InvariantCulture);
+        var state = OrderState.Create("submitted");
+
+        _ = (orderId, name, lines, submittedAt, state);
+    }
+}
+```
+
+## Extension methods
+
+### `AggregateETagExtensions`
+
+Defined in `Trellis.Http.Abstractions`; the signatures stay the same in `namespace Trellis`.
+
+```csharp
+public static Result<T> OptionalETag<T>(this Result<T> result, EntityTagValue[]? expectedETags) where T : IAggregate
+public static Result<T> RequireETag<T>(this Result<T> result, EntityTagValue[]? expectedETags) where T : IAggregate
+public static Task<Result<T>> OptionalETagAsync<T>(this Task<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate
+public static ValueTask<Result<T>> OptionalETagAsync<T>(this ValueTask<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate
+public static Task<Result<T>> RequireETagAsync<T>(this Task<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate
+public static ValueTask<Result<T>> RequireETagAsync<T>(this ValueTask<Result<T>> resultTask, EntityTagValue[]? expectedETags) where T : IAggregate
+```
+
+Notes:
+
+- Matching is always strong RFC 9110 comparison.
+- `expectedETags is null` means "no `If-Match` header supplied". `OptionalETag` returns success unchanged; `RequireETag` fails with `Error.TransportFault(new HttpError.PreconditionRequired(PreconditionKind.IfMatch))` whose `Detail` is `"If-Match header is required."`.
+- `expectedETags.Length == 0` fails with `Error.TransportFault(new HttpError.PreconditionFailed(ResourceRef.For<T>(), PreconditionKind.IfMatch))` whose `Detail` is `"If-Match header is empty."`.
+- A non-empty array containing only weak tags fails with the same wrapped `HttpError.PreconditionFailed`, with `Detail` = `"If-Match contains only weak ETags. Strong comparison is required."` (RFC 9110 forbids weak comparison for `If-Match`).
+- A non-empty array of strong tags with no match fails with the same wrapped `HttpError.PreconditionFailed`, with `Detail` = `"Resource has been modified. Please reload and retry."`.
+- `EntityTagValue.Wildcard()` bypasses value comparison and succeeds immediately.
+
+## Internal types
+
+- `AndSpecification<T>`, `OrSpecification<T>`, and `NotSpecification<T>` are internal implementation types returned by the public combinators on `Specification<T>`.
+
+## Code examples
+
+### Aggregate, entity, and ETag validation
+
+```csharp
+using System;
+using Trellis;
+
+public sealed partial class OrderId : RequiredGuid<OrderId>;
+
+public sealed record OrderPlaced(OrderId OrderId, DateTimeOffset OccurredAt) : IDomainEvent;
+
+public sealed class Order : Aggregate<OrderId>
+{
+    public string Description { get; private set; }
+
+    private Order(OrderId id, string description) : base(id) => Description = description;
+
+    public static Result<Order> Create(string description)
+    {
+        var order = new Order(OrderId.NewUniqueV7(), description);
+        order.DomainEvents.Add(new OrderPlaced(order.Id, DateTimeOffset.UtcNow));
+        return Result.Ok(order);
+    }
+}
+
+Result<Order> orderResult = Order.Create("starter-order");
+if (orderResult.TryGetValue(out var order))
+{
+    var guarded = Result.Ok(order).OptionalETag(new[] { EntityTagValue.Strong(order.ETag) });
+}
+```
+
+### Specification composition
+
+```csharp
+using System;
+using System.Linq.Expressions;
+using Trellis;
+
+public sealed class Subscription
+{
+    public DateTimeOffset ExpiresAt { get; init; }
+    public bool IsCancelled { get; init; }
+}
+
+public sealed class ExpiredSubscriptionSpec(DateTimeOffset now) : Specification<Subscription>
+{
+    public override Expression<Func<Subscription, bool>> ToExpression() =>
+        subscription => subscription.ExpiresAt < now;
+}
+
+public sealed class ActiveSubscriptionSpec : Specification<Subscription>
+{
+    public override Expression<Func<Subscription, bool>> ToExpression() =>
+        subscription => !subscription.IsCancelled;
+}
+
+var spec = new ExpiredSubscriptionSpec(DateTimeOffset.UtcNow)
+    .And(new ActiveSubscriptionSpec());
+```
+
+## Cross-references
+
+- [Trellis.Core API reference](trellis-api-core.md#trelliscore-api-reference) — `Result<T>`, `Maybe<T>`, `Error`, `ITransportFault`, `IScalarValue<TSelf, TPrimitive>`, and `IFormattableScalarValue<TSelf, TPrimitive>`
+- [Trellis.Http.Abstractions API reference](trellis-api-http-abstractions.md#use-this-file-when) — `HttpError`, `EntityTagValue`, `RetryAfterValue`, `RepresentationMetadata`, `WriteOutcome<T>`, and `AggregateETagExtensions`
+- [Trellis.Primitives API reference](trellis-api-primitives.md#trellis-api-primitives) — built-in scalar and composite value objects that build on these DDD primitives
+- [Trellis.EntityFrameworkCore API reference](trellis-api-efcore.md#trellisentityframeworkcore) — EF Core conventions and interceptors for `IEntity`, `IAggregate`, `ValueObject`, and `Maybe<T>`

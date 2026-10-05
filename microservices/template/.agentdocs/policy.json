@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "approvedPackages": [
+    "Trellis.Core",
+    "Trellis.Microservices.Abstractions",
+    "Trellis.Microservices.AspNetCore",
+    "Trellis.Yarp",
+    "Trellis.ResourceNaming.Abstractions",
+    "Trellis.ServiceLevelIndicators",
+    "Trellis.ServiceLevelIndicators.Asp",
+    "Trellis.ServiceLevelIndicators.Asp.ApiVersioning"
+  ]
+}

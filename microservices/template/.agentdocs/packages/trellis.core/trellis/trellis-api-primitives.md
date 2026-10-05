@@ -1,0 +1,880 @@
+﻿---
+package: Trellis.Primitives
+namespaces: [Trellis, Trellis.Primitives]
+types: [Age, CountryCode, CurrencyCode, EmailAddress, GeoBoundingBox, GeoBounds, GeoCoordinate, Hostname, IpAddress, LanguageCode, MonetaryAmount, Money, Percentage, PhoneNumber, Slug, Url, WeeklyPeriod, WeeklySchedule, CompositeValueObjectJsonConverter<T>, PrimitiveValueObjectTraceProviderBuilderExtensions]
+version: v3
+last_verified: 2026-10-02
+audience: [llm]
+agent_usage: onDemand
+agent_description: "Open when using ready-made value objects such as EmailAddress, Money or GeoCoordinate, building geographic bounds, or choosing a built-in primitive versus a custom one."
+---
+# Trellis API Primitives
+
+**Package:** `Trellis.Primitives`  
+**Namespaces:** `Trellis`, `Trellis.Primitives`  
+**Purpose:** the 18 built-in concrete value objects (`Age`, `CountryCode`, `CurrencyCode`, `EmailAddress`, `GeoBoundingBox`, `GeoBounds`, `GeoCoordinate`, `Hostname`, `IpAddress`, `LanguageCode`, `MonetaryAmount`, `Money`, `Percentage`, `PhoneNumber`, `Slug`, `Url`, `WeeklyPeriod`, `WeeklySchedule`) plus Primitives-owned VO-runtime infrastructure (`CompositeValueObjectJsonConverter<T>`, `PrimitiveValueObjectTraceProviderBuilderExtensions`).
+
+See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-1--crud-aggregate-ddd-value-objects--entity--repository-contract) — recipes using this package.
+
+> **Package scope.** The `Required*<TSelf>` base classes (`RequiredString`, `RequiredEnum`, `RequiredInt`, `RequiredLong`, `RequiredDecimal`, `RequiredGuid`, `RequiredBool`, `RequiredDateTime`, `RequiredDateTimeOffset`), validation attributes (`StringLengthAttribute`, `RangeAttribute`, `EnumValueAttribute`), opt-in behavior attributes (`NotDefaultAttribute`, `TrimAttribute`), numeric sign attributes (`PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, `NonPositiveAttribute`), `StringExtensions` (`NormalizeFieldName`, `ToCamelCase`, `ParseScalarValue`, `TryParseScalarValue`), `ParsableJsonConverter<T>`, `PrimitiveValueObjectTrace`, and `RequiredEnumJsonConverter<TRequiredEnum>` live in `Trellis.Core`. The base contracts (`IScalarValue<TSelf, TPrimitive>`, `IFormattableScalarValue<TSelf, TPrimitive>`) and base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`) also live in `Trellis.Core`. `Trellis.Primitives` ships the concrete VOs that build on those bases plus the composite JSON converter and OpenTelemetry registration extension listed below. See [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) for the base-type reference.
+>
+> The incremental generator that emits the `TryCreate`/`Create`/`Parse`/`TryParse`/`JsonConverter` partial bodies for `Required*<TSelf>` derivations (`Trellis.Core.Generator`) is bundled inside `Trellis.Core.nupkg` under `analyzers/dotnet/cs/`. `Trellis.Primitives` no longer references its own generator package — installing `Trellis.Core` (or transitively, `Trellis.Primitives` which depends on it) attaches the analyzer automatically.
+>
+> **Declaring `[JsonConverter]` yourself.** The generator normally emits `[JsonConverter(typeof(ParsableJsonConverter<TSelf>))]` (or `RequiredEnumJsonConverter<TSelf>` for `RequiredEnum<TSelf>`) onto the generated partial. If your own declaration already carries a `[JsonConverter]` attribute, the generator detects it and emits none, so there is no CS0579 duplicate. This matters for System.Text.Json's source generator: it only observes attributes present in the original compilation, so a value object reachable from a `[JsonSerializable]` type must be annotated in your source or STJ will treat it as a POCO and emit a `new TSelf()` call that does not exist (CS1729). See [`trellis-api-anti-patterns.md`](trellis-api-anti-patterns.md#trls059--generatescalarvalueconverters-context-without-jsonserializable) under TRLS059.
+>
+> **Does this put serialization concerns in the domain?** No — and it is worth being precise, because the attribute is already there either way. Every `Required*<TSelf>` value object has carried `[JsonConverter(...)]` since long before this escape hatch existed; the generator emits it onto the generated partial, and it is present in the compiled metadata of any domain assembly. `ParsableJsonConverter<T>` itself lives in `Trellis.Core`, which the domain already references. Hand-writing the attribute does not add a dependency; it only moves an existing one from generated code into your source file.
+>
+> More importantly, **a layered solution never needs to write it.** The requirement applies only when the value object and the `JsonSerializerContext` are compiled together. Keep the domain in its own project — the arrangement DDD calls for anyway — and the generator-emitted attribute is already real metadata by the time System.Text.Json's generator reads the referenced assembly, so nothing is required in domain source. The only consumers who must hand-write it are single-project applications, which by construction have no separate domain layer to keep clean.
+
+## Use this file when
+
+- You need one of the ready-made concrete value objects such as `EmailAddress`, `PhoneNumber`, `Money`, `CurrencyCode`, `Url`, `Slug`, `GeoCoordinate`, or `GeoBounds`.
+- You need the composite value-object JSON converter or OpenTelemetry registration extension for primitives shipped by `Trellis.Primitives`.
+- You are deciding whether to use a built-in primitive or define a custom `Required*<TSelf>` value object from `Trellis.Core`.
+
+## Patterns Index
+
+| Goal | Canonical API / pattern | See |
+|---|---|---|
+| Validate an email string | `EmailAddress.TryCreate(...)` | [`EmailAddress`](#emailaddress) |
+| Validate optional phone input | `PhoneNumber.TryCreate(...)` and wrap absence with `Maybe<PhoneNumber>` at the domain seam | [`PhoneNumber`](#phonenumber), [Core `Maybe<T>`](trellis-api-core.md#public-readonly-struct-maybet-where-t--notnull) |
+| Represent money | `Money` / `MonetaryAmount` / `CurrencyCode` | [`Money`](#money), [`MonetaryAmount`](#monetaryamount), [`CurrencyCode`](#currencycode) |
+| Validate geographic coordinates, measure approximate in-memory distance, or build conservative spherical search bounds | `GeoCoordinate.TryCreate(...)`, `DistanceMetersTo(...)`, `GeoBounds.TryCreate(...)` | [`GeoCoordinate`](#geocoordinate), [`GeoBounds`](#geobounds) |
+| Represent recurring weekly availability, overnight windows, or local-clock DST membership | `WeeklyPeriod.TryCreate(...)`, `WeeklySchedule.TryCreate(...)`, `IsActiveAt(...)` | [`WeeklyPeriod`](#weeklyperiod), [`WeeklySchedule`](#weeklyschedule) |
+| Bind/serialize built-in scalar primitives | Use generated converters from the primitive/base contracts; ASP validation is in `Trellis.Asp` | [`ParsableJsonConverter<T>`](trellis-api-core.md#parsablejsonconvertert), [ASP validation](trellis-api-asp.md#namespace-trellisaspvalidation) |
+| Define a custom SKU/order-id primitive | Use `partial class Sku : RequiredString<Sku>` or `partial class OrderId : RequiredGuid<OrderId>` from `Trellis.Core` | [Core primitive base classes](trellis-api-core.md#primitive-value-object-base-classes) |
+| Opt into strict Required behavior | Use `[NotDefault]` to reject the type's sentinel, `[Trim]` to enable string trimming | [`Required*` defaults and opt-ins](#required-defaults-and-opt-ins) |
+| Add length/range constraints to custom primitives | Use Trellis `[StringLength]` / `[Range]` attributes from `namespace Trellis`, not DataAnnotations | [Core attributes](trellis-api-core.md#primitive-value-object-base-classes) |
+| Report an application's own reason code instead of the framework's | Set `Code` on the constraint attribute | [Overriding the reason code](#overriding-the-reason-code--code) |
+| Name a failure raised by a custom rule rather than reporting `error.unspecified` | Declare the four-argument `ValidateAdditional` | [Naming a failure from `ValidateAdditional`](#naming-a-failure-from-validateadditional) |
+| Add JSON for composite value objects | `CompositeValueObjectJsonConverter<T>` | [`CompositeValueObjectJsonConverter<T>`](#compositevalueobjectjsonconvertert) |
+
+## Common traps
+
+- This file documents concrete primitives. Custom primitive base classes and Trellis validation attributes live in [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes).
+- `Required*<TSelf>` generated primitives are **lenient by default** (rejects `null` only). Use `[NotDefault]` to opt into sentinel rejection; use `[Trim]` to opt into string trimming.
+- Use Trellis attributes when defining generated primitives. On the value-object class the similarly named DataAnnotations attributes do not compile (`CS0592`, or `CS0104` for an unqualified attribute when both namespaces are in scope); on a member they compile but the Trellis generator ignores them.
+- Keep primitive parsing out of handlers. Convert transport primitives to value objects at the DTO/controller/application seam, then pass shaped commands inward.
+
+### Trellis validation attributes vs `System.ComponentModel.DataAnnotations`
+
+The Trellis validation attributes are **class-targeted** with **different shapes** than the same-named DataAnnotations types. Decorate the `partial class` definition of a `Required*<TSelf>`-derived value object, not a property. `[StringLength]` supports both `MaximumLength` (positional ctor argument) and `MinimumLength` (property initializer); the missing piece relative to DataAnnotations is `[RegularExpression]` — pattern checks go in `static partial void ValidateAdditional(string value, string fieldName, ref string? error)`.
+
+**Class-targeted (apply to the `partial class` of a `Required*<TSelf>`-derived value object):**
+
+| Attribute | Target | Constructor(s) | Use it for | DataAnnotations equivalent that does **not** work |
+|---|---|---|---|---|
+| `Trellis.StringLengthAttribute` | `class` (on the `partial class X : RequiredString<X>`) | `StringLengthAttribute(int maximumLength)` (use `MinimumLength = N` initializer for the lower bound; `maximumLength` must be `>= 1`) | Length constraint on a `RequiredString<TSelf>` value object. Generated `TryCreate` enforces `MinimumLength <= length <= MaximumLength` after the null/empty/whitespace check. | `[System.ComponentModel.DataAnnotations.StringLength(...)]` on the class fails with `CS0592` (DataAnnotations targets `Property | Field | Parameter`, not `Class`); on a member it compiles but is ignored by the Trellis generator. |
+| `Trellis.RangeAttribute` | `class` (on the `partial class X : RequiredInt<X>` / `RequiredLong<X>` / `RequiredDecimal<X>`) | `(int min, int max)`, `(long min, long max)`, `(double min, double max)` | Numeric range constraint. The constructor selected determines which generator template fires. | `[Range(typeof(decimal), "0.01", "999999.99")]` — use `(double, double)` instead. |
+| **Pattern / regex** | n/a | n/a | Override `static partial void ValidateAdditional(string value, string fieldName, ref string? error)` and run a `Regex.IsMatch(...)`. There is no `[RegularExpression]` attribute analog. | `[RegularExpression(@"^[A-Z]{3}\d{4}$")]` — silently does nothing on a `Required*<TSelf>` class. |
+
+**Field-targeted (apply to `public static readonly` members of a `RequiredEnum<TSelf>`-derived value object):**
+
+`Trellis.EnumValueAttribute(string value)` overrides the external symbolic name for a single enum member. Apply it to a `public static readonly TSelf` field whose canonical name should differ from the C# field identifier (e.g., when serializing `Status.InProgress` as `"in-progress"`). Without the attribute, `RequiredEnum<TSelf>` falls back to the field name. **This is the only Trellis primitive attribute that targets `AttributeTargets.Field` and takes a `string` argument** — do not include it in the class-targeted table above.
+
+A property-targeted form like `[StringLength(20, MinimumLength = 3)] public string Value { get; }` produces `CS0592: Attribute is not valid on this declaration type` only if `[StringLength]` resolves to `Trellis.StringLengthAttribute`, which targets `AttributeTargets.Class` only. The DataAnnotations attribute of the same name targets properties/fields/parameters and compiles in those positions, but the Trellis source generator only inspects attributes on the partial class declaration, so a DataAnnotations attribute on a member of a `Required*<TSelf>`-derived class is silently ignored. A DataAnnotations `[StringLength]`/`[Range]` applied to the class itself is a compile error (`CS0592`, or `CS0104` for an unqualified attribute when both namespaces are in scope).
+
+
+## `Required*` defaults and opt-ins
+
+`Required*<TSelf>` generated primitives are **lenient by default**. The generator rejects `null` for every base and accepts every concrete value. Use `[NotDefault]` to opt into sentinel rejection and `[Trim]` to opt into string trimming.
+
+| Base | Default rejects | Opt-in attributes |
+|---|---|---|
+| `RequiredString<T>` | `null` only (accepts `""`, whitespace; no auto-trim) | `[NotDefault]` rejects `""`; `[Trim]` enables trimming; combine for strict trim-then-reject-empty |
+| `RequiredGuid<T>` | `null` only (accepts `Guid.Empty`) | `[NotDefault]` rejects `Guid.Empty` |
+| `RequiredDateTime<T>` | `null` only (accepts `DateTime.MinValue`) | `[NotDefault]` rejects `DateTime.MinValue` |
+| `RequiredDateTimeOffset<T>` | `null` only (accepts `DateTimeOffset.MinValue`) | `[NotDefault]` rejects `DateTimeOffset.MinValue` |
+| `RequiredInt<T>` | `null` only (accepts `0`) | `[NotDefault]` rejects `0` |
+| `RequiredLong<T>` | `null` only (accepts `0L`) | `[NotDefault]` rejects `0L` |
+| `RequiredDecimal<T>` | `null` only (accepts `0m`) | `[NotDefault]` rejects `0m` |
+| `RequiredBool<T>` | `null` | (no sentinel) |
+| `RequiredEnum<T>` | `null`, undeclared members | (handled by smart-enum lookup) |
+
+### `RequiredString<T>` truth table
+
+| Attribute(s) | `null` | `""` | `"   "` | `" a "` | `"a"` |
+|---|---|---|---|---|---|
+| (none) | reject | accept `""` | accept `"   "` | accept `" a "` | accept `"a"` |
+| `[NotDefault]` | reject | reject | accept `"   "` | accept `" a "` | accept `"a"` |
+| `[Trim]` | reject | accept `""` | accept `""` | accept `"a"` | accept `"a"` |
+| `[Trim, NotDefault]` | reject | reject | reject (trims to `""`) | accept `"a"` | accept `"a"` |
+
+Validation order:
+
+1. **null check** (no opt-out)
+2. **trim** (only if `[Trim]` present)
+3. **empty check** (only if `[NotDefault]` present)
+4. user-supplied constraints (`[StringLength]`, `ValidateAdditional`)
+
+> [!IMPORTANT]
+> `[Trim]` without `[NotDefault]` trims the value before storage but does not reject `""` or whitespace-only input. Combine both to get trim-then-reject-empty behavior (equivalent to the old strict default).
+
+### Required diagnostics
+
+| ID | Severity | When |
+|---|---|---|
+| TRLS043 | Error | Numeric convenience attribute on a non-numeric Required base |
+| TRLS044 | Error | More than one numeric convenience attribute on the same type |
+| TRLS045 | Error | Numeric convenience attribute combined with explicit `[Range]` |
+| TRLS057 | Error | `[Trim]` on a Required base other than `RequiredString` |
+| TRLS058 | Error | `[NotDefault]` on `RequiredBool` or `RequiredEnum` (no default sentinel to reject) |
+| TRLS060 | Error | A constraint attribute's `Code` is empty or whitespace |
+| TRLS061 | Error | Both `ValidateAdditional` overloads declared on one value object |
+
+### Overriding the reason code — `Code`
+
+Every constraint attribute that can *fail* carries an optional `Code`, which replaces the framework reason code on the resulting `FieldViolation`:
+
+```csharp
+[StringLength(8, MinimumLength = 3, Code = "account.reference.length")]
+public partial class AccountReference : RequiredString<AccountReference>;
+
+[Range(1, 10, Code = "cart.quantity.out-of-range")]
+public partial class CartQuantity : RequiredInt<CartQuantity>;
+
+[NotDefault(Code = "tenant.id.missing")]
+public partial class TenantId : RequiredGuid<TenantId>;
+```
+
+`RangeAttribute`, `StringLengthAttribute`, `NotDefaultAttribute`, `PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, and `NonPositiveAttribute` all expose `Code`. `TrimAttribute` does not, because trimming normalizes and cannot fail.
+
+Three consequences are worth stating plainly, because each surprises someone:
+
+- **The framework vocabulary stays frozen and stays the default.** Overriding is not encouraged or discouraged; no analyzer pressures either choice. The freeze constrains *Trellis*, not your application — an application that overrides owns both ends of its own contract. `TRLS064` does not narrow this: it never asks whether you *should* override, and a novel code of your own is silent. It reports only a `Code` that restates a frozen code verbatim (where the constant is the safer spelling of the same string) or one that claims a namespace the framework publishes a meaning for.
+- **`[Range].Code` collapses both directions.** One attribute produces two failures — below the minimum and above the maximum — and one `Code` renames both. When a client must tell them apart, keep the framework codes and use `ValidateAdditional` for the case that needs its own name.
+- **The four sign-convenience attributes share the range slot.** `[Positive]`, `[NonNegative]`, `[Negative]`, and `[NonPositive]` synthesize into the same range emission, so their `Code` overrides the same reason code `[Range]` would.
+
+The null check is never overridable: it belongs to no attribute and always reports `value.not-null`.
+
+### Naming a failure from `ValidateAdditional`
+
+`ValidateAdditional` has two shapes, and a value object declares at most one:
+
+```csharp
+// Reports error.unspecified, which is what it has always meant.
+static partial void ValidateAdditional(string value, string fieldName, ref string? errorMessage);
+
+// Can name the failure.
+static partial void ValidateAdditional(string value, string fieldName, ref string? errorMessage, ref string? errorCode);
+```
+
+The generator emits whichever declaration you implemented, so existing three-argument implementations compile and behave unchanged. In the four-argument form, setting `errorMessage` still decides *whether* the value is rejected; leaving `errorCode` unset — or setting it to a blank string — falls back to `error.unspecified`, because an empty code on the wire reads as a reason rather than as the absence of one. (`TRLS060` catches the same mistake on an attribute's `Code`, where the value is a literal an analyzer can read.) Declaring both overloads is `TRLS061`. Declaring only the three-argument overload is `TRLS062`, an Info-level prompt: the rule is legal and unchanged, but every failure it produces reaches the client as `error.unspecified`.
+
+```csharp
+public partial class ReservationCode : RequiredString<ReservationCode>
+{
+    static partial void ValidateAdditional(string value, string fieldName, ref string? errorMessage, ref string? errorCode)
+    {
+        if (value.StartsWith("RES-", StringComparison.Ordinal))
+            return;
+
+        errorMessage = "Reservation Code must start with RES-.";
+        errorCode = "reservation.code.malformed";
+    }
+}
+```
+
+
+## Types
+
+> Base contracts (`IScalarValue<TSelf, TPrimitive>`, `IFormattableScalarValue<TSelf, TPrimitive>`), base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`), validation attributes (`RangeAttribute`, `StringLengthAttribute`, `EnumValueAttribute`), opt-in behavior attributes (`NotDefaultAttribute`, `TrimAttribute`), numeric sign attributes (`PositiveAttribute`, `NonNegativeAttribute`, `NegativeAttribute`, `NonPositiveAttribute`), `StringExtensions`, the `Required*<TSelf>` base classes, `ParsableJsonConverter<T>`, `PrimitiveValueObjectTrace`, and `RequiredEnumJsonConverter<TRequiredEnum>` are all documented in [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes). They live in `Trellis.Core` and are used by every concrete VO listed below. `Trellis.Primitives` type-forwards `ParsableJsonConverter<T>` and `PrimitiveValueObjectTrace` for binary compatibility, but new source guidance should treat Core as the owner. The inherited `static TSelf Create(TPrimitive value)` factory documented on `ScalarValueObject<TSelf, T>` is **not** repeated on each concrete VO below.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| — | — | No additional public methods. |
+
+### `PrimitiveValueObjectTraceProviderBuilderExtensions`
+
+```csharp
+public static class PrimitiveValueObjectTraceProviderBuilderExtensions
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| — | — | Static extension container. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static TracerProviderBuilder AddTrellisPrimitivesInstrumentation(this TracerProviderBuilder builder)` | `TracerProviderBuilder` | Registers the Core-owned Trellis primitive activity source (`PrimitiveValueObjectTrace.ActivitySourceName`) with OpenTelemetry. Throws `ArgumentNullException` when `builder` is null. |
+
+### `Age`
+
+```csharp
+public class Age : ScalarValueObject<Age, int>, IScalarValue<Age, int>, IFormattableScalarValue<Age, int>, IParsable<Age>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `int` | Age in years. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Age> TryCreate(int value, string? fieldName = null)` | `Result<Age>` | Validates `0 <= value <= 150`. |
+| `public static Result<Age> TryCreate(string? value, string? fieldName = null)` | `Result<Age>` | Invariant string parsing. |
+| `public static Result<Age> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)` | `Result<Age>` | Culture-aware string parsing. |
+| `public static Age Parse(string? s, IFormatProvider? provider)` | `Age` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Age result)` | `bool` | Safe parse helper. |
+
+### `CountryCode`
+
+```csharp
+public class CountryCode : ScalarValueObject<CountryCode, string>, IScalarValue<CountryCode, string>, IParsable<CountryCode>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | ISO 3166-1 alpha-2 code, stored uppercase. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<CountryCode> TryCreate(string? value, string? fieldName = null)` | `Result<CountryCode>` | Requires exactly two letters. |
+| `public static CountryCode Parse(string? s, IFormatProvider? provider)` | `CountryCode` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out CountryCode result)` | `bool` | Safe parse helper. |
+
+### `CurrencyCode`
+
+```csharp
+public class CurrencyCode : ScalarValueObject<CurrencyCode, string>, IScalarValue<CurrencyCode, string>, IParsable<CurrencyCode>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | ISO 4217 code, stored uppercase. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<CurrencyCode> TryCreate(string? value, string? fieldName = null)` | `Result<CurrencyCode>` | Requires exactly three ASCII letters per ISO 4217 *format*. Input is case-insensitive — `"usd"`, `"USD"`, and `"Usd"` are all accepted; the stored value is uppercase via `ToUpperInvariant()`. The ISO 4217 *active-code list* is not enforced — syntactically valid but reserved or unassigned codes such as `XXX`, `XTS`, `ZZZ` are accepted. Applications that need active-currency enforcement (e.g., payment processors that only support a subset, or excluding the ISO test/reserved codes) should layer an allow-list at the application boundary. |
+| `public static CurrencyCode Parse(string? s, IFormatProvider? provider)` | `CurrencyCode` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out CurrencyCode result)` | `bool` | Safe parse helper. |
+
+### `EmailAddress`
+
+```csharp
+public partial class EmailAddress : ScalarValueObject<EmailAddress, string>, IScalarValue<EmailAddress, string>, IParsable<EmailAddress>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Trimmed email string. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<EmailAddress> TryCreate(string? value, string? fieldName = null)` | `Result<EmailAddress>` | Regex-based email validation, bounded by the RFC 5321 limits: 254 characters overall and 64 for the local part. |
+| `public static EmailAddress Parse(string? s, IFormatProvider? provider)` | `EmailAddress` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out EmailAddress result)` | `bool` | Safe parse helper. |
+
+### `GeoCoordinate`
+
+```csharp
+[JsonConverter(typeof(CompositeValueObjectJsonConverter<GeoCoordinate>))]
+public sealed class GeoCoordinate : ValueObject
+```
+
+A structured value object, not a scalar. Properties are exposed with private setters;
+construction goes through the factories. No spatial database package is required.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `MeanEarthRadiusMeters` | `const double` | Mean spherical Earth radius used by Trellis distance and bounds calculations: `6_371_008.8`. |
+| `Latitude` | `double` | Finite decimal degrees, `-90..90` inclusive. Stored without rounding. |
+| `Longitude` | `double` | Finite decimal degrees, `-180..180` inclusive. Stored without wrapping or normalization. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<GeoCoordinate> TryCreate(double latitude, double longitude, string? fieldName = null)` | `Result<GeoCoordinate>` | Validates both components and accumulates failures into one `Error.InvalidInput`. NaN/infinity use `number.finite`; finite values below/above a bound use `value.greater-than-or-equal` / `value.less-than-or-equal` with numeric `comparisonValue`. |
+| `public static GeoCoordinate Create(double latitude, double longitude)` | `GeoCoordinate` | Throwing factory for trusted values. Throws `InvalidOperationException` on invalid input; use `TryCreate` for user input and Result pipelines. |
+| `public double DistanceMetersTo(GeoCoordinate other)` | `double` | Approximate shortest great-circle distance in meters, using haversine on a sphere with radius **6,371,008.8 m**. Handles poles, antimeridian crossings, and antipodal points. Throws `ArgumentNullException` for null `other`. |
+| `public override string ToString()` | `string` | Invariant `(latitude, longitude)` representation. Not a parsing or wire-format contract. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Adds latitude, then longitude; equality, hashing, and ordering are inherited from `ValueObject`. |
+
+**Equality is component equality, not geographic equivalence.** No epsilon, wrapping, or
+pole normalization is applied. `(0, -180)` and `(0, 180)` are unequal coordinates whose
+distance is zero; different longitudes at the same pole also have zero distance.
+
+**Validation pointers.** With no owner, errors use `/latitude` and `/longitude`. The optional
+`fieldName` names the coordinate as a whole: `"Location"` becomes `/location/latitude` and
+`/location/longitude`. An existing pointer such as `"/items/0/location"` is preserved, while
+literal property names have RFC 6901 escaping applied. Both errors are retained when both
+components are invalid.
+
+**JSON.** The included composite converter emits
+`{ "latitude": 47.6062, "longitude": -122.3321 }` and deserializes through `TryCreate`.
+Both numeric fields are required; missing fields are not silently treated as zero.
+Use a nullable `GeoCoordinate?` transport for an optional coordinate rather than a
+`Maybe<GeoCoordinate>` request DTO property (Cookbook Recipe 14).
+
+**Distance scope.** This is an in-memory spherical approximation, not an ellipsoidal
+geodesic, surveying calculation, or altitude-aware distance. Use [`GeoBounds`](#geobounds)
+for a storage-neutral conservative prefilter and
+[`GeoCoordinateExpressions`](trellis-api-efcore.md#geocoordinateexpressions) for
+provider-translatable EF Core expressions. Use provider-specific spatial operations when
+ellipsoidal accuracy or a spatial index is required.
+
+```csharp
+using Trellis.Primitives;
+
+var seattle = GeoCoordinate.Create(47.6062, -122.3321);
+var portland = GeoCoordinate.Create(45.5152, -122.6784);
+double meters = seattle.DistanceMetersTo(portland);
+```
+
+### `GeoBoundingBox`
+
+```csharp
+public sealed class GeoBoundingBox : ValueObject
+```
+
+An immutable, non-wrapping latitude/longitude rectangle used by `GeoBounds`. Each box has
+`MinimumLongitude <= MaximumLongitude`; an antimeridian-crossing search is represented by
+two boxes rather than ambiguous wrapped endpoints. Construction is intentionally owned by
+`GeoBounds`.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `World` | `GeoBoundingBox` | The full `-90..90` latitude and `-180..180` longitude rectangle. |
+| `MinimumLatitude` | `double` | Inclusive southern latitude in decimal degrees. |
+| `MaximumLatitude` | `double` | Inclusive northern latitude in decimal degrees. |
+| `MinimumLongitude` | `double` | Inclusive western longitude in decimal degrees. Never greater than `MaximumLongitude`. |
+| `MaximumLongitude` | `double` | Inclusive eastern longitude in decimal degrees. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public bool Contains(GeoCoordinate coordinate)` | `bool` | Inclusive rectangular membership over the coordinate's stored components. This is a broad candidate test, not exact spherical-radius membership. Throws `ArgumentNullException` for null. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Adds the four endpoints; equality, hashing, and ordering are inherited from `ValueObject`. |
+
+### `GeoBounds`
+
+```csharp
+public sealed class GeoBounds : ValueObject
+```
+
+Validated storage-neutral bounds for a spherical radius search. The boxes are conservative:
+an exact spherical match is not excluded, but a box can contain points outside the radius.
+Always apply an exact distance predicate after the box prefilter. Endpoints include a small
+outward numerical safety margin covering the multi-step spherical and degree calculations;
+the margin scales near antipodal distances where inverse haversine is ill-conditioned.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Center` | `GeoCoordinate` | Search origin. |
+| `RadiusMeters` | `double` | Finite non-negative spherical radius. |
+| `Boxes` | `IReadOnlyList<GeoBoundingBox>` | One ordinary box, two non-wrapping boxes at the antimeridian, or one full-longitude box when a pole is reached. A radius at least `Math.PI * GeoCoordinate.MeanEarthRadiusMeters` yields `GeoBoundingBox.World`. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<GeoBounds> TryCreate(GeoCoordinate center, double radiusMeters, string? fieldName = null)` | `Result<GeoBounds>` | Validates the center and requires a finite, non-negative radius. The default failure pointer is `/radiusMeters`; `fieldName` follows the standard Trellis literal-property/JSON-Pointer rules. |
+| `public static GeoBounds Create(GeoCoordinate center, double radiusMeters)` | `GeoBounds` | Throwing factory for trusted values. Throws `InvalidOperationException` for an invalid radius and `ArgumentNullException` for a null center. |
+| `public bool Contains(GeoCoordinate coordinate)` | `bool` | Returns whether any broad box contains the coordinate's stored components. It does not evaluate exact distance. Throws `ArgumentNullException` for null. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Adds `Center`, `RadiusMeters`, and each derived box. |
+
+Zero-radius bounds preserve geographic endpoint equivalence: an origin at longitude
+`-180` or `180` produces candidates for both representations. At either pole, all
+longitudes are candidates because they represent the same physical point.
+
+```csharp
+using Trellis;
+using Trellis.Primitives;
+
+var origin = GeoCoordinate.Create(47.6062, -122.3321);
+Result<GeoBounds> bounds = GeoBounds.TryCreate(origin, radiusMeters: 10_000);
+```
+
+For an EF Core broad prefilter plus exact translated distance, see
+[`GeoCoordinateExpressions`](trellis-api-efcore.md#geocoordinateexpressions).
+
+### `Hostname`
+
+```csharp
+public partial class Hostname : ScalarValueObject<Hostname, string>, IScalarValue<Hostname, string>, IParsable<Hostname>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | RFC 1123 hostname. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Hostname> TryCreate(string? value, string? fieldName = null)` | `Result<Hostname>` | RFC 1123 hostname validation. |
+| `public static Hostname Parse(string? s, IFormatProvider? provider)` | `Hostname` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Hostname result)` | `bool` | Safe parse helper. |
+
+### `IpAddress`
+
+```csharp
+public class IpAddress : ScalarValueObject<IpAddress, string>, IScalarValue<IpAddress, string>, IParsable<IpAddress>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Original trimmed IPv4/IPv6 text. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<IpAddress> TryCreate(string? value, string? fieldName = null)` | `Result<IpAddress>` | Uses `IPAddress.TryParse`. |
+| `public IPAddress ToIPAddress()` | `IPAddress` | Returns cached parsed address. |
+| `public static IpAddress Parse(string? s, IFormatProvider? provider)` | `IpAddress` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out IpAddress result)` | `bool` | Safe parse helper. |
+
+### `LanguageCode`
+
+```csharp
+public class LanguageCode : ScalarValueObject<LanguageCode, string>, IScalarValue<LanguageCode, string>, IParsable<LanguageCode>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | ISO 639-1 alpha-2 code, stored lowercase. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<LanguageCode> TryCreate(string? value, string? fieldName = null)` | `Result<LanguageCode>` | Requires exactly two letters. |
+| `public static LanguageCode Parse(string? s, IFormatProvider? provider)` | `LanguageCode` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out LanguageCode result)` | `bool` | Safe parse helper. |
+
+### `MonetaryAmount`
+
+```csharp
+public class MonetaryAmount : ScalarValueObject<MonetaryAmount, decimal>, IScalarValue<MonetaryAmount, decimal>, IFormattableScalarValue<MonetaryAmount, decimal>, IParsable<MonetaryAmount>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `decimal` | Rounded non-negative amount without currency. |
+| `Zero` | `MonetaryAmount` | Cached `0m` instance. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<MonetaryAmount> TryCreate(decimal value, string? fieldName = null)` | `Result<MonetaryAmount>` | Rejects negatives; rounds to two decimal places using `MidpointRounding.AwayFromZero`. |
+| `public static Result<MonetaryAmount> TryCreate(decimal? value, string? fieldName = null)` | `Result<MonetaryAmount>` | Rejects `null`. |
+| `public static Result<MonetaryAmount> TryCreate(string? value, string? fieldName = null)` | `Result<MonetaryAmount>` | Invariant string parsing. |
+| `public static Result<MonetaryAmount> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)` | `Result<MonetaryAmount>` | Culture-aware string parsing. |
+| `public Result<MonetaryAmount> Add(MonetaryAmount other)` | `Result<MonetaryAmount>` | Adds two amounts. Throws `ArgumentNullException` when `other` is null. |
+| `public Result<MonetaryAmount> Subtract(MonetaryAmount other)` | `Result<MonetaryAmount>` | Subtracts and fails if result would become invalid. Throws `ArgumentNullException` when `other` is null. |
+| `public Result<MonetaryAmount> Multiply(int quantity)` | `Result<MonetaryAmount>` | Rejects negative quantity. |
+| `public Result<MonetaryAmount> Multiply(decimal multiplier)` | `Result<MonetaryAmount>` | Rejects negative multiplier. |
+| `public static MonetaryAmount Parse(string? s, IFormatProvider? provider)` | `MonetaryAmount` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out MonetaryAmount result)` | `bool` | Safe parse helper. |
+| `public static explicit operator MonetaryAmount(decimal value)` | `MonetaryAmount` | Explicit cast using `Create(decimal)`. |
+| `public override string ToString()` | `string` | Invariant decimal string. |
+| `public static Result<MonetaryAmount> Sum(IEnumerable<MonetaryAmount> values)` | `Result<MonetaryAmount>` | Returns `Zero` for empty collections. Throws `ArgumentNullException` when `values` is null and `ArgumentException` when any element is null. |
+
+> **`Create` (throws) vs `TryCreate` (Result).** `MonetaryAmount` inherits the scalar `Create(decimal)` factory from `ScalarValueObject<TSelf, T>`, which **throws** `InvalidOperationException` on invalid input (it runs `TryCreate` and throws on the failure) — the same fail-fast factory the explicit `decimal` cast uses. `TryCreate(...)` returns `Result<MonetaryAmount>` and never throws on a validation failure. Use `Create` only for trusted, constant, or already-validated values (fail-fast at a boundary); use `TryCreate` for untrusted input and **inside any `Result`/ROP chain**, where a throw breaks the railway (analyzer `TRLS010` flags throwing inside `Bind`/`Map`/`Tap`/`Ensure`). The same throws-vs-`Result` split applies across value objects — both the composite `Money` and the scalar `Required*<T>` primitives expose a throwing `Create` alongside `TryCreate`. (`Parse` throws `FormatException`; `TryParse` is the non-throwing parse counterpart.)
+
+### `CompositeValueObjectJsonConverter<T>`
+
+```csharp
+public sealed class CompositeValueObjectJsonConverter<T> : JsonConverter<T>
+    where T : ValueObject
+```
+
+Convention-based JSON converter for composite value objects. Each public instance property declared
+directly on `T`, with a getter and no public setter, becomes a JSON field (camelCase of the property
+name). Inherited properties and indexers are excluded. The "primitive type" for each field is the
+underlying primitive of an `IScalarValue<TSelf, TPrimitive>` property, or the property's own type when it
+is already a primitive. The target type must expose a public static
+`Result<T> TryCreate(p1, ..., pN[, string? fieldName])` whose parameters are the primitive types in the
+order the properties are declared.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `T?` | Reads a JSON object, populates parameters by JSON property name (case-insensitive), invokes `TryCreate`, and throws `TrellisJsonValidationException` with the error display message on failure. When required properties are missing, throws a single `TrellisJsonValidationException` listing **all** missing names (e.g. `Required properties missing: 'amount', 'currency'.`) so multi-field violations surface in one round trip. |
+| `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes one JSON property per eligible property declared directly on `T`, in declaration order, using the underlying primitive value for `IScalarValue<,>` properties. Inherited properties, indexers, and properties with public setters are excluded. |
+
+Apply via `[JsonConverter(typeof(CompositeValueObjectJsonConverter<MyVo>))]` on the value object type.
+Reflection is performed once per generic instantiation and cached (lazily, so a configuration error surfaces
+its own actionable message rather than being buried inside a `TypeInitializationException`).
+
+**Native AOT / trimming.** The converter is AOT-usable, subject to two rooting requirements:
+
+| Requirement | Why |
+| --- | --- |
+| The **closed** converter type must be rooted — via the `[JsonConverter(typeof(CompositeValueObjectJsonConverter<MyVo>))]` attribute on the value object, or a source-generated `JsonSerializerContext`. | The generic instantiation must exist at compile time; nothing else references it. |
+| Each scalar value-object property must keep its `IScalarValue<TSelf, TPrimitive>` interface. | That interface is what reduces the property to a JSON primitive. The type parameter carries `[DynamicallyAccessedMembers(PublicMethods \| PublicProperties)]`, but the interface itself can still be trimmed if nothing else references it. |
+
+If trimming does remove the interface, the converter throws at first use naming the unreduced property types, rather than silently emitting a different JSON shape — so the failure is loud, but it is a *runtime* failure, which is why an AOT publish probe covering the composite path is worth having.
+
+> **Pattern reference.** For the full Domain + API JSON binding + EF Core ownership walkthrough on a multi-field VO (`ShippingAddress`-style), see [Cookbook Recipe 13](trellis-api-cookbook.md#recipe-13--composite-value-object-end-to-end-domain--api-json-binding--ef-core-ownership). Without this `[JsonConverter]` attribute on a request DTO's composite `[OwnedEntity]` property, model binding falls back to default construction and **silently bypasses `TryCreate`** — the inner-field validation never runs and an invalid payload propagates into the domain layer.
+
+### `Money`
+
+```csharp
+public class Money : ValueObject
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Amount` | `decimal` | Currency-aware rounded amount. |
+| `Currency` | `CurrencyCode` | ISO 4217 currency code. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Money> TryCreate(decimal amount, string currencyCode, string? fieldName = null)` | `Result<Money>` | Rejects negative amounts. `fieldName` names the money value as a whole; component failures are reported at nested pointers beneath it (`/price/amount`, `/price/currency`), defaulting to `/amount` and `/currency`. Currency validation is delegated to [`CurrencyCode.TryCreate`](#currencycode) and is syntactic only — three ASCII letters (case-insensitive input; normalized to uppercase). Codes outside the ISO 4217 active list (`XXX`, `XTS`, `ZZZ`, etc.) are accepted because they satisfy the format. Layer an application-level allow-list when active-code enforcement is required. |
+| `public static Result<Money> TryCreate(decimal amount, string currencyCode, string? amountFieldName, string? currencyFieldName)` | `Result<Money>` | Flat-payload overload: names each component independently instead of nesting, for documents that carry amount and currency as siblings. Each argument accepts a simple property name or a full JSON Pointer. `null` falls back to `amount` / `currency`; an empty string is the explicit RFC 6901 document-root pointer. The last two parameters intentionally have no default values, which keeps this overload out of the set `CompositeValueObjectJsonConverter<Money>` resolves. |
+| `public static Money Create(decimal amount, string currencyCode)` | `Money` | Throwing factory. |
+| `public Result<Money> Add(Money other)` | `Result<Money>` | Requires matching currencies. Throws `ArgumentNullException` when `other` is null. Returns `Error.InvalidInput` on currency mismatch or addition overflow. |
+| `public Result<Money> Subtract(Money other)` | `Result<Money>` | Requires matching currencies and non-negative result. Throws `ArgumentNullException` when `other` is null. |
+| `public Result<Money> Multiply(decimal multiplier)` | `Result<Money>` | Rejects negative multiplier. Returns `Error.InvalidInput` on multiplication overflow. |
+| `public Result<Money> Multiply(int quantity)` | `Result<Money>` | Rejects negative quantity. Returns `Error.InvalidInput` on multiplication overflow. |
+| `public Result<Money> Divide(decimal divisor)` | `Result<Money>` | Divisor must be positive. Returns `Error.InvalidInput` when division would overflow (e.g. very small positive divisor). |
+| `public Result<Money> Divide(int divisor)` | `Result<Money>` | Divisor must be positive. Returns `Error.InvalidInput` on division overflow. |
+| `public Result<Money[]> Allocate(params int[] ratios)` | `Result<Money[]>` | Ratio-based split with remainder distribution. Throws `ArgumentNullException` when `ratios` is null. Returns `Error.InvalidInput` with field `ratios` when any ratio is non-positive or `ratios.Sum()` overflows; with field `amount` when the minor-unit conversion or the per-ratio share multiplication (`amountInMinorUnits * ratios[i]`, computed in a checked context) overflows. |
+| `public bool IsGreaterThan(Money other)` | `bool` | False when currencies differ. Throws `ArgumentNullException` when `other` is null. |
+| `public bool IsGreaterThanOrEqual(Money other)` | `bool` | False when currencies differ. Throws `ArgumentNullException` when `other` is null. |
+| `public bool IsLessThan(Money other)` | `bool` | False when currencies differ. Throws `ArgumentNullException` when `other` is null. |
+| `public bool IsLessThanOrEqual(Money other)` | `bool` | False when currencies differ. Throws `ArgumentNullException` when `other` is null. |
+| `public static Result<Money> Zero(string currencyCode = "USD")` | `Result<Money>` | Currency-aware zero instance. |
+| `public override string ToString()` | `string` | Invariant amount plus currency code. |
+| `public static Result<Money> Sum(IEnumerable<Money> values)` | `Result<Money>` | Fails for empty or mixed-currency collections. Throws `ArgumentNullException` when `values` is null and `ArgumentException` when any element is null. |
+| `public static Result<Money> Sum(IEnumerable<Money> values, Money fallback)` | `Result<Money>` | Returns `fallback` when `values` is empty. When `values` is non-empty the result currency is inferred from the first element exactly as `Sum(values)` — `fallback`'s currency is ignored. Mirrors `MonetaryAmount.Sum`'s empty-yields-zero ergonomic when the caller has a meaningful currency for the empty case. Throws `ArgumentNullException` when `values` or `fallback` is null and `ArgumentException` when any element is null. |
+
+### `Percentage`
+
+```csharp
+public class Percentage : ScalarValueObject<Percentage, decimal>, IScalarValue<Percentage, decimal>, IFormattableScalarValue<Percentage, decimal>, IParsable<Percentage>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `decimal` | Percentage value in the range `0` to `100`. |
+| `Zero` | `Percentage` | Cached `0%` instance. |
+| `Full` | `Percentage` | Cached `100%` instance. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Percentage> TryCreate(decimal value, string? fieldName = null)` | `Result<Percentage>` | Rejects values outside `0..100`. |
+| `public static Result<Percentage> TryCreate(decimal? value, string? fieldName = null)` | `Result<Percentage>` | Rejects `null`. |
+| `public static Result<Percentage> TryCreate(string? value, string? fieldName = null)` | `Result<Percentage>` | Invariant string parsing; trims an optional trailing `%`. |
+| `public static Result<Percentage> TryCreate(string? value, IFormatProvider? provider, string? fieldName = null)` | `Result<Percentage>` | Culture-aware string parsing; trims an optional trailing `%`. |
+| `public static Result<Percentage> FromFraction(decimal fraction, string? fieldName = null)` | `Result<Percentage>` | Converts `0..1` fractions into `0..100` percentages. |
+| `public decimal AsFraction()` | `decimal` | Converts `Value` to a `0..1` fraction. |
+| `public decimal Of(decimal amount)` | `decimal` | Calculates this percentage of `amount`. |
+| `public static Percentage Parse(string? s, IFormatProvider? provider)` | `Percentage` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Percentage result)` | `bool` | Safe parse helper. |
+| `public static explicit operator Percentage(decimal value)` | `Percentage` | Explicit cast using `Create(decimal)`. |
+| `public override string ToString()` | `string` | Appends `%` to `Value` formatted with `CultureInfo.InvariantCulture`. |
+
+> **`ToString()` is the wire format, not a display format.** It is deliberately invariant so it round-trips through `TryCreate(string?)` and `Parse`, which read with `CultureInfo.InvariantCulture`. Under a culture with a comma decimal separator, a culture-sensitive `ToString()` would emit `"1,5%"`, which the invariant reader re-parses as `15`. For user-facing display, format `Value` explicitly with the desired culture.
+
+### `PhoneNumber`
+
+```csharp
+public partial class PhoneNumber : ScalarValueObject<PhoneNumber, string>, IScalarValue<PhoneNumber, string>, IParsable<PhoneNumber>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Normalized E.164 phone number. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<PhoneNumber> TryCreate(string? value, string? fieldName = null)` | `Result<PhoneNumber>` | Removes spaces, dashes, and parentheses, then validates E.164. |
+| `public static PhoneNumber Parse(string? s, IFormatProvider? provider)` | `PhoneNumber` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out PhoneNumber result)` | `bool` | Safe parse helper. |
+| `public Maybe<string> GetCountryCode()` | `Maybe<string>` | Extracts the E.164 country calling code via longest-prefix lookup. Returns `Maybe.From(code)` when the prefix matches an assigned ITU-T calling code; returns `Maybe<string>.None` when the prefix is unrecognized (`TryCreate` validates only E.164 *shape*, not assigned-code membership). |
+
+### `Slug`
+
+```csharp
+public partial class Slug : ScalarValueObject<Slug, string>, IScalarValue<Slug, string>, IParsable<Slug>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Lowercase slug. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Slug> TryCreate(string? value, string? fieldName = null)` | `Result<Slug>` | Validates lowercase letters, digits, and single hyphen separators. |
+| `public static Slug Parse(string? s, IFormatProvider? provider)` | `Slug` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Slug result)` | `bool` | Safe parse helper. |
+
+### `Url`
+
+```csharp
+public class Url : ScalarValueObject<Url, string>, IScalarValue<Url, string>, IParsable<Url>
+```
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `Value` | `string` | Absolute URI string. |
+| `Scheme` | `string` | URI scheme. |
+| `Host` | `string` | URI host. |
+| `Port` | `int` | URI port. |
+| `Path` | `string` | Absolute path. |
+| `Query` | `string` | Query string, including leading `?`. |
+| `IsSecure` | `bool` | True for HTTPS URLs. |
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<Url> TryCreate(string? value, string? fieldName = null)` | `Result<Url>` | Requires an absolute HTTP or HTTPS URI. |
+| `public Uri ToUri()` | `Uri` | Returns cached `Uri`. |
+| `public static Url Parse(string? s, IFormatProvider? provider)` | `Url` | Throws `FormatException` on failure. |
+| `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Url result)` | `bool` | Safe parse helper. |
+
+### `WeeklyPeriod`
+
+```csharp
+public sealed class WeeklyPeriod : ValueObject
+```
+
+Immutable structured value object. `Day : DayOfWeek` is the starting day; `Start : TimeOnly`
+is inclusive and `End : TimeOnly` exclusive. All `TimeOnly` ticks are preserved. An earlier
+end means the following day; equal endpoints are rejected. `IsAllDay : bool` explicitly
+distinguishes a whole calendar day, represented by two midnight endpoints.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<WeeklyPeriod> TryCreate(DayOfWeek day, TimeOnly start, TimeOnly end, string? fieldName = null)` | `Result<WeeklyPeriod>` | Accumulates undefined-day and equal-endpoint failures. A normal period is strictly shorter than 24 local-clock hours. |
+| `public static Result<WeeklyPeriod> TryCreateAllDay(DayOfWeek day, string? fieldName = null)` | `Result<WeeklyPeriod>` | Explicit midnight-to-midnight calendar day. Validates the day. |
+| `public static WeeklyPeriod Create(DayOfWeek day, TimeOnly start, TimeOnly end)` | `WeeklyPeriod` | Trusted-input factory; throws `InvalidOperationException` on validation failure. |
+| `public static WeeklyPeriod CreateAllDay(DayOfWeek day)` | `WeeklyPeriod` | Trusted-input all-day factory; throws `InvalidOperationException` for an undefined day. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Adds `Day`, `Start`, `End`, `IsAllDay`; equality, hashing, and ordering are inherited. |
+
+The optional owner composes component pointers, as for `GeoCoordinate`: `/day` and `/end`
+by default, or `/hours/periods/2/day` when given `"/hours/periods/2"`.
+
+`Create` and `CreateAllDay` terminate their validating factories with `GetValueOrThrow`.
+Their `InvalidOperationException` messages use the standard Result format, including the
+value-object type and validation details. Use the `TryCreate` variants for untrusted input.
+
+### `WeeklySchedule`
+
+```csharp
+public sealed class WeeklySchedule : ValueObject
+```
+
+Immutable structured value object holding `TimeZoneId : string` and
+`Periods : IReadOnlyList<WeeklyPeriod>`. Construction copies the periods and exposes a
+read-only snapshot, sorted Sunday-first by local start time. Empty means always closed;
+a null collection or null element is invalid. There is no restaurant-specific period-count cap.
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<WeeklySchedule> TryCreate(string? timeZoneId, IReadOnlyList<WeeklyPeriod>? periods, string? fieldName = null)` | `Result<WeeklySchedule>` | Accumulates zone and collection failures. Rejects overlaps, including overnight/week-wrap overlap; permits touching endpoints. Null elements are reported at their original input indexes. |
+| `public static WeeklySchedule Create(string timeZoneId, IReadOnlyList<WeeklyPeriod> periods)` | `WeeklySchedule` | Trusted-input factory; throws `InvalidOperationException` on validation failure. |
+| `public bool Contains(DayOfWeek day, TimeOnly time)` | `bool` | Membership in local weekly clock coordinates, with no zone conversion. Throws `ArgumentOutOfRangeException` for an undefined day. |
+| `public bool IsActiveAt(DateTimeOffset instant)` | `bool` | Converts an absolute instant to local weekly clock coordinates using the schedule's zone, not the supplied offset. Pure in-memory calculation; no SQL translation or clock read. |
+| `protected override void GetEqualityComponents(ref EqualityComponents components)` | `void` | Adds the resolved zone ID, then each sorted period; equality, hashing, and ordering are inherited. |
+
+`Create` delegates to `TryCreate(...).GetValueOrThrow()`, using the standard Result
+exception format with the value-object type and validation details. `TryCreate` accumulates
+independent zone and collection errors, but checks for null elements before sorting or
+checking overlaps, preserving their original input indexes.
+
+**Time zones and DST.** Trims the identifier, resolves it through
+`TimeZoneInfo.TryFindSystemTimeZoneById`, and requires `HasIanaId`. `UTC` is accepted;
+Windows-only IDs such as `Pacific Standard Time` are not. The host must provide the
+corresponding time-zone data (including ICU/tzdata where required); there is no UTC fallback.
+`TimeZoneId` is the resolved `TimeZoneInfo.Id`. Equivalent aliases are not unified.
+The instance retains the resolved rules; reconstruct it after updating the host's zone data.
+
+The schedule describes wall-clock availability, not elapsed duration. Both occurrences of a
+repeated local time match the same periods; skipped local times have no corresponding instant.
+An all-day period covers its entire local calendar day even when that day is 23 or 25 elapsed
+hours. Non-hourly offsets and DST transitions are supported. Membership at the extremes of
+`DateTimeOffset` uses modular week arithmetic rather than clamping a local date.
+
+**Equality.** Input order does not matter after sorting. Adjacent periods are **not merged**:
+one 09:00-17:00 period and two touching 09:00-12:00 / 12:00-17:00 periods remain different
+structural values. Different zone IDs remain different even when their current rules agree.
+
+**JSON and persistence.** Use an application-owned DTO containing the zone ID and period
+fields (`Day`, `Start`, `End`, `IsAllDay`). These types deliberately have no
+`CompositeValueObjectJsonConverter` attribute: that converter does not support collections
+or `TimeOnly`. Do not bind these value objects directly as request-body properties.
+On inbound data, call `TryCreateAllDay` for explicit all-day periods and `TryCreate` for
+ordinary periods, accumulate the period results with `SequenceAll`, then validate the
+schedule. Use nullable/required DTO fields to distinguish missing values from midnight/Sunday.
+On output, project the validated components back to the DTO.
+
+Persist that DTO/snapshot in an application-selected representation (for example JSON or
+separate records) and rehydrate through the factories. These types do **not** expose the
+parameterless constructors required for direct EF owned-type materialization; persist a
+separate storage representation rather than attaching them as owned navigations. There is
+no implicit single-string storage format or new EF helper. See Cookbook Recipe 13's DTO
+boundary guidance. Holidays, exceptions, booking capacity, recurrence engines, and
+next-transition queries are deliberately outside this API.
+
+```csharp
+var schedule = WeeklySchedule.Create("America/Los_Angeles",
+[
+    WeeklyPeriod.Create(DayOfWeek.Friday, new TimeOnly(22, 0), new TimeOnly(2, 0)),
+    WeeklyPeriod.CreateAllDay(DayOfWeek.Sunday)
+]);
+bool available = schedule.IsActiveAt(new DateTimeOffset(2026, 9, 26, 8, 0, 0, TimeSpan.Zero));
+```
+
+## Base class hierarchy
+
+The base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`, `RequiredString<TSelf>`, etc.) live in `Trellis.Core` — see [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) for the full hierarchy. The concrete primitives in this package layer on top:
+
+- Built-in scalars:
+  - `Age`, `CountryCode`, `CurrencyCode`, `EmailAddress`, `Hostname`, `IpAddress`, `LanguageCode`, `MonetaryAmount`, `Percentage`, `PhoneNumber`, `Slug`, `Url` -> `ScalarValueObject<TSelf, T>` -> `ValueObject`
+- Structured built-ins:
+  - `Money`, `GeoCoordinate`, `GeoBoundingBox`, `GeoBounds`, `WeeklyPeriod`, `WeeklySchedule` -> `ValueObject`
+
+## Built-in primitives table
+
+| Type | Namespace | Category | Underlying/wire shape | Notes |
+| --- | --- | --- | --- | --- |
+| `Age` | `Trellis.Primitives` | Scalar | JSON number or numeric string input; JSON number output | `int`, range `0..150`. |
+| `CountryCode` | `Trellis.Primitives` | Scalar | JSON string | Uppercase ASCII ISO 3166-1 alpha-2 (exactly two ASCII letters). |
+| `CurrencyCode` | `Trellis.Primitives` | Scalar | JSON string | Uppercase ASCII ISO 4217 (exactly three ASCII letters). |
+| `EmailAddress` | `Trellis.Primitives` | Scalar | JSON string | Trimmed validated email. |
+| `GeoBoundingBox` | `Trellis.Primitives` | Structured | Application query value | One immutable non-wrapping inclusive geographic rectangle. |
+| `GeoBounds` | `Trellis.Primitives` | Structured | Application query value | Validated spherical search origin/radius with one or two conservative boxes. |
+| `GeoCoordinate` | `Trellis.Primitives` | Structured | JSON object `{ "latitude": number, "longitude": number }` | Finite latitude/longitude; approximate in-memory great-circle distance in meters. |
+| `Hostname` | `Trellis.Primitives` | Scalar | JSON string | RFC 1123 hostname. |
+| `IpAddress` | `Trellis.Primitives` | Scalar | JSON string | IPv4 or IPv6 text. |
+| `LanguageCode` | `Trellis.Primitives` | Scalar | JSON string | Lowercase ASCII ISO 639-1 alpha-2. |
+| `MonetaryAmount` | `Trellis.Primitives` | Scalar | JSON number or numeric string input; JSON number output | Non-negative single-currency amount with 2-decimal rounding. |
+| `Money` | `Trellis.Primitives` | Structured | JSON object `{ "amount": number, "currency": string }` | Multi-currency value object; not scalar. Decimal places per ISO 4217 minor units (0 for JPY/KRW/BIF/CLP/DJF/GNF/ISK/KMF/PYG/RWF/UGX/UYI/VND/VUV/XAF/XOF/XPF; 3 for BHD/IQD/JOD/KWD/LYD/OMR/TND; 4 for CLF/UYW; 2 otherwise). |
+| `Percentage` | `Trellis.Primitives` | Scalar | JSON number or numeric string input (with optional `%`); JSON string output such as `"50%"` | `decimal` in `0..100`; the default converter serializes the `%`-suffixed `ToString()` representation. |
+| `PhoneNumber` | `Trellis.Primitives` | Scalar | JSON string | Normalized E.164 string. `GetCountryCode()` returns `Maybe<string>.None` when the prefix is not an assigned ITU-T calling code. |
+| `Slug` | `Trellis.Primitives` | Scalar | JSON string | Lowercase letters, digits, single hyphens. |
+| `Url` | `Trellis.Primitives` | Scalar | JSON string | Absolute HTTP/HTTPS URI. |
+| `WeeklyPeriod` | `Trellis.Primitives` | Structured | Application DTO | One half-open local-clock period or explicit all-day period. |
+| `WeeklySchedule` | `Trellis.Primitives` | Structured | Application DTO | IANA time zone and immutable, sorted, non-overlapping weekly periods. |
+
+## Reason codes emitted by the built-in primitives
+
+Every built-in primitive's `TryCreate` failure carries a `FieldViolation.ReasonCode` drawn from [`ValidationCodes`](trellis-api-core.md#validationcodes--the-reason-code-vocabulary). The code identifies *which* rule failed, so a client branches on it rather than on the message text.
+
+| Type | Failure | Code | Args |
+| --- | --- | --- | --- |
+| all string primitives | input was `null` | `value.not-null` | — |
+| all string primitives | input was empty or whitespace | `value.not-empty` | — |
+| `EmailAddress` | absent or blank | `value.not-null` / `value.not-empty` | — |
+| `EmailAddress` | not a valid address | `string.email` | — |
+| `CountryCode` | not two ASCII letters | `string.country-code` | — |
+| `CurrencyCode` | not three ASCII letters | `string.currency-code` | — |
+| `LanguageCode` | not two ASCII letters | `string.language-code` | — |
+| `Hostname` | not RFC 1123 compliant | `string.hostname` | — |
+| `IpAddress` | not IPv4 or IPv6 | `string.ip-address` | — |
+| `Slug` | not a valid slug | `string.slug` | — |
+| `Url` | not an absolute HTTP/HTTPS URI | `string.url` | — |
+| `PhoneNumber` | not E.164 | `string.phone-e164` | — |
+| `Age` | below `0` | `value.greater-than-or-equal` | `comparisonValue: 0` |
+| `Age` | above `150` | `value.less-than-or-equal` | `comparisonValue: 150` |
+| `Percentage` | below `0` | `value.greater-than-or-equal` | `comparisonValue: 0` |
+| `Percentage` | above `100` | `value.less-than-or-equal` | `comparisonValue: 100` |
+| `Percentage.FromFraction` | below `0` / above `1` | `value.greater-than-or-equal` / `value.less-than-or-equal` | `comparisonValue: 0` / `comparisonValue: 1` |
+| `MonetaryAmount` | negative | `value.greater-than-or-equal` | `comparisonValue: 0` |
+| `Money` | negative amount | `value.greater-than-or-equal` | `comparisonValue: 0` |
+| `Money` | operation across two currencies | `money.currency-mismatch` | `expected`, `actual` |
+| `Money` | operation would go negative | `money.negative-result` | — |
+| `Money` | arithmetic overflow | `number.overflow` | — |
+| `GeoCoordinate` | NaN or infinity in either component | `number.finite` | — |
+| `GeoCoordinate` | below latitude/longitude minimum | `value.greater-than-or-equal` | `comparisonValue: -90` / `-180` |
+| `GeoCoordinate` | above latitude/longitude maximum | `value.less-than-or-equal` | `comparisonValue: 90` / `180` |
+| `GeoBounds` | radius is NaN or infinity | `number.finite` | — |
+| `GeoBounds` | radius is negative | `value.greater-than-or-equal` | `comparisonValue: 0` |
+| `WeeklyPeriod` | undefined day | `enum.undefined` | `allowed`: day names |
+| `WeeklyPeriod` | equal normal endpoints | `value.must-not-equal` | `comparisonProperty: "start"` |
+| `WeeklySchedule` | null/blank zone ID | `value.not-null` / `value.not-empty` | — |
+| `WeeklySchedule` | unresolved or non-IANA zone ID | `string.time-zone-iana` | — |
+| `WeeklySchedule` | null collection or element | `value.not-null` | — |
+| `WeeklySchedule` | overlapping periods | `schedule.periods-overlap` | — |
+
+**Range failures are directional.** `Age`, `Percentage` and the generated range checks report `value.greater-than-or-equal` or `value.less-than-or-equal` with a `comparisonValue`, never a single `value.between-inclusive` covering both ends. A client that cannot tell which bound failed cannot say "too old" rather than "not yet born", and a directional code keeps a hand-written primitive agreeing with a generated one on the same input.
+
+**Out-of-range is not a `format.*` code.** `Age.TryCreate(200)` receives an `int` that parsed fine, so it reports `value.less-than-or-equal`. `format.integer` means the text never became an `int` at all.
+
+**Blank parsing input is not a `format.*` code either.** Generated numeric, Guid, and date/time factories and strict built-in string primitives reject blank text *before* parsing, so `EmployeeId.TryCreate("")` reports `value.not-empty` rather than `format.guid`. Generated `RequiredString<T>` factories are deliberately different: they accept empty/whitespace strings by default, trim only with `[Trim]`, and reject an empty result with `[NotDefault]` (or a length rule that excludes it). Do not infer strict string validation from the parsing families.
+
+## Default validation field names
+
+Every `TryCreate` overload takes an optional `fieldName`. When it is omitted, the failure `Error.InvalidInput.ForField(...)` uses the default below — which becomes the key in the `errors` dictionary of a `ProblemDetails` response, and therefore the string a test asserts on. `Error.InvalidInput` maps to **422 by default**, configurable through Trellis ASP options; malformed JSON can follow a separate 400 path. **Two defaults do not match the type name**, and are the usual source of a failing assertion:
+
+| Type | Default field name | Factory |
+| --- | --- | --- |
+| `Age` | `age` | `TryCreate` |
+| `CountryCode` | `countryCode` | `TryCreate` |
+| `CurrencyCode` | `currencyCode` | `TryCreate` |
+| `EmailAddress` | **`email`** — not `emailAddress` | `TryCreate` |
+| `GeoBounds` | `radiusMeters` | `TryCreate` |
+| `GeoCoordinate` | `latitude` / `longitude`, nested under the optional owner | `TryCreate` |
+| `Hostname` | `hostname` | `TryCreate` |
+| `IpAddress` | `ipAddress` | `TryCreate` |
+| `LanguageCode` | `languageCode` | `TryCreate` |
+| `MonetaryAmount` | **`amount`** — not `monetaryAmount` | `TryCreate` |
+| `Money` | `amount` for the amount, `currency` for the currency component | `TryCreate` |
+| `Percentage` | `percentage` | `TryCreate` |
+| `Percentage` | `fraction` | `FromFraction` |
+| `PhoneNumber` | `phoneNumber` | `TryCreate` |
+| `Slug` | `slug` | `TryCreate` |
+| `Url` | `url` | `TryCreate` |
+| `WeeklyPeriod` | `day` / `end`, nested under the optional owner | `TryCreate` / `TryCreateAllDay` |
+| `WeeklySchedule` | `timeZoneId` / `periods` / `periods/{index}`, nested under the optional owner | `TryCreate` |
+
+`EmailAddress` and `MonetaryAmount` keep the shorter defaults deliberately: `email` and `amount` are the names those values almost always carry in a payload, so the default is right more often than a type-derived `emailAddress` or `monetaryAmount` would be. Override with `fieldName` in the minority of cases where it isn't.
+
+Pass `fieldName` explicitly whenever the value object is bound to a differently-named request property, so the error key matches the client's payload shape rather than the primitive's own name:
+
+```csharp
+// Request property is "billingEmail", so the validation response must use that error key.
+var email = EmailAddress.TryCreate(request.BillingEmail, nameof(request.BillingEmail));
+```
+
+> **Structured primitives report each component at its own JSON Pointer.** `Money` and `GeoCoordinate` have independently-validatable components, so `fieldName` names the *whole value*, not a single error key. For `Money`, component failures are reported beneath it matching the serialized shape `{ "amount": …, "currency": … }`:
+>
+> ```csharp
+> Money.TryCreate(-1m, "USD", "price");      // → /price/amount
+> Money.TryCreate(10m, "INVALID", "price");  // → /price/currency
+> Money.TryCreate(-1m, "USD");               // → /amount
+> ```
+>
+> A `fieldName` that is already a JSON Pointer is composed onto rather than escaped, so `"/items/0/price"` yields `/items/0/price/amount`.
+>
+> When the amount and currency arrive as *siblings* of a flat payload — `{ "price": 10, "currency": "XX" }` — nesting would point at a location the document does not have. Use the four-argument overload to name each component independently:
+>
+> ```csharp
+> // → /price and /currency respectively
+> Money.TryCreate(request.Price, request.Currency, nameof(request.Price), nameof(request.Currency));
+> ```
+>
+> `fieldName` follows the JSON Pointer distinction used throughout Trellis: `null` means “use the documented default,” while an empty string explicitly targets the document root. For the flat overload, pass `null` to obtain `/amount` or `/currency`; pass `""` only when the component error should target the whole document.
+>
+> The four-argument overload deliberately has **no default values** on its last two parameters; that is what keeps it out of the overload set `CompositeValueObjectJsonConverter<Money>` resolves, which requires an unambiguous `TryCreate` whose trailing parameters are all optional.
+
+## Code examples
+
+```csharp
+using Trellis;
+using Trellis.Primitives;
+
+namespace Demo;
+
+public static class Example
+{
+    public static void Run()
+    {
+        var email = EmailAddress.Create("ada@example.com");
+        var country = CountryCode.Create("US");
+        var phone = PhoneNumber.Create("+14155551234");
+
+        var amount = MonetaryAmount.Create(12.34m);
+        var taxAmount = Percentage.FromFraction(0.15m)
+            .Map(percentage => percentage.Of(amount));
+
+        var total = Money.Create(12.34m, "USD");
+        var shipping = Money.Create(2.00m, "USD");
+        var grandTotal = total.Add(shipping);
+
+        _ = (email, country, phone, taxAmount, grandTotal);
+    }
+}
+```
+
+For examples of building **your own** primitives by deriving from `RequiredString<TSelf>`, `RequiredGuid<TSelf>`, `RequiredEnum<TSelf>`, etc., see [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes).
+
+The tax and total remain `Result` values: compose them with `Map` / `Bind` or handle
+them at the boundary with `Match`. Do not substitute zero tax or the original total
+when validation or arithmetic fails.
+
+## Cross-references
+
+- [trellis-api-core.md](trellis-api-core.md#primitive-value-object-base-classes) — `Required*<TSelf>` base classes, validation attributes (`StringLengthAttribute`, `RangeAttribute`, `EnumValueAttribute`), `StringExtensions`, and the `IScalarValue<TSelf, TPrimitive>` / `IFormattableScalarValue<TSelf, TPrimitive>` contracts.
+- [trellis-api-efcore.md](trellis-api-efcore.md#modelconfigurationbuilderextensions) — EF Core mapping conventions for `ValueObject`, `ScalarValueObject<TSelf, T>`, and the built-in primitives in this package.
+- [trellis-value-object-taxonomy.md](trellis-value-object-taxonomy.md) — how the built-in primitives fit into the broader VO taxonomy.

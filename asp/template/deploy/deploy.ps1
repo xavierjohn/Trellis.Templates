@@ -10,9 +10,9 @@
     The deployment has two stacks, dictated by the convention:
 
       * Global  (deployed ONCE)        : cloud-singletons with region-less names — the SQL server and
-                                         database. Both regions connect to the SAME server.
+                                         database, and Cosmos idempotency store. Regions share these.
       * Regional(deployed PER REGION)  : resources whose names carry the region token — the managed
-                                         identity, Log Analytics workspace, and App Service.
+                                         identity, Log Analytics, Application Insights, and App Service.
 
     The names are computed by the C# convention (deploy/names) and passed into Bicep as parameters;
     no name is invented in Bicep or PowerShell. Re-running is safe: the global names are identical
@@ -143,6 +143,8 @@ try {
             "location=$PrimaryRegion",
             "sqlServerName=$($global.sqlServerName)",
             "sqlDatabaseName=$($global.sqlDatabaseName)",
+            "cosmosAccountName=$($global.cosmosAccountName)",
+            "idempotencyDatabaseName=$($global.idempotencyDatabaseName)",
             "sqlAdminObjectId=$SqlAdminObjectId",
             "sqlAdminLogin=$SqlAdminLogin",
             "sqlAdminPrincipalType=$SqlAdminPrincipalType") + $deployMode
@@ -167,6 +169,11 @@ try {
             "appServicePlanName=$($names.appServicePlanName)",
             "managedIdentityName=$($names.managedIdentityName)",
             "logAnalyticsName=$($names.logAnalyticsName)",
+            "applicationInsightsName=$($names.applicationInsightsName)",
+            "cosmosAccountName=$($global.cosmosAccountName)",
+            "cosmosResourceGroupName=$($global.globalResourceGroup)",
+            "cosmosEndpoint=$($global.cosmosEndpoint)",
+            "idempotencyDatabaseName=$($global.idempotencyDatabaseName)",
             "sqlServerFqdn=$($global.sqlServerFqdn)",
             "sqlDatabaseName=$($global.sqlDatabaseName)",
             "deployedSystem=$System",

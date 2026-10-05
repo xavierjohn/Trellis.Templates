@@ -22,7 +22,29 @@ Open **`AppHost/src/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual S
 
 > **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/src/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
 
-> **SQL Server (Docker).** The **Members** service persists to SQL Server, which Aspire runs as a container — **Docker (or Podman) must be running**. The schema is created and seeded automatically on first run (Development only). **Projects** stays in-memory, so the two services deliberately contrast an EF/SQL data plane against an in-memory one.
+> **Docker.** Aspire runs SQL Server for **both** services and the Service Bus emulator — **Docker (or Podman) must be running**. Schemas and demo data are created automatically in Development. Projects persists its aggregate, team read model and inbox in its own database.
+
+## Coding-agent API references
+
+Start agents at [`AGENTS.md`](AGENTS.md) for architectural rules and coding conventions.
+Its managed pointer routes to [`.agentdocs/README.md`](.agentdocs/README.md).
+`.github/copilot-instructions.md` delegates to the same canonical instructions for Copilot.
+The pinned `Trellis.AgentDocs` local tool maintains guidance from the approved framework,
+microservices, ResourceNaming, and SLI packages.
+
+From this project's Git root, refresh the recorded restore graph after generating the project or
+upgrading packages:
+
+```powershell
+dotnet tool restore
+dotnet restore
+dotnet tool run agentdocs sync
+dotnet tool run agentdocs check --strict
+```
+
+Commit the tool manifest, instruction files, policy, and `.agentdocs/` with package updates.
+Edit curated rules in `AGENTS.md` outside the AgentDocs-managed pointer block.
+AgentDocs is optional; the application builds and runs without it.
 
 ## What it demonstrates
 
@@ -42,17 +64,17 @@ Every internal JWT carries a `tenant_id` claim. The Trellis actor provider on ev
 
 `UpdateProjectCommand` and `GetProjectQuery` both implement `IAuthorizeResource<Project>` + `IIdentifyResource<Project, ProjectId>`. The `ResourceAuthorizationBehavior` loads the project **once** at the pipeline boundary via `ProjectResourceLoader`, calls `Authorize(actor, project)`, then exposes the same instance to the handler via `IAuthorizedResource<TCommand, Project>`. Handlers do NOT re-fetch.
 
-Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboard's Metrics tab) ticks **once** per request. Two ticks per request = the v4 accessor pattern has regressed.
+Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboard's Metrics tab) ticks **once** per request. Two ticks per request = the typed load-once accessor pattern has regressed.
 
 ### HideExistence pattern (HR-sensitive resources)
 
-`Members`'s Acl layer (`Members/Acl/src/DependencyInjection.cs`, wired from the host via `AddMembersAcl`) calls `services.AddResourceAuthorization(o => o.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with `Projects`, which intentionally returns 403 on cross-tenant access.
+Members' API composition calls `.UseResourceAuthorization(policy => policy.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with Projects, which intentionally returns 403 on cross-tenant access.
 
 ### Persistence (Members) — EF Core + UnitOfWork on SQL Server
 
-The **Members** service is the template's *real data plane*. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/src/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; the `TransactionalCommandBehavior` registered by `AddTrellisUnitOfWork<MembersDbContext>()` commits the unit of work when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects — the `MemberId` key and the shared-kernel `TenantId` — to columns with no hand-written `HasConversion`.
+The **Members** service is the template's write data plane. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/src/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; `.UseEntityFrameworkUnitOfWork<MembersDbContext>()` selects the transactional behavior that commits when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects to columns with no hand-written `HasConversion`.
 
-**Projects** keeps its `Project` aggregate on an in-memory repository — the side-by-side contrast makes the EF/UnitOfWork seam easy to see. It gains a small EF `DbContext` of its own purely for the eventing read model + inbox (below).
+**Projects** uses its own SQL Server context for the Project aggregate, team read model and inbox. Its API root also selects the EF unit of work; the inbox independently commits each received event's projection and dedup record together.
 
 ### Cross-service eventing — transactional outbox + inbox over Azure Service Bus
 
@@ -61,13 +83,24 @@ Inviting a member is the template's **asynchronous, cross-context** story: it th
 1. **Raise.** `Member.Invite(...)` raises a `MemberInvited` **domain event** (internal to Members).
 2. **Capture (atomic).** The **transactional outbox** (`AddTrellisOutbox()` + the capture interceptor) writes one outbox row per event in the *same* `SaveChanges` as the member — so an event can never be lost in the gap between persisting the member and publishing it.
 3. **Translate.** After the commit, the relay re-dispatches the domain event to `MemberInvitedTranslator` (an `IDomainEventHandler<MemberInvited>`) which `Add()`s a `MemberInvitedIntegrationEvent` — the stable, primitive-only **published-language** contract in `SharedKernel` (Evans' *Published Language*, distinct from the Shared Kernel proper). A second handler, `MemberInvitedAuditLogger`, writes the post-commit business-event log.
-4. **Publish.** The relay hands the integration event to `IIntegrationEventPublisher`. The default is in-process fan-out; the template **replaces** it with `ServiceBusIntegrationEventPublisher`, an app-owned adapter that serializes the event onto an Azure Service Bus queue. *Only that one registration differs* between a modular monolith and separate services.
-5. **Consume + dedupe (effectively-once).** Projects' `MemberEventsConsumer` (a `BackgroundService` pump) receives the message and calls the **transactional inbox** `IInboxDispatcher`. The inbox dedupes on `(ConsumerId, MessageId)` and commits the handler's read-model write **together with** the dedup record in one `SaveChanges` — turning at-least-once delivery into effectively-once processing.
+4. **Publish.** `AddAzureServiceBusIntegrationEventPublisher` selects the shipped `Trellis.Messaging.AzureServiceBus` adapter instead of in-process fan-out. It serializes with Web defaults, takes the topic and Subject from `[IntegrationEventName]`, and preserves the outbox row ID as the broker `MessageId`.
+5. **Consume + dedupe (effectively-once).** `AddAzureServiceBusIntegrationEventConsumer` subscribes Projects to that topic. Trellis's consumer owns settlement and dead-lettering and feeds the **transactional inbox** `IInboxDispatcher`. The inbox dedupes on `(ConsumerId, MessageId)` and commits the handler's read-model write **together with** the dedup record in one `SaveChanges`.
 6. **Read locally.** `MemberInvitedHandler` upserts a `KnownMember` row; `GET /api/team` answers the tenant's team directory entirely from Projects' **own** store, no call back to Members.
 
-**The dedup key is a business identity, not a transport id.** The outbox is at-least-once and re-runs a translator on retry, so one invitation may be published more than once. `DeterministicEventId.ForMember(memberId)` derives the event id by hashing the member's business key, so every copy of one invitation carries the same id and the inbox collapses the redeliveries.
+**Transport and business deduplication are different.** A retry of the same outbox row repeats its
+`MessageId`, so the inbox skips it. A re-translated event creates a new outbox row with a new ID;
+`MemberInvitedHandler` checks `(TenantId, MemberId)` so this still does not insert another member.
+There is no deterministic transport-ID helper or payload `EventId`.
 
-Falsifiable proof: invite a member (`POST /api/members`), then `GET /api/team` — the new member appears with no synchronous call to Members. A redelivery of the same event leaves the directory unchanged. A queue fits this single consumer; for fan-out to several services switch to a topic with a per-consumer subscription (see `SharedKernel/src/MemberEventsChannel.cs`).
+AppHost provisions the contract-named topic `projecttracker.members.member-invited.v2` and the
+`projects` subscription, with an explicit Subject correlation rule for emulator delivery.
+The wire name advances to **v2** because the old payload's `EventId` was removed; existing v1
+deployments need an explicit contract/topology migration, not an in-place rename.
+Additional independent consumers get their own subscriptions and stable inbox consumer IDs.
+
+Falsifiable proof: invite a member (`POST /api/members`), then `GET /api/team` — the new member appears
+without a synchronous call to Members. Both a transport retry and a new row for the same business
+invitation leave the directory unchanged.
 
 ### Deny-overrides-allow JWT contract
 
@@ -123,17 +156,62 @@ eventing flow end to end: inviting a member surfaces them in the other service's
 synchronous call between services.
 
 By default the integration tests are **hermetic** — the SQL Server contexts are swapped for in-memory
-SQLite, Azure Service Bus is replaced (a no-op publisher / an in-memory broker), and the gateway-minted
+SQLite, Azure SDK clients are replaced (a no-op publisher in API-only tests / in-memory SDK doubles
+that exercise the real Trellis publisher and consumer in eventing tests), and the gateway-minted
 JWT is swapped for a test auth scheme. Run everything with:
 
 ```
-dotnet test
+dotnet test --solution ProjectTrackerTemplate.slnx -c Release
 ```
 
 Set **`USE_REAL_SERVICES=true`** (the default lives in `.runsettings`) to run the *same* Api integration
 tests against the real configured SQL Server + Azure Service Bus instead — e.g. a gated CI lane that
 validates the production providers.
 
+
+## Production telemetry and idempotency
+
+The API hosts use `Trellis.ServiceDefaults.AddTrellis` for ASP integration, scalar validation and
+the standard ProblemDetails envelope. The local `ServiceDefaults/` project remains the Aspire
+telemetry, health and service-discovery layer; these are different components.
+
+Telemetry exporters are opt-in. `OTEL_EXPORTER_OTLP_ENDPOINT` enables traces, metrics and logs
+(the default protocol is `grpc`; `http/protobuf` is also supported).
+`APPLICATIONINSIGHTS_CONNECTION_STRING` independently enables Azure Monitor. Both may be enabled;
+with neither, normal console logging remains and no exporter is registered. Aspire supplies its
+dashboard OTLP endpoint in local development.
+
+Members uses in-memory idempotency only in Development. Other environments default to Cosmos and
+reject `Idempotency:Store=InMemory`. Configure the following on the **Members service**:
+
+```text
+Idempotency__Store=Cosmos
+Idempotency__Cosmos__Endpoint=https://<account>.documents.azure.com/
+Idempotency__Cosmos__DatabaseId=idempotency
+Idempotency__Cosmos__ContainerId=idempotency
+```
+
+Use the account's actual endpoint for sovereign clouds. Authentication is through
+`DefaultAzureCredential`, not account keys; set `AZURE_CLIENT_ID` for a user-assigned identity.
+Provision the database/container before starting the service: `/scope` is the partition key,
+`defaultTtl: -1` enables per-item TTL, and the identity needs the native Cosmos data contributor role
+scoped to this container. Missing or invalid configuration fails startup instead of falling back
+to memory. Adding idempotent endpoints to another service requires its own store composition.
+
+[`infra/production.bicep`](infra/production.bicep) provisions this keyless, serverless Cosmos store,
+the Members identity's container-scoped role, and workspace-based Application Insights. Supply
+`location`, convention-derived `cosmosAccountName`, `logAnalyticsName`, `applicationInsightsName`,
+and the deployed Members identity's `membersPrincipalId`. Its outputs provide the Cosmos endpoint
+and Application Insights connection string. This is a dependency stack, not deployment of the
+gateway, services, SQL Server or Service Bus; those hosting choices remain application-owned.
+Azure resources incur charges.
+
+When using AppHost, its `APPLICATIONINSIGHTS_CONNECTION_STRING` is forwarded to all three hosts.
+An AppHost `Idempotency:Cosmos:Endpoint` explicitly selects Cosmos for Members, with optional
+`DatabaseId`/`ContainerId` overrides and `AZURE_CLIENT_ID` forwarding; otherwise local development
+needs no Cosmos account.
+Configure deployed services with `ASPNETCORE_ENVIRONMENT=Production`, their real gateway issuer
+and a production authentication/signing-key setup as described below.
 
 ## Replacing the dev-mode actor provider
 

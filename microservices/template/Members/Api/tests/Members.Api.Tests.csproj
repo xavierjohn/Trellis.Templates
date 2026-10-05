@@ -7,7 +7,5 @@
     <PackageReference Include="MartinCostello.Logging.XUnit.v3" />
     <PackageReference Include="Trellis.Testing.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
-    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
   </ItemGroup>
 </Project>
-

@@ -22,7 +22,10 @@ public sealed record GetMemberQuery(MemberId Id)
     public Trellis.IResult Authorize(Actor actor, Member resource) =>
         Result.Ensure(
             actor.TryGetAttribute<TenantId>("tenant_id", out var tenantId) && tenantId == resource.TenantId,
-            Error.Forbidden.For<Member>("members.cross_tenant", resource.Id, "Cross-tenant member access is not permitted."));
+            Error.Forbidden.For<Member>(
+                code: "members.cross_tenant",
+                id: resource.Id,
+                detail: "Cross-tenant member access is not permitted."));
 }
 
 // Reads the SAME Member instance ResourceAuthorizationBehavior loaded for

@@ -14,6 +14,7 @@ using ProjectTrackerTemplate.Projects.Acl;
 using Trellis.Asp.Authorization;
 using Trellis.Authorization;
 using Trellis.EntityFrameworkCore;
+using Trellis.Messaging.AzureServiceBus;
 using Trellis.Testing.AspNetCore;
 
 namespace Projects.Api.Tests;
@@ -72,7 +73,7 @@ public class ProjectsApiFactory : WebApplicationFactory<Program>, ITestOutputHel
             // rather than silently leaving the real pump wired against the dummy connection string.
             var consumer = services.Single(descriptor =>
                 descriptor.ServiceType == typeof(IHostedService) &&
-                descriptor.ImplementationType == typeof(MemberEventsConsumer));
+                descriptor.ImplementationFactory?.Method.ReturnType == typeof(ServiceBusInboxConsumer));
             services.Remove(consumer);
         });
     }

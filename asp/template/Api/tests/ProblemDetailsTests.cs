@@ -110,6 +110,8 @@ public class ProblemDetailsTests
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
         var doc = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
         doc.GetProperty("status").GetInt32().Should().Be(StatusCodes.Status405MethodNotAllowed);
+        doc.GetProperty("code").GetString().Should().Be("error.unspecified");
+        doc.GetProperty("kind").GetString().Should().Be("method-not-allowed");
         doc.GetProperty("traceId").GetString().Should().NotBeNullOrEmpty();
 
         doc.TryGetProperty("allow", out var allow).Should().BeTrue("the 405 body should echo the Allow header as a structured array");
@@ -134,6 +136,21 @@ public class ProblemDetailsTests
         Assert.NotNull(problem);
         problem.Status.Should().Be(StatusCodes.Status404NotFound);
         problem.TraceId.Should().NotBeNullOrEmpty();
+    }
+
+    [Theory]
+    [InlineData("2026-03-26")]
+    [InlineData("2026-12-01")]
+    public async Task Route_misses_have_the_same_error_envelope_as_handler_failures(string version)
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync($"api/no-such-route?api-version={version}", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().Should().Be("error.unspecified");
+        problem.GetProperty("kind").GetString().Should().Be("not-found");
+        problem.GetProperty("traceId").GetString().Should().NotBeNullOrEmpty();
     }
 
     public class ProblemDetailsWithTrace : ProblemDetails

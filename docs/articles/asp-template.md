@@ -59,7 +59,7 @@ controllers. Read it before replacing it — it's the fastest way to learn the c
 
 ```bash
 dotnet build MyService.slnx -c Release        # Release enforces code-style as errors
-dotnet test  --solution MyService.slnx -c Release --filter-not-trait "Category=Integration"
+dotnet test --solution MyService.slnx -c Release -- --filter-not-trait "Category=Integration"
 ```
 
 Tests use **xUnit v3 on Microsoft.Testing.Platform** — don't pass legacy VSTest flags such as `--nologo`

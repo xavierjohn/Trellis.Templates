@@ -4,11 +4,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.OpenApi" />
-    <!-- Forces the patched Microsoft.OpenApi (see Directory.Packages.props) over the vulnerable
-         2.0.0 pulled transitively by Microsoft.AspNetCore.OpenApi / Asp.Versioning.OpenApi. -->
-    <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Trellis.Asp" />
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
+    <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
+    <PackageReference Include="Trellis.ServiceDefaults" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />

@@ -26,9 +26,15 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     // Always-valid: a missing email/role (null when the JSON omits them) fails closed as validation
     // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        Result.Ensure(email is not null, Error.InvalidInput.ForField("email", "required", "Email is required."))
-            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField("role", "required", "Role is required.")))
-            .Map(_ => new InviteMemberCommand(email!, role!));
+        email.ToResult(Error.InvalidInput.ForField(
+            code: "required",
+            field: "email",
+            detail: "Email is required."))
+            .Combine(role.ToResult(Error.InvalidInput.ForField(
+                code: "required",
+                field: "role",
+                detail: "Role is required.")))
+            .Map((validEmail, validRole) => new InviteMemberCommand(validEmail, validRole));
 }
 
 // Mints a new MemberId, materializes the aggregate, and pushes it into the
@@ -72,7 +78,10 @@ public sealed class InviteMemberHandler : ICommandHandler<InviteMemberCommand, R
         return await MemberId.TryCreate($"{tenantId.Value}-{localPart}")
             .EnsureAsync(
                 async memberId => !await _repository.ExistsAsync(memberId, cancellationToken),
-                memberId => Error.Conflict.For<Member>(memberId, "members.duplicate", "A member with this id already exists in this tenant."))
+                memberId => Error.Conflict.For<Member>(
+                    code: "members.duplicate",
+                    id: memberId,
+                    detail: "A member with this id already exists in this tenant."))
             .MapAsync(memberId => Member.Invite(memberId, tenantId, command.Email, command.Role, _timeProvider))
             .TapAsync(_repository.Add);
     }

@@ -68,7 +68,18 @@ jobs:
       - name: Test (gate)
         if: ${{ steps.t.outputs.test == 'true' }}
         working-directory: ${{ inputs.template }}/template
-        run: dotnet test --solution ${{ steps.t.outputs.slnx }} --no-build -c Release --filter-not-trait "Category=Integration"
+        run: dotnet test --solution ${{ steps.t.outputs.slnx }} --no-build -c Release -- --filter-not-trait "Category=Integration"
+
+      - name: Verify managed AgentDocs (gate)
+        run: |
+          SOURCE="${{ runner.temp }}/agentdocs-${{ inputs.template }}"
+          mkdir -p "$SOURCE"
+          cp -a template/. "$SOURCE/"
+          cd "$SOURCE"
+          git init --quiet
+          dotnet tool restore
+          dotnet restore
+          dotnet tool run agentdocs check --strict --strict-references --content-only
 
       - name: Pack
         run: dotnet pack templatepack.csproj -c Release -o nupkg
@@ -84,6 +95,11 @@ jobs:
           dotnet new ${{ steps.t.outputs.short }} -n PublishSmoke
           cd PublishSmoke
           dotnet build PublishSmoke.slnx -c Release
+          git init --quiet
+          dotnet tool restore
+          dotnet tool run agentdocs check --strict --strict-references --content-only
+          dotnet tool run agentdocs sync --strict --strict-references
+          dotnet tool run agentdocs check --strict --strict-references
 
       - name: List packages
         run: ls -lh nupkg/*.nupkg

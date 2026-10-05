@@ -13,7 +13,7 @@
     <PackageType>Template</PackageType>
     <PackageId>Trellis.AspTemplate</PackageId>
     <Title>Trellis ASP.NET Service Template</Title>
-    <Description>A dotnet new template for creating ASP.NET services using the Trellis framework with Railway-Oriented Programming (ROP) and Domain-Driven Design (DDD). Includes solution structure, build system, test infrastructure, copilot instructions, and API reference.</Description>
+    <Description>A dotnet new template for creating ASP.NET services using the Trellis framework with Railway-Oriented Programming (ROP) and Domain-Driven Design (DDD). Includes solution structure, build system, test infrastructure, agent-neutral AGENTS.md instructions, and API reference.</Description>
     <Authors>Xavier John</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/xavierjohn/Trellis.Templates</PackageProjectUrl>
@@ -50,7 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.7.115" PrivateAssets="all" />
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.94" PrivateAssets="all" />
   </ItemGroup>
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

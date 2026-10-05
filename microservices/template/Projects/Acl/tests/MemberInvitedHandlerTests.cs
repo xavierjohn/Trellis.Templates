@@ -1,8 +1,10 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using ProjectTrackerTemplate.Projects.Acl;
 using ProjectTrackerTemplate.SharedKernel;
 using Trellis.EntityFrameworkCore;
+using Trellis.Mediator;
 
 namespace Projects.Acl.Tests;
 
@@ -32,7 +34,7 @@ public sealed class MemberInvitedHandlerTests : IDisposable
         var ct = TestContext.Current.CancellationToken;
         var handler = new MemberInvitedHandler(_db);
         var evt = new MemberInvitedIntegrationEvent(
-            Guid.NewGuid(), "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
+            "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
 
         await handler.HandleAsync(evt, ct);
         await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
@@ -50,7 +52,7 @@ public sealed class MemberInvitedHandlerTests : IDisposable
         var ct = TestContext.Current.CancellationToken;
         var handler = new MemberInvitedHandler(_db);
         var evt = new MemberInvitedIntegrationEvent(
-            Guid.NewGuid(), "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
+            "acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
 
         await handler.HandleAsync(evt, ct);
         await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
@@ -58,6 +60,29 @@ public sealed class MemberInvitedHandlerTests : IDisposable
         await _db.SaveChangesResultUnitAsync(ct).BeSuccessAsync();
 
         (await _db.KnownMembers.ToListAsync(ct)).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Inbox_deduplicates_transport_retries_and_handler_deduplicates_new_rows_for_the_same_member()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDbContext<ProjectsDbContext>(options =>
+            options.UseSqlite(_connection).AddTrellisInterceptors());
+        services.AddTrellisInbox<ProjectsDbContext>(options => options.ConsumerId = MessagingTopology.ProjectsSubscriptionName);
+        services.AddIntegrationEventHandler<MemberInvitedIntegrationEvent, MemberInvitedHandler>();
+        await using var provider = services.BuildServiceProvider();
+        var dispatcher = provider.GetRequiredService<IInboxDispatcher>();
+        var evt = new MemberInvitedIntegrationEvent("acme", "acme-newperson", "contributor", DateTimeOffset.UtcNow);
+        var first = new IntegrationEnvelope(Guid.CreateVersion7(), evt);
+
+        (await dispatcher.DispatchAsync(first, ct)).Should().Be(InboxDispatchOutcome.Processed);
+        (await dispatcher.DispatchAsync(first, ct)).Should().Be(InboxDispatchOutcome.SkippedDuplicate);
+        (await dispatcher.DispatchAsync(new IntegrationEnvelope(Guid.CreateVersion7(), evt), ct))
+            .Should().Be(InboxDispatchOutcome.Processed);
+
+        (await _db.KnownMembers.AsNoTracking().ToListAsync(ct)).Should().ContainSingle();
     }
 
     public void Dispose()

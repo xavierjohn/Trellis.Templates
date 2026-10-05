@@ -38,6 +38,9 @@
   },
   "sources": [
     {
+      "copyOnly": [
+        ".agentdocs/packages/**"
+      ],
       "modifiers": [
         {
           "exclude": [

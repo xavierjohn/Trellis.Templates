@@ -23,8 +23,8 @@ The convention assigns each resource type either a **region-less** name (a cloud
 
 | Stack | When | Resources | Example name |
 |---|---|---|---|
-| **Global** | once per cloud | SQL server, SQL database | `tdo-sql-prod-nhm4y`, `tdo-sqldb-prod` |
-| **Regional** | once per region | Managed identity, Log Analytics, App Service | `tdo-app-prod-usw3-5yqp9`, `tdo-id-prod-usw3` |
+| **Global** | once per cloud | SQL server/database, Cosmos idempotency account/database/container | `tdo-sql-prod-nhm4y`, `tdo-cosmos-prod-n82im` |
+| **Regional** | once per region | Managed identity, Log Analytics, Application Insights, App Service | `tdo-app-prod-usw3-5yqp9`, `tdo-id-prod-usw3` |
 
 Because the singleton names are identical in every region, every region's app connects to the **same**
 SQL server, and re-running a later region never recreates it. Because the regional names carry the
@@ -33,7 +33,7 @@ stateless: each wave just rebinds the region and recomputes — there is nothing
 waves.
 
 > **No Key Vault?** The sample is passwordless — SQL uses the app's managed identity
-> (`Authentication=Active Directory Default`), idempotency is in-memory, and auth is Entra/OIDC, so
+> (`Authentication=Active Directory Default`), Cosmos idempotency uses managed identity, and auth is Entra/OIDC, so
 > there is no secret to store. Add a Key Vault (a `tdo-kv-prod-<region-short>-<hash>` regional resource)
 > only when your service has a secret that cannot use managed identity — a third-party API key, a
 > signing/TLS certificate, or a credential for a dependency that does not support Entra auth.
@@ -89,6 +89,21 @@ durable name).
 `deploy.ps1` **provisions and configures the infrastructure**: the resource groups, SQL server +
 database (Entra-only auth), and per region a managed identity, Log Analytics workspace, and an App
 Service wired with the `DeployedEnvironment:*` settings and a passwordless SQL connection string.
+The global Cosmos container is partitioned on `/scope` with `defaultTtl: -1`; each regional identity
+receives the native Cosmos data contributor role scoped only to that container. Account-key
+authentication is disabled. All regions share the same idempotency records.
+
+Application Insights is linked to each regional Log Analytics workspace, and its connection string
+is injected as `APPLICATIONINSIGHTS_CONNECTION_STRING`. The app enables Azure Monitor only when
+that setting exists. An explicit `OTEL_EXPORTER_OTLP_ENDPOINT` independently enables OTLP for
+traces, metrics and logs; without either setting, ordinary console logging remains enabled and
+no exporter is registered. The [local dashboard](../DockerOpenTelemetry/README.md) is opt-in.
+
+Development defaults to in-memory idempotency. Other environments default to Cosmos and reject
+`Idempotency:Store=InMemory`. The regional stack supplies `Idempotency:Store=Cosmos` and the required
+`Idempotency:Cosmos:Endpoint`, `DatabaseId`, and `ContainerId`. The app uses `DefaultAzureCredential`
+and the injected `AZURE_CLIENT_ID`; it does not create containers or use account keys at startup.
+When adding another Azure write service, provision its own container and matching data-plane role.
 
 To actually **serve traffic**, the sample needs a few app-side steps it intentionally leaves to you
 (it ships SQLite + a development actor provider for zero-setup local dev):
@@ -111,5 +126,7 @@ To actually **serve traffic**, the sample needs a few app-side steps it intentio
 |---|---|
 | [`names/`](./names) | C# tool: `DeployedEnvironmentOptions` → resource-name JSON (the C# → IaC seam). |
 | [`deploy.ps1`](./deploy.ps1) | Orchestrates the global stack, then each regional wave. |
-| [`../infra/global.bicep`](../infra/global.bicep) | Cloud-singleton resources (SQL). |
-| [`../infra/regional.bicep`](../infra/regional.bicep) | Per-region resources (identity, Log Analytics, App Service). |
+| [`../infra/global.bicep`](../infra/global.bicep) | Cloud-singleton resources (SQL and Cosmos). |
+| [`../infra/regional.bicep`](../infra/regional.bicep) | Per-region identity, telemetry, App Service, and Cosmos access. |
+| [`../infra/idempotency.bicep`](../infra/idempotency.bicep) | Keyless Cosmos account and the framework-compatible container. |
+| [`../infra/idempotency-access.bicep`](../infra/idempotency-access.bicep) | Container-scoped native Cosmos role assignment. |

@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using Trellis.Authorization;
 using Trellis.Testing.AspNetCore;
+using ProjectTrackerTemplate.SharedKernel;
 
 namespace Eventing.Tests;
 
@@ -9,7 +10,7 @@ namespace Eventing.Tests;
 // SQLite, joined by an in-memory broker in place of Azure Service Bus: inviting a member in the Members
 // service must, with no synchronous call between services, surface that member in the Projects service's
 // team directory — proving outbox -> broker -> inbox -> read-model projection -> read port end to end.
-public sealed class MemberInvitedEventingTests : IDisposable
+public sealed class MemberInvitedEventingTests : IAsyncDisposable
 {
     private readonly InMemoryBroker _broker = new();
     private readonly MembersEventingFactory _members;
@@ -47,21 +48,24 @@ public sealed class MemberInvitedEventingTests : IDisposable
             var teamResponse = await projectsClient.GetAsync("/api/team?api-version=2026-03-26", cancellationToken);
             teamResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             team = await teamResponse.Content.ReadFromJsonAsync<TeamMember[]>(cancellationToken) ?? [];
-            if (team.Length > 0)
+            if (team.Length > 0 && !_broker.Completed.IsEmpty)
                 break;
             await Task.Delay(200, cancellationToken);
         }
 
         team.Should().ContainSingle().Which.MemberId.Should().Be("acme-dana");
+        _broker.Topic.Should().Be("projecttracker.members.member-invited.v2");
+        _broker.Subscription.Should().Be(MessagingTopology.ProjectsSubscriptionName);
+        _broker.Completed.Should().ContainSingle().Which.Subject.Should().Be(_broker.Topic);
     }
 
     private static Actor Actor(string id, string tenant, params string[] permissions) =>
         new(id, new HashSet<string>(permissions), new HashSet<string>(), new Dictionary<string, string> { ["tenant_id"] = tenant });
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _members.Dispose();
-        _projects.Dispose();
+        await _members.DisposeAsync();
+        await _projects.DisposeAsync();
     }
 
     private sealed record TeamMember(string MemberId, string TenantId, string Role);

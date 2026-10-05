@@ -2,16 +2,16 @@
 
 namespace ProjectTrackerTemplate.Projects.Acl;
 
-// Projects meter — registered in Program.cs via
+// Projects meter — selected by the Projects API composition root via
 //   builder.Services.AddOpenTelemetry().WithMetrics(m => m.AddMeter(ProjectsMetrics.MeterName))
 // so the Aspire dashboard surfaces it in the Metrics tab alongside the stock
 // AspNetCore / HttpClient / Runtime instrumentation.
 //
 // The ResourceLoads counter increments INSIDE EfProjectRepository.FindByIdAsync
 // (the ACL boundary). That placement matters: it counts every load that crosses the
-// boundary, including any handler that bypasses the v4 accessor and re-loads via
+// boundary, including any handler that bypasses the typed accessor and re-loads via
 // the repository directly. If the counter ever shows N=2 per single request, the
-// v4 accessor pattern has regressed.
+// load-once accessor pattern has regressed.
 public static class ProjectsMetrics
 {
     public const string MeterName = "ProjectTracker.Projects";

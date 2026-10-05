@@ -6,13 +6,13 @@ namespace SharedKernel.Tests;
 public class MemberInvitedIntegrationEventTests
 {
     [Fact]
-    public void Round_trips_through_the_shared_serialization_options()
+    public void Round_trips_through_the_framework_Web_serialization_defaults()
     {
         var evt = new MemberInvitedIntegrationEvent(
-            Guid.NewGuid(), "acme", "acme-alice", "owner", DateTimeOffset.UtcNow);
+            "acme", "acme-alice", "owner", DateTimeOffset.UtcNow);
 
-        var json = JsonSerializer.Serialize(evt, IntegrationEventSerialization.Options);
-        var back = JsonSerializer.Deserialize<MemberInvitedIntegrationEvent>(json, IntegrationEventSerialization.Options);
+        var json = JsonSerializer.Serialize(evt, JsonSerializerOptions.Web);
+        var back = JsonSerializer.Deserialize<MemberInvitedIntegrationEvent>(json, JsonSerializerOptions.Web);
 
         back.Should().Be(evt);
     }

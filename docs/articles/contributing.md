@@ -15,8 +15,13 @@ shared/
 docs/           # this documentation site (DocFX)
 ```
 
-Each template keeps its own `.github/copilot-instructions.md` with the authoritative, template-specific rules
-(TDD, encoding, build commands). Read a template's instructions before editing it.
+Read the repository-root `AGENTS.md`, then `asp/AGENTS.md` or `microservices/AGENTS.md` and the relevant
+`template/AGENTS.md` before editing a template. These are the authoritative, scoped instructions for
+maintainers and generated applications. `.github/copilot-instructions.md` files are compatibility
+pointers, not a second copy of the rules.
+
+Edit curated rules in `AGENTS.md` outside the `agentdocs:start` / `agentdocs:end` block.
+AgentDocs owns that block and routes agents to the version-aligned package references.
 
 ## Run the parity contract locally
 

@@ -1,0 +1,260 @@
+﻿---
+package: Trellis.Yarp
+namespaces: [Trellis.Yarp]
+types: [TrellisActorForwardingOptions, TrellisActorForwardingServiceCollectionExtensions, TrellisDiscoveryEndpointRouteBuilderExtensions, ITrellisSigningKeyProvider, TrellisSigningKeyRing]
+version: v3
+last_verified: 2026-07-01
+audience: [llm]
+---
+# Trellis.Yarp — API Reference
+
+**Package:** `Trellis.Yarp` (NOT AOT-compatible — YARP itself is not AOT-clean; consumers needing an AOT-compatible microservice path keep the gateway non-AOT and ship AOT-compatible downstream services depending only on `Trellis.Microservices.AspNetCore` + `Trellis.Asp`).
+**Namespaces:** `Trellis.Yarp`
+**Purpose:** YARP gateway integration for Trellis. Re-mints a per-cluster internal JWT from the full Trellis `Actor` (id + permissions + forbidden permissions + ABAC attributes); exposes an OIDC discovery + JWKS endpoint pair so downstream services using `AddJwtBearer(o => o.Authority = gatewayUrl)` can fetch the active signing keys; emits redacted audit telemetry on every mint.
+
+Pairs with the consumer-side `TrellisInternalJwtActorProvider` in [`Trellis.Microservices.AspNetCore`](../trellis.microservices.aspnetcore/trellis-api-internal-jwt.md#use-this-file-when). See [Recipe 1](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-1--strict-addjwtbearer-validation-profile-for-addtrellisinternaljwtactorprovider) for the downstream side, [Recipe 2](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-2--microservices-behind-yarp-end-to-end) for the gateway-side end-to-end. Both sides reference the same canonical claim names from [`Trellis.Microservices.Abstractions`](../trellis.microservices.abstractions/trellis-api-microservices-abstractions.md#use-this-file-when).
+
+## Use this file when
+
+- You are standing up a YARP gateway in front of Trellis microservices and need Path B (Trellis internal JWT) wired end-to-end.
+- You need the exact signature of `AddTrellisActorForwarding`, `MapTrellisDiscoveryEndpoint`, or `TrellisActorForwardingOptions`.
+- You are auditing the gateway-side mint contract: which claims are emitted, what gets logged, what symmetric / missing-`kid` configurations get rejected at startup.
+- You are implementing the key-rotation runbook for a Trellis-fronted gateway.
+
+## Patterns Index
+
+| Goal | Canonical API / action | See |
+|---|---|---|
+| Register the YARP actor-forwarding transform pipeline | `builder.Services.AddReverseProxy().AddTrellisActorForwarding(configure)` | [`TrellisActorForwardingServiceCollectionExtensions`](#trellisactorforwardingservicecollectionextensions) |
+| Publish OIDC discovery + JWKS to downstream services | `app.MapTrellisDiscoveryEndpoint()` | [`TrellisDiscoveryEndpointRouteBuilderExtensions`](#trellisdiscoveryendpointroutebuilderextensions) |
+| Configure per-cluster audience | `options.AudiencePerCluster = cluster => "<audience>"` | [`TrellisActorForwardingOptions`](#trellisactorforwardingoptions) |
+| Project permissions per cluster | `options.ProjectPermissionsFor = (cluster, perms) => perms.Where(...)` | [`TrellisActorForwardingOptions`](#trellisactorforwardingoptions) |
+| Override `sub` for multi-IdP gateways (MUST do this when fronting >1 IdP) | `options.ActorIdResolver = actor => $"<ns>\|{actor.Id.Value}"` | [`TrellisActorForwardingOptions`](#trellisactorforwardingoptions) |
+| Rotate signing keys with overlap window (redeploy) | Set new `SigningCredentials`; move the previous key into `PreviousSigningKeys` until the rotation window expires | [Recipe 1](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-1--strict-addjwtbearer-validation-profile-for-addtrellisinternaljwtactorprovider) (rotation runbook) |
+| Rotate signing keys at runtime (no redeploy) | Supply a custom `ITrellisSigningKeyProvider` via the `AddTrellisActorForwarding(configure, signingKeyProviderFactory)` overload | [`ITrellisSigningKeyProvider`](#itrellissigningkeyprovider-signing-key-rotation-seam) |
+| Emergency revoke a compromised key | Drop the compromised `kid` from `SigningCredentials` AND `PreviousSigningKeys`, redeploy gateway, force downstream JWKS refresh | [Recipe 2](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-2--microservices-behind-yarp-end-to-end) (emergency revocation procedure) |
+
+## Threat model
+
+`Trellis.Yarp` treats the gateway as the authority for the downstream-internal trust boundary. **Signing-key compromise = full identity spoof until key revocation propagates.** The package designs for this scenario via:
+
+- Short token lifetimes (default 5 minutes; startup validation caps at `[1m, 30m]`).
+- `kid`-aware overlapping JWKS rotation.
+- Audit-log redaction (no JWT body, no raw claim values, no actor IDs in any `[LoggerMessage]` event).
+- Emergency revocation procedure (drop `kid` from JWKS → redeploy → force downstream refresh).
+
+The startup validator rejects: missing `Issuer`, non-absolute `PublicBaseUrl`, null / symmetric / missing-`kid` `SigningCredentials`, rotation-ring `kid` collisions, lifetime outside `[1m, 30m]`, null callbacks. Additionally, the registration validator (`IHostedLifecycleService`) fails host start if `AddTrellisActorForwarding` was called but no `IActorProvider` is registered.
+
+---
+
+## TrellisActorForwardingOptions
+
+Configuration for the YARP actor-forwarding transform. Bound via `AddOptions<TrellisActorForwardingOptions>().Configure(configure).ValidateOnStart()` inside `AddTrellisActorForwarding`.
+
+| Member | Type | Default | Required? | Purpose |
+|---|---|---|---|---|
+| `Issuer` | `string` | (none) | **Yes** | JWT `iss` claim value AND OIDC discovery doc `issuer`. Conventionally a URL identifying the gateway (e.g. `"https://gateway.internal"`). |
+| `SigningCredentials` | `SigningCredentials` | (none) | Static default only | RSA signing credential. `Key` MUST be an `RsaSecurityKey` with a non-empty `KeyId` (the `kid`), and `Algorithm` MUST be `RS256`. Startup validation rejects symmetric / null / missing-`kid` keys, `ECDsaSecurityKey`, and every algorithm other than `RS256`. **Ignored (and not required) when a custom [`ITrellisSigningKeyProvider`](#itrellissigningkeyprovider-signing-key-rotation-seam) is supplied** — the provider owns the ring. |
+| `PreviousSigningKeys` | `IReadOnlyList<SecurityKey>` | `[]` | No | Previous-generation signing keys still trusted during a rotation overlap window. Each entry MUST be asymmetric + non-empty `kid`. NOT used to sign new tokens; ARE published in JWKS. |
+| `PublicBaseUrl` | `Uri` | (none) | **Yes** | Absolute public URL the gateway is reachable at. Used to build absolute URLs in the OIDC discovery document. **NOT inferred from `HttpRequest.Host`** (spoofable behind reverse proxies). |
+| `AudiencePerCluster` | `Func<ClusterConfig, string>` | `cluster => cluster.ClusterId` | No | Selects the JWT `aud` claim value per destination cluster. Override to a per-cluster audience literal so each downstream pins `JwtBearerOptions.Audience` to a unique value (cross-audience confusion defense). |
+| `ProjectPermissionsFor` | `Func<ClusterConfig, IReadOnlySet<string>, IReadOnlySet<string>>` | pass-through | No | Projects `Actor.Permissions` onto the subset relevant to the destination cluster. Recommended convention: `(c, perms) => perms.Where(p => p.StartsWith(c.ClusterId + ".")).ToHashSet(...)`. |
+| `ProjectForbiddenFor` | `Func<ClusterConfig, IReadOnlySet<string>, IReadOnlySet<string>>` | pass-through | No | Projects `Actor.ForbiddenPermissions` per cluster. Same shape as `ProjectPermissionsFor`. **Contract integrity:** the count is always emitted, even when empty (deny-overrides-allow integrity invariant). |
+| `ProjectAttributes` | `Func<ClusterConfig, IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>>` | pass-through | No | Projects `Actor.Attributes` per cluster. Output keys become JWT claim names. **Output keys MUST NOT collide (ordinal-ignore-case) with reserved JWT claim names (`iss`/`aud`/`exp`/`nbf`/`iat`/`jti`/`sub`) or the EXACT Trellis structural claim names (`permissions`, `forbidden_permissions`, `trellis_actor_contract_version`, `trellis_permissions_count`, `trellis_forbidden_permissions_count`)** — the minter throws `InvalidOperationException` at mint time on collision. The check is exact name match, NOT `trellis_*` prefix match: a custom attribute named `trellis_request_id` is allowed. To surface the external IdP issuer downstream, project to `external_iss`. |
+| `ActorIdResolver` | `Func<Actor, string>` | `actor => actor.Id.Value` | No | Computes the JWT `sub` claim. **MUST override** when fronting multiple IdPs / tenants to mint a namespaced subject (`$"{issuer}\|{tenant}\|{externalSub}"`) so `sub` is globally unique. `Actor` equality is identity-based on `Id` only — cross-IdP collisions are a real privilege-escalation risk. |
+| `Lifetime` | `TimeSpan` | 5 minutes | No | Minted-token lifetime (`exp - iat`). Startup validation rejects values outside `[1 minute, 30 minutes]`. Pair with downstream `ClockSkew = 30s` (Recipe 1) so the replay window stays under ~6 minutes. |
+
+### Behavioral notes
+
+- **Per-cluster, not per-route.** v1 limitation: all per-cluster callbacks key on `ClusterConfig`. Two routes hitting the same cluster cannot have different audiences in v1.
+- **No token caching.** Every request mints a fresh JWT. Caching is deferred to v1.1 (cache-key canonicalization, multi-instance miss rates, revocation SLA are nontrivial).
+- **Transform always overwrites `Authorization`.** No `StripOriginalAuthorizationHeader` option; no `PreserveOriginalTokenAs`. Forwarding the original token alongside the gateway-minted one creates a downstream confusion attack (which header is authoritative?).
+- **No actor → upstream `Authorization` is CLEARED.** When `IActorProvider` returns `Maybe<Actor>.None`, the transform sets `requestContext.ProxyRequest.Headers.Authorization = null` before YARP forwards the request. This fail-closed posture prevents the upstream (external) bearer token from reaching the downstream service via YARP's default header-copy. Downstream policy decides whether anonymous is allowed.
+
+---
+
+## TrellisActorForwardingServiceCollectionExtensions
+
+```csharp
+public static IReverseProxyBuilder AddTrellisActorForwarding(
+    this IReverseProxyBuilder builder,
+    Action<TrellisActorForwardingOptions> configure);
+
+// Runtime key rotation: supply a custom signing-key provider. The options'
+// SigningCredentials / PreviousSigningKeys are ignored on this overload — the
+// provider is the source of truth for the signing-key ring.
+public static IReverseProxyBuilder AddTrellisActorForwarding(
+    this IReverseProxyBuilder builder,
+    Action<TrellisActorForwardingOptions> configure,
+    Func<IServiceProvider, ITrellisSigningKeyProvider> signingKeyProviderFactory);
+```
+
+Registers the actor-forwarding transform pipeline on YARP. Wires:
+
+- `TrellisActorForwardingOptions` (validated at startup via `ValidateOnStart`).
+- `TrellisActorForwardingOptionsValidator` (rejects symmetric keys, missing `kid`, lifetime outside `[1m, 30m]`, null callbacks, rotation-ring `kid` collisions).
+- `ITrellisSigningKeyProvider` (singleton — a fail-closed validating decorator wrapping either the default static-key provider that projects the options, or your custom provider; see [`ITrellisSigningKeyProvider`](#itrellissigningkeyprovider-signing-key-rotation-seam)).
+- `TrellisActorJwtMinter` (singleton; holds the cached `JsonWebTokenHandler`; signs each token with the provider's current ring key).
+- `TimeProvider` (`TryAddSingleton` — consumers can pre-register a test `FakeTimeProvider`).
+- `TrellisActorForwardingTransformProvider` (the per-cluster build-time transform that adds the per-request transform).
+- `TrellisActorForwardingRegistrationValidator` (`IHostedLifecycleService` — fails host start if no `IActorProvider` is registered, OR if more than one `IActorProvider` is registered).
+
+**Caller responsibility — register `IActorProvider`.** This extension does NOT register an `IActorProvider`. The gateway typically uses `AddClaimsActorProvider` or `AddEntraActorProvider` from `Trellis.Asp` to hydrate the actor from the upstream JWT (the JWT the gateway validated at its boundary), or `AddEasyAuthActorProvider` when it runs behind Azure "Easy Auth" (see the note below). Missing or duplicate `IActorProvider` registration is a startup error, not a per-request error — the registration validator fails the host at startup with explicit guidance.
+
+**Gateway behind Azure "Easy Auth".** When the gateway runs on Azure App Service / Container Apps built-in authentication ("Easy Auth"), register `AddEasyAuthActorProvider(...)` (or `TrellisServiceBuilder.UseEasyAuthActorProvider(...)`) as the front-door `IActorProvider` — introduced upstream in Trellis `3.0.0-alpha.426`, picked up by this repo with the `3.0.0-alpha.428` bump. Pair it with `AddAuthentication(...).AddEasyAuth()` so the platform's `X-MS-CLIENT-PRINCIPAL` header is decoded onto `HttpContext.User` before the actor is mapped (a startup validator fails the host if the provider is registered without the scheme). It maps those claims to the `Actor` exactly like `ClaimsActorProvider`, overriding only `VaryByHeaders` to the principal headers so intermediate caches partition by the platform principal rather than `Authorization`. **Trust precondition:** the `X-MS-CLIENT-PRINCIPAL*` headers are trustworthy only when the gateway is reachable exclusively through the Easy Auth front end — the platform strips inbound client copies at that boundary, so never expose a path that bypasses it.
+
+**YARP composition.** Place this call immediately after `services.AddReverseProxy().LoadFromConfig(...)`. The transform pipeline is built once per cluster at startup; per-request work resolves a scoped `IActorProvider` and the singleton `TrellisActorJwtMinter`.
+
+---
+
+## ITrellisSigningKeyProvider (signing-key rotation seam)
+
+```csharp
+public interface ITrellisSigningKeyProvider
+{
+    TrellisSigningKeyRing GetCurrentRing();
+}
+
+public sealed class TrellisSigningKeyRing
+{
+    public required SigningCredentials Current { get; init; }
+    public required IReadOnlyList<SecurityKey> ValidationKeys { get; init; }
+
+    public static TrellisSigningKeyRing FromActiveAndPrevious(
+        SigningCredentials current, IReadOnlyList<SecurityKey> previous);
+}
+```
+
+Supplies the gateway's signing-key ring as an atomic, immutable snapshot: `Current` (signs new tokens) plus `ValidationKeys` (every key published in JWKS — the current key's public component plus any retiring keys still inside their overlap window). Reading both as ONE object avoids a torn read where the JWT header `kid` disagrees with the published key set.
+
+**Static default (no code change required).** The single-parameter `AddTrellisActorForwarding(configure)` overload registers a default provider that projects `SigningCredentials` + `PreviousSigningKeys` into the ring — behavior is identical to before the seam existed. Rotation stays a redeploy operation (set the new `SigningCredentials`, keep the old in `PreviousSigningKeys`; see the rotation runbook).
+
+**Dynamic rotation (no redeploy).** Supply a custom provider to rotate at runtime (e.g. sourcing keys from a vault / KMS refreshed on a background cadence):
+
+```csharp
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+    .AddTrellisActorForwarding(
+        configure: o =>
+        {
+            o.Issuer = "https://gateway.internal";
+            o.PublicBaseUrl = new Uri("https://gateway.internal");
+            // SigningCredentials / PreviousSigningKeys are ignored on this overload.
+        },
+        signingKeyProviderFactory: sp => sp.GetRequiredService<MyVaultSigningKeyProvider>());
+```
+
+**No concrete secret-store adapter ships in this package** — sourcing key material from a vault / KMS / file is an application or community concern; the seam is only the contract plus multi-key JWKS publication.
+
+**Contract for implementers:**
+
+| Rule | Why |
+|---|---|
+| Return an immutable snapshot in one read; safe to call concurrently | Called on the mint hot path and every JWKS request; a torn `Current` / `ValidationKeys` read breaks validation |
+| Return the SAME instance between rotations; swap atomically on change | Lets the pipeline short-circuit re-validation by reference (no steady-state hot-path cost) |
+| No I/O inside `GetCurrentRing()` | Refresh the ring on a background cadence; hand out the cached snapshot |
+| `Current`'s `kid` MUST appear in `ValidationKeys` exactly once | Signing with an unpublished `kid` fails ALL downstream validation (consumers pin `TryAllIssuerSigningKeys = false`) |
+| All keys asymmetric, unique non-empty `kid`, single algorithm family | The ring is published in JWKS; symmetric keys would leak the signing secret |
+
+**Fail-closed validation.** Every ring the provider returns is re-validated before the minter signs or the JWKS endpoint publishes it — the same asymmetric-only / non-empty-unique-`kid` rules the startup validator applies, plus the current-key-published invariant. An invalid ring is rejected and the **last known-good ring keeps serving** — a botched rotation cannot take the gateway down. If the very first ring is invalid (no known-good exists yet), first use fails loudly.
+
+**Fleet convergence.** Horizontally scaled gateways behind one issuer / JWKS URL MUST coordinate: no instance flips `Current` to a new key until EVERY instance publishes it in `ValidationKeys`, and the overlap window must cover both consumer JWKS-cache convergence and gateway-fleet convergence. The core pipeline validates each snapshot but cannot coordinate across instances — that is the provider's responsibility.
+
+---
+
+## TrellisDiscoveryEndpointRouteBuilderExtensions
+
+```csharp
+public static IEndpointConventionBuilder MapTrellisDiscoveryEndpoint(
+    this IEndpointRouteBuilder endpoints,
+    string? oidcPath = null,        // defaults to "/.well-known/openid-configuration"
+    string? jwksPath = null);       // defaults to "/.well-known/jwks.json"
+```
+
+Publishes the gateway's OIDC discovery document and JWKS as anonymous, cacheable HTTP endpoints. The discovery document advertises `TrellisActorForwardingOptions.Issuer` as the issuer and `PublicBaseUrl` joined with `jwksPath` as the `jwks_uri`. The JWKS document contains every key in the current signing-key ring (`ITrellisSigningKeyProvider.GetCurrentRing().ValidationKeys` — for the static default, that is the current `SigningCredentials.Key` plus every entry in `PreviousSigningKeys`).
+
+**Composite return value.** The method returns a `CompositeEndpointConventionBuilder` that fans out to BOTH the discovery and JWKS endpoints. Chained conventions configure both:
+
+```csharp
+app.MapTrellisDiscoveryEndpoint()
+   .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(5)));
+```
+
+**Anonymous endpoints.** Both endpoints are explicitly `.AllowAnonymous()` — JWKS MUST be reachable by downstream services before they have ever validated a token (chicken-and-egg). The explicit `AllowAnonymous` chain protects them against an app-wide fallback `[Authorize]` policy (which would otherwise lock the JWKS endpoint behind the very tokens it is needed to verify).
+
+**URLs come from options, never request context.** `HttpRequest.Host` is spoofable behind reverse proxies. Both endpoints construct their absolute URLs exclusively from `TrellisActorForwardingOptions.PublicBaseUrl` (startup-validated absolute) joined with the literal paths supplied here. Verified by `TrellisDiscoveryEndpointTests.MapTrellisDiscoveryEndpoint_JwksUri_IgnoresHttpRequestHostHeader`.
+
+**Active-algorithm advertisement.** The discovery document advertises only the active `SigningCredentials.Algorithm` rather than a hardcoded list, and the JWKS document normalizes each key's `alg` field to it. Because the gateway pins `RS256` (see below), that value is always `RS256` — the mirroring behaviour remains so the document can never drift from what is actually minted.
+
+**RS256 is pinned, not configurable.** The signing algorithm is one half of a two-sided contract: the default consumer profile (`AddTrellisInternalJwtBearer`) forces `ValidAlgorithms = ["RS256"]` as a non-negotiable invariant. Nothing at startup compares the two sides, so a gateway configured with `RS384` or `ES256` would mint perfectly well-signed tokens that **every** microservice in the fleet rejects — an outage visible only at request time. The gateway therefore refuses any algorithm but `RS256` at startup, and rejects `ECDsaSecurityKey` outright since no EC key can produce it.
+
+**Symmetric-key + unsupported-type defense in depth.** The JWKS builder refuses to serialize any symmetric key, even though startup validation already rejects them, and silently skips any `SecurityKey` type the JWKS converter does not support. The two-layer check survives a future refactor that loosens validation and matches the v1-only-asymmetric contract.
+
+**Private-key fields explicitly stripped.** The JWKS builder writes only the public components (`n`, `e` for RSA; `crv`, `x`, `y` for EC) plus the metadata fields (`kty`, `use`, `alg`, `kid`). Private components (`d`, `p`, `q`, `dp`, `dq`, `qi`, `k`) are explicitly not serialized — defense in depth in case a future `JsonWebKeyConverter` revision starts populating private components and a consumer hands the minter the private key.
+
+---
+
+## Internal JWT contract v1
+
+Every minted JWT carries this exact claim set, matching the consumer-side `TrellisInternalJwtActorProvider` defaults. The claim names are the canonical literals exposed by [`TrellisInternalJwtClaimNames`](../trellis.microservices.abstractions/trellis-api-microservices-abstractions.md#trellisinternaljwtclaimnames) in `Trellis.Microservices.Abstractions`:
+
+| Claim | Value | Notes |
+|---|---|---|
+| `iss` | `options.Issuer` | |
+| `aud` | `options.AudiencePerCluster(cluster)` | |
+| `sub` | `options.ActorIdResolver(actor)` | Namespace via `ActorIdResolver` when fronting multiple IdPs. |
+| `jti` | `Guid.NewGuid().ToString("N")` | Fresh per token; audit-log correlation key. |
+| `iat` / `nbf` / `exp` | NumericDate (seconds since unix epoch) | `iat` = `nbf` = `TimeProvider.GetUtcNow()`; `exp` = `iat + options.Lifetime`. |
+| `permissions` | Multi-valued (JSON array) | One element per projected permission. NEVER comma-joined or JSON-stringified — the consumer's strict-shape check rejects both. |
+| `forbidden_permissions` | Multi-valued (JSON array) | Same shape as `permissions`. Empty array when projection result is empty. |
+| `trellis_actor_contract_version` | `"1"` | Sentinel asserting the contract version. |
+| `trellis_permissions_count` | Decimal string | Count of emitted `permissions` claims (including `"0"` for empty). |
+| `trellis_forbidden_permissions_count` | Decimal string | Count of emitted `forbidden_permissions` claims (including `"0"` for empty). **Always emitted, even when zero** — the deny-overrides-allow contract integrity invariant. |
+| One claim per `ProjectAttributes` entry | The entry value (single-valued) | Claim name = the entry key. Reserved + structural claim names are rejected at mint time. |
+
+The JWT header carries `alg` (matches `SigningCredentials.Algorithm`) and `kid` (matches `SigningCredentials.Key.KeyId`).
+
+**Mint-time claim-shape validation.** The five projection callbacks (`AudiencePerCluster`, `ActorIdResolver`, `ProjectPermissionsFor`, `ProjectForbiddenFor`, `ProjectAttributes`) are operator-supplied and run per request; no other layer inspects their output. A callback returning a blank value still yields a perfectly well-signed token — which then fails at *every* consumer (a blank `sub` makes `TrellisInternalJwtActorProvider` return `Maybe.None` → 401; a blank `aud` fails the forced `ValidateAudience`). The result is a fleet-wide 401 storm whose cause is a callback several services away. `MintFor` therefore throws `InvalidOperationException`, naming the offending callback, when:
+
+| Condition | Callback |
+|---|---|
+| `sub` is null, empty, or whitespace | `ActorIdResolver` |
+| `aud` is null, empty, or whitespace | `AudiencePerCluster` |
+| The projection returns `null` (return an empty collection instead) | `ProjectPermissionsFor`, `ProjectForbiddenFor`, `ProjectAttributes` |
+| Any projected permission entry is null, empty, or whitespace | `ProjectPermissionsFor`, `ProjectForbiddenFor` |
+| Any attribute claim name is null, empty, or whitespace | `ProjectAttributes` |
+| Any attribute value is `null` | `ProjectAttributes` |
+
+A blank permission entry is rejected because it matches no policy downstream yet still counts toward the emitted count claim, breaking the count/content agreement consumers rely on. An *empty* attribute value is permitted (a present-but-empty tag); only `null` is rejected.
+
+---
+
+## Audit-log redaction contract
+
+`TrellisActorJwtMinter` emits one `[LoggerMessage]` event per mint (Debug-level success, Error-level failure, Debug-level no-actor skip). All three events carry low-cardinality metadata only:
+
+| Safe to log | Never logged |
+|---|---|
+| Cluster id | Raw JWT (the compact JWS string) |
+| `kid` (signing key identifier) | Raw claim values (`sub`, permission strings, attribute values) |
+| `jti` (fresh GUID per token — the audit-correlation key) | Actor id (the namespaced or raw `actor.Id.Value`) |
+| `iss` / `aud` (gateway-controlled literals) | Tenant IDs / attribute values |
+| `exp` (unix-seconds expiration timestamp) | Exception message (failure path) — can carry secret material from the key handle |
+| Permission count, forbidden count (**post-projection**, NOT source-actor counts) | |
+| Exception **type** name (failure path) | |
+
+The counts logged are the PROJECTED counts (post-`ProjectPermissionsFor` / `ProjectForbiddenFor`) — they must match what the consumer side observes in the minted JWT. Using source-actor counts would make SIEM correlation against minted-token assertions impossible.
+
+The `jti` makes every minted token correlatable to its mint event without leaking actor identity — this is the operational correlation key referenced in Recipe 2's emergency revocation procedure ("cross-reference `jti` against downstream services' authentication logs"). Redaction verified by `TrellisActorForwardingRequestTransformTests.ApplyAsync_AuditLog_ContainsKidAndCountsButNoActorIdNoClaimValues` which hard-asserts that no claim-value string, no actor id string, and the raw JWT do not appear in any log entry across the full event surface.
+
+---
+
+## See also
+
+- [Recipe 1](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-1--strict-addjwtbearer-validation-profile-for-addtrellisinternaljwtactorprovider) — strict `AddJwtBearer` profile for the downstream consumer side.
+- [Recipe 2](../trellis.microservices.abstractions/trellis-api-microservices-cookbook.md#recipe-2--microservices-behind-yarp-end-to-end) — end-to-end gateway + downstream worked example, key-rotation runbook, emergency revocation procedure.
+- [`TrellisInternalJwtActorProvider`](../trellis.microservices.aspnetcore/trellis-api-internal-jwt.md#trellisinternaljwtactorprovider) — consumer-side companion that hydrates the full `Actor` from the JWT this package mints.
+- [`TrellisInternalJwtClaimNames`](../trellis.microservices.abstractions/trellis-api-microservices-abstractions.md#trellisinternaljwtclaimnames) — the canonical claim-name constants both sides reference.
+- Upstream [`trellis-api-authorization.md`](../trellis.core/trellis/trellis-api-authorization.md#use-this-file-when) (in `xavierjohn/Trellis`) — `Actor`, `IActorProvider`, deny-overrides-allow contract.
+- Upstream [`trellis-api-asp.md`](../trellis.core/trellis/trellis-api-asp.md#use-this-file-when) (in `xavierjohn/Trellis`) — the gateway front-door actor sources: `ClaimsActorProvider`, `EntraActorProvider`, and `EasyAuthClaimsActorProvider` / `AddEasyAuth()` (Azure "Easy Auth", introduced upstream in `3.0.0-alpha.426`).
+- [`Trellis.Microservices.AspNetCore` README](https://www.nuget.org/packages/Trellis.Microservices.AspNetCore) — Path B framing in the microservices section.

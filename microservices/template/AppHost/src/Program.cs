@@ -11,6 +11,8 @@
 // metrics flowing in from every service.
 
 using ProjectTrackerTemplate.SharedKernel;
+using Aspire.Hosting.Azure;
+using Trellis.Mediator;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -30,11 +32,20 @@ var projectsDb = sql.AddDatabase("projectsdb");
 
 // Azure Service Bus carries integration events between the services. RunAsEmulator runs the Service
 // Bus emulator as a local container (needs Docker) — no Azure subscription for development. Members
-// publishes MemberInvited to the "member-events" queue and Projects consumes it. The queue name matches
-// SharedKernel.MemberEventsChannel so both services bind to it.
-var serviceBus = builder.AddAzureServiceBus(MemberEventsChannel.ConnectionName)
+// publishes to the contract-named topic; Projects owns its subscription. The explicit Subject rule
+// is also required by the emulator, which does not create Azure's implicit match-all rule.
+var contracts = IntegrationEventNameMap.FromAssemblies(typeof(MemberInvitedIntegrationEvent).Assembly);
+var memberInvitedTopic = contracts.NameFor(typeof(MemberInvitedIntegrationEvent))
+    .GetValueOrThrow("MemberInvited must declare an IntegrationEventName.");
+var serviceBus = builder.AddAzureServiceBus(MessagingTopology.ConnectionName)
     .RunAsEmulator();
-serviceBus.AddServiceBusQueue(MemberEventsChannel.QueueName);
+serviceBus.AddServiceBusTopic("member-invited", memberInvitedTopic)
+    .AddServiceBusSubscription("projects-member-events", MessagingTopology.ProjectsSubscriptionName)
+    .WithProperties(subscription => subscription.Rules.Add(new AzureServiceBusRule("member-invited-subject")
+    {
+        FilterType = AzureServiceBusFilterType.CorrelationFilter,
+        CorrelationFilter = new AzureServiceBusCorrelationFilter { Subject = memberInvitedTopic },
+    }));
 
 var projects = builder.AddProject<Projects.Projects_Api>("projects")
     .WithReference(projectsDb)
@@ -52,12 +63,38 @@ var members = builder.AddProject<Projects.Members_Api>("members")
 // runs (the JWT 'iss' claim and the consumer-side JwtBearerOptions.Authority both
 // have to agree; using service discovery for an OIDC discovery doc fetch is more
 // friction than value for a learning template).
-builder.AddProject<Projects.Gateway>("gateway")
+var gateway = builder.AddProject<Projects.Gateway>("gateway")
     .WithReference(projects)
     .WithReference(members)
     .WaitFor(projects)
     .WaitFor(members)
     .WithHttpEndpoint(port: 5001, name: "http")
     .WithExternalHttpEndpoints();
+
+var telemetryConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(telemetryConnectionString))
+{
+    projects.WithEnvironment("APPLICATIONINSIGHTS_CONNECTION_STRING", telemetryConnectionString);
+    members.WithEnvironment("APPLICATIONINSIGHTS_CONNECTION_STRING", telemetryConnectionString);
+    gateway.WithEnvironment("APPLICATIONINSIGHTS_CONNECTION_STRING", telemetryConnectionString);
+}
+
+var cosmosEndpoint = builder.Configuration["Idempotency:Cosmos:Endpoint"];
+if (!string.IsNullOrWhiteSpace(cosmosEndpoint))
+{
+    members.WithEnvironment("Idempotency__Store", "Cosmos")
+        .WithEnvironment("Idempotency__Cosmos__Endpoint", cosmosEndpoint);
+
+    var clientId = builder.Configuration["AZURE_CLIENT_ID"];
+    if (!string.IsNullOrWhiteSpace(clientId))
+        members.WithEnvironment("AZURE_CLIENT_ID", clientId);
+
+    foreach (var setting in new[] { "DatabaseId", "ContainerId" })
+    {
+        var value = builder.Configuration[$"Idempotency:Cosmos:{setting}"];
+        if (!string.IsNullOrWhiteSpace(value))
+            members.WithEnvironment($"Idempotency__Cosmos__{setting}", value);
+    }
+}
 
 builder.Build().Run();

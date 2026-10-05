@@ -1,17 +1,15 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using ProjectTrackerTemplate.Members.Application;
-using ProjectTrackerTemplate.Members.Domain;
 using Trellis.EntityFrameworkCore;
 using Trellis.Mediator;
+using Trellis.Messaging.AzureServiceBus;
 
 namespace ProjectTrackerTemplate.Members.Acl;
 
 // Registers the anti-corruption / infrastructure layer: the EF Core context (SQL Server via Aspire) with
-// the Trellis interceptors + outbox capture, the repository, resource-based authorization, the unit of
-// work, the outbox relay, and the Service Bus integration-event publisher that replaces the in-process
-// default so events leave the process. Takes the host builder because the Aspire component registrations
+// the Trellis interceptors + outbox capture, repository, and shipped Service Bus transport. Framework
+// pipeline modules are selected together in the API root. Takes the host builder because Aspire
 // (AddSqlServerDbContext, AddAzureServiceBusClient) hang off IHostApplicationBuilder.
 public static class DependencyInjection
 {
@@ -28,29 +26,14 @@ public static class DependencyInjection
 
         // Azure Service Bus client (Aspire injects the "messaging" connection string — the local emulator
         // in dev, a real namespace in production).
-        builder.AddAzureServiceBusClient(MemberEventsChannel.ConnectionName);
+        builder.AddAzureServiceBusClient(MessagingTopology.ConnectionName);
 
         var services = builder.Services;
 
         services.AddScoped<IMemberRepository, EfMemberRepository>();
 
-        // Resource-based authorization scans the Application assembly (the commands/queries that bind a
-        // Member resource) and this assembly (the MemberResourceLoader). HideExistence<Member>() is the
-        // single line that makes Members "HR-sensitive": a cross-tenant failure is projected to 404, not 403.
-        services.AddResourceAuthorization(
-            typeof(InviteMemberCommand).Assembly,
-            typeof(MemberResourceLoader).Assembly);
-        services.AddResourceAuthorization(options => options.HideExistence<Member>());
-
-        // Replace the default in-process integration-event publisher with the Service Bus adapter so the
-        // outbox relay delivers MemberInvited to other services. The aggregates, translator, and outbox do
-        // not change — only this registration.
-        services.Replace(ServiceDescriptor.Singleton<IIntegrationEventPublisher, ServiceBusIntegrationEventPublisher>());
-
-        // The EF unit of work (TransactionalCommandBehavior commits on command-handler success) + the
-        // outbox relay that drains captured rows after the commit and publishes the integration events.
-        services.AddTrellisUnitOfWork<MembersDbContext>();
-        services.AddTrellisOutbox<MembersDbContext>();
+        var contracts = IntegrationEventNameMap.FromAssemblies(typeof(MemberInvitedIntegrationEvent).Assembly);
+        services.AddAzureServiceBusIntegrationEventPublisher(contracts, options => options.MessageSource = "members");
 
         return builder;
     }

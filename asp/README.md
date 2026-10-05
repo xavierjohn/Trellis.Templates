@@ -54,7 +54,7 @@ Api -> Application -> Domain
 - OpenTelemetry support for local observability
 - API starter files, HTTP samples, and local app settings
 - Dev Container support for Codespaces and VS Code
-- AI guidance files included in `.github` for Trellis-friendly code generation
+- Agent-neutral `AGENTS.md` instructions and version-aligned `.agentdocs` references for Trellis-friendly code generation
 
 ## Template Parameters
 

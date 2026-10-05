@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Trellis.Authorization" />
+    <PackageReference Include="Trellis.ServiceDefaults" />
     <PackageReference Include="Xunit.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
