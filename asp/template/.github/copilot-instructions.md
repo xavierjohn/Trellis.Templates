@@ -612,11 +612,11 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     private CompleteTodoCommand(TodoId todoId) => TodoId = todoId;
 
     public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
-        Result.Ensure(todoId is not null, Error.InvalidInput.ForField(
+        todoId.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Todo id is required."))
-            .Map(_ => new CompleteTodoCommand(todoId!));
+            .Map(validId => new CompleteTodoCommand(validId));
 }
 
 public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCommand, Result<TodoItem>>
@@ -749,6 +749,7 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 | Scenario | Use | Not |
 |---|---|---|
 | Command construction (required fields **and** cross-field rules) | Private constructor + static `TryCreate(...)` returning `Result<T>` — for **every** command | Public ctor / `new XyzCommand(...)` at the call site; mutable command + later validation |
+| Required nullable fields | `value.ToResult(error)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
 | Validation that cannot happen in `TryCreate` | `IValidate.Validate()` returning `IResult` | Late handler-only validation |
 | Permission-based authorization | `IAuthorize` | Handler-side permission `if` statements |
 | Resource-based authorization | `IAuthorizeResource<TResource>` + loader | Handler-side ownership checks |

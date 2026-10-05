@@ -186,15 +186,15 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     }
 
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        Result.Ensure(email is not null, Error.InvalidInput.ForField(
+        email.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "email",
             detail: "Email is required."))
-            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField(
+            .Combine(role.ToResult(Error.InvalidInput.ForField(
                 code: "required",
                 field: "role",
                 detail: "Role is required.")))
-            .Map(_ => new InviteMemberCommand(email!, role!));
+            .Map((validEmail, validRole) => new InviteMemberCommand(validEmail, validRole));
 }
 
 public sealed class InviteMemberHandler(
@@ -434,19 +434,19 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     }
 
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        Result.Ensure(id is not null, Error.InvalidInput.ForField(
+        id.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Project id is required."))
-            .Combine(Result.Ensure(title is not null, Error.InvalidInput.ForField(
+            .Combine(title.ToResult(Error.InvalidInput.ForField(
                 code: "required",
                 field: "title",
                 detail: "Title is required.")))
-            .Combine(Result.Ensure(description is not null, Error.InvalidInput.ForField(
+            .Combine(description.ToResult(Error.InvalidInput.ForField(
                 code: "required",
                 field: "description",
                 detail: "Description is required.")))
-            .Map(_ => new UpdateProjectCommand(id!, title!, description!, ifMatchETags));
+            .Map((validId, validTitle, validDescription) => new UpdateProjectCommand(validId, validTitle, validDescription, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
     public Trellis.IResult Authorize(Actor actor, Project resource) =>
@@ -509,6 +509,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Scenario | Use | Not |
 |---|---|---|
 | Command construction (required fields **and** cross-field rules) | Private ctor + static `TryCreate(...)` returning `Result<T>` — for **every** command; the endpoint does `XyzCommand.TryCreate(...).BindAsync(command => mediator.Send(command, ct))` | `new XyzCommand(...)` at the call site; a public ctor that admits a null/`default` field |
+| Required nullable fields | `value.ToResult(error)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
 | Static permission gate | `IAuthorize` + `Permissions.*` constant | Handler-side permission `if` |
 | Per-resource ownership/tenant check | `IAuthorizeResource<T>` + `IIdentifyResource<T, TId>` + loader | Handler-side ownership checks |
 | Shared loader by id | `SharedResourceLoaderById<T, TId>` | Repeating per-command loader code |

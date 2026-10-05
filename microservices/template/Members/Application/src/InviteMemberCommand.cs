@@ -26,15 +26,15 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     // Always-valid: a missing email/role (null when the JSON omits them) fails closed as validation
     // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        Result.Ensure(email is not null, Error.InvalidInput.ForField(
+        email.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "email",
             detail: "Email is required."))
-            .Combine(Result.Ensure(role is not null, Error.InvalidInput.ForField(
+            .Combine(role.ToResult(Error.InvalidInput.ForField(
                 code: "required",
                 field: "role",
                 detail: "Role is required.")))
-            .Map(_ => new InviteMemberCommand(email!, role!));
+            .Map((validEmail, validRole) => new InviteMemberCommand(validEmail, validRole));
 }
 
 // Mints a new MemberId, materializes the aggregate, and pushes it into the

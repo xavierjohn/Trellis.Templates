@@ -28,11 +28,11 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     /// Creates an always-valid command. A null id fails closed as validation (422).
     /// </summary>
     public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
-        Result.Ensure(todoId is not null, Error.InvalidInput.ForField(
+        todoId.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Todo id is required."))
-            .Map(_ => new CompleteTodoCommand(todoId!));
+            .Map(validId => new CompleteTodoCommand(validId));
 
     /// <inheritdoc />
     public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosComplete];
