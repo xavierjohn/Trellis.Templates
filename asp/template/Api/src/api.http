@@ -59,6 +59,7 @@ If-Match: {{createTodo.response.headers.ETag}}
 }
 
 ### Complete todo (by creator) — body-less state-transition POST, no If-Match required
+# A supplied If-Match is still enforced; a mismatch returns 412 without mutation.
 POST {{host}}/api/Todos/{{createTodo.response.body.id}}/complete?api-version={{apiVersion}}
 X-Test-Actor: {{adminActor}}
 
@@ -123,6 +124,22 @@ Accept: application/json
 ###############################################
 # RFC 9110 — Conditional Request Examples
 ###############################################
+
+### Complete with stale If-Match — 412 without changing the todo
+# Use an active todo; the stale header must fail before the completion transition.
+POST {{host}}/api/Todos/{{createTodo.response.body.id}}/complete?api-version={{apiVersion}}
+X-Test-Actor: {{adminActor}}
+If-Match: "stale-etag-value"
+
+### Read the current version before conditional completion
+# @name currentTodo
+GET {{host}}/api/Todos/{{createTodo.response.body.id}}?api-version={{apiVersion}}
+X-Test-Actor: {{adminActor}}
+
+### Complete with current If-Match — 200 for an active todo
+POST {{host}}/api/Todos/{{createTodo.response.body.id}}/complete?api-version={{apiVersion}}
+X-Test-Actor: {{adminActor}}
+If-Match: {{currentTodo.response.headers.ETag}}
 
 ### GET with If-None-Match — 304 Not Modified when ETag matches
 GET {{host}}/api/Todos/{{createTodo.response.body.id}}?api-version={{apiVersion}}

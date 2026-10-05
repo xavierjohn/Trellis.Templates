@@ -63,6 +63,15 @@ must use `/scope`, per-item TTL (`defaultTtl: -1`), keyless authentication and c
 data-plane access. CI compiles each template's Bicep modules in addition to the source contract.
 Runtime composition and loopback-export tests belong to the generated projects.
 
+Conditional-write parity requires HTTP header parsing, typed command preconditions, and required
+ETag checks on overwrite handlers. Both canonical agent guides must distinguish requiring `If-Match`
+from honoring it: guarded transitions may admit header-free callers, but must check supplied headers
+with `OptionalETag` before mutation. The ASP sample's completion handlers and both API versions are
+checked explicitly; integration tests cover success, rejected preconditions, unchanged persisted state
+and metadata, and authorization precedence. Microservices currently has no guarded-transition sample,
+so its guidance defines the same policy without adding a fictitious operation. The curated guides
+record a narrow Recipe 23 erratum until corrected upstream guidance is published and synced.
+
 ## Adding or changing a capability
 
 1. Update `shared/capability-parity-manifest.yaml` — add the capability and the checks that prove it.

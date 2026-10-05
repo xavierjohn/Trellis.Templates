@@ -118,6 +118,16 @@ capabilities:
       - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddResourceAuthorization|\\.UseResourceAuthorization\\(" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IAuthorize|RequiredPermissions" }
 
+  conditional-writes:
+    title: Required overwrite preconditions and optional transition preconditions
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "ETagHelper\\.ParseIfMatch\\(", desc: "HTTP boundary parses preconditions" }
+      - { kind: source-contains, glob: "**/*Command.cs", pattern: "EntityTagValue\\[\\]\\? IfMatchETags", desc: "commands carry parsed preconditions" }
+      - { kind: source-contains, glob: "**/*Command.cs", pattern: "\\.RequireETag(?:Async)?\\(command\\.IfMatchETags\\)", desc: "overwrites enforce required preconditions" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "MUST honor a supplied `If-Match`", desc: "optional does not mean ignored" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "\\.OptionalETag(?:Async)?\\(command\\.IfMatchETags\\)", desc: "guarded transitions enforce supplied preconditions before mutation" }
+
   mediator-pipeline:
     title: Trellis mediator pipeline
     requiredFor: [asp, microservices]
@@ -160,6 +170,14 @@ capabilities:
       - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "Copilot has a managed index pointer" }
 
   # --- template-specific (still tracked, but not cross-cutting) -------------------------------
+  guarded-todo-completion:
+    title: Optional completion preconditions
+    requiredFor: [asp]
+    checks:
+      - { kind: source-contains, glob: "Application/src/Todos/CompleteTodoCommand.cs", pattern: "(?s)\\.ToResultAsync\\(.*\\.OptionalETagAsync\\(command\\.IfMatchETags\\).*\\.CheckAsync\\(todo => todo\\.Complete", desc: "precondition runs before completion" }
+      - { kind: source-contains, glob: "Api/src/2026-03-26/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "first API version forwards the header" }
+      - { kind: source-contains, glob: "Api/src/2026-12-01/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "second API version forwards the header" }
+
   servicebus-transport:
     title: Shipped Trellis Service Bus transport
     requiredFor: [microservices]

@@ -18,6 +18,8 @@ This template scaffolds a **multi-tenant microservices topology** on the Trellis
 
 **Reference docs are authoritative.** If anything in this file conflicts with one of the AgentDocs-managed `trellis-*.md` files, the reference file wins — AgentDocs installs those version-aligned files from the restored, approved framework and microservices packages. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
+**Known erratum — Trellis 3.0.0-alpha.542, cookbook Recipe 23:** its claim that guarded transitions can omit precondition checking is incorrect. Follow this guide's supplied `If-Match` rule below: the header may be optional, but `OptionalETag` must enforce it when present. This narrow HTTP-policy correction overrides that recipe's contrary wording, not the authoritative API signatures. Keep managed package references unchanged until a corrected framework package is published and synced.
+
 | When working on... | Read first |
 |---|---|
 | **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.agentdocs/packages/trellis.core/trellis/trellis-start-here.md` |
@@ -469,10 +471,12 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 
 ### Require `If-Match` on body-overwriting mutations
 
-- **Rule:** 🔴 MUST wire `If-Match` precondition checking on endpoints whose body can silently overwrite a concurrent write (`PUT`/`PATCH`/`DELETE`, body-carrying mutating `POST`). The command carries `EntityTagValue[]? IfMatchETags`, the endpoint passes the parsed `If-Match`, and the handler chain includes `.RequireETag(command.IfMatchETags)` before the mutation. Body-less guarded state transitions do not need it — the domain guard is the precondition.
-- **Rationale:** Skipping the precondition lets concurrent clients silently overwrite each other (lost-update race). Trellis aggregates carry a strong ETag for exactly this check.
+- **Rule:** 🔴 MUST require `If-Match` on endpoints that can silently overwrite a concurrent write (`PUT`/`PATCH`/`DELETE`, body-carrying mutating `POST`). The command carries `EntityTagValue[]? IfMatchETags`, the endpoint passes `ETagHelper.ParseIfMatch(request)`, and the handler applies `.RequireETag(command.IfMatchETags)` before mutation.
+- **Rule:** 🔴 MUST honor a supplied `If-Match` on body-less guarded state-transition POSTs. A header need not be required: parse and carry it in the same way, then apply `.OptionalETag(command.IfMatchETags)` (or `OptionalETagAsync` on an async chain) to the loaded resource before mutation. No header proceeds to the domain guard, a mismatch returns `412` without changing state or metadata, and invalid transitions still return `422`. Do not introduce `428` unless the endpoint contract requires the header.
+- **Rationale:** Domain guards validate the current state, not the client's observed version. Header requirement is an endpoint policy; honoring a supplied HTTP precondition is not optional (RFC 9110 §§13.1.1 and 13.2.1). Preserve permission/resource authorization before preconditions. Trellis aggregates carry a strong ETag for this check.
 - **Correct:** `Result.Ok(authorized.GetRequiredResource()).RequireETag(command.IfMatchETags).Tap(p => p.Update(...))` — see `Projects/Application/src/UpdateProjectCommand.cs`.
 - **Incorrect:** An update handler that omits `.RequireETag(...)` and returns `200` even for a stale/missing `If-Match`.
+- **Incorrect:** A guarded-transition handler that ignores a supplied `If-Match` and mutates before evaluating it.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md` §RequireETag, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md`.
 
 ### Version minimal-API routes with a version set and `WithVersionedRoute()`
@@ -516,6 +520,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Tenant scoping | `IActorProvider.GetCurrentTenantIdAsync(...)` | A `tenant_id` request parameter |
 | Hide existence of a sensitive resource | API root's `UseResourceAuthorization(o => o.HideExistence<T>())` (404 on cross-tenant) | Leaking 403 that confirms existence |
 | Required `If-Match` on body-overwriting mutation | `.RequireETag(command.IfMatchETags)` | Omitting it (lost-update race) |
+| Body-less state-transition POST | `.OptionalETag(command.IfMatchETags)` before mutation: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
 
 ### Handler and endpoint decisions
 

@@ -106,7 +106,23 @@ public class CommandConstructionTests
             return;
         }
 
-        result.Should().BeSuccess().Which.TodoId.Should().BeSameAs(id);
+        var command = result.Should().BeSuccess().Which;
+        command.TodoId.Should().BeSameAs(id);
+        command.IfMatchETags.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Complete_preserves_the_supplied_precondition(bool empty)
+    {
+        var id = TodoId.NewUniqueV7();
+        EntityTagValue[] etags = empty ? [] : [EntityTagValue.Strong("v1")];
+
+        var command = CompleteTodoCommand.TryCreate(id, etags).Should().BeSuccess().Which;
+
+        command.TodoId.Should().BeSameAs(id);
+        command.IfMatchETags.Should().BeSameAs(etags);
     }
 
     [Theory]

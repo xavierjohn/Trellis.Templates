@@ -165,21 +165,21 @@ public class TodosController : ControllerBase
     /// Complete a todo item. Only the creator can complete their own todo.
     /// <para>
     /// Body-less state-transition POST. Does <strong>not</strong> require <c>If-Match</c>:
-    /// the state machine guard on the aggregate rejects stale transitions (e.g., completing
-    /// an already-completed todo) with <c>422 Unprocessable Content</c>. There is no body to
-    /// overwrite, so a precondition header would be ceremony without benefit. See the
-    /// template's "Require <c>If-Match</c> on body-overwriting mutations" rule.
+    /// a supplied header must match the current ETag or the request returns
+    /// <c>412 Precondition Failed</c> without mutation. Invalid domain transitions
+    /// still return <c>422 Unprocessable Content</c>.
     /// </para>
     /// </summary>
     [HttpPost("{id}/complete")]
     [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public ValueTask<ActionResult<TodoResponse>> Complete(
         [CustomerResourceId] TodoId id,
         CancellationToken cancellationToken) =>
-        CompleteTodoCommand.TryCreate(id)
+        CompleteTodoCommand.TryCreate(id, ETagHelper.ParseIfMatch(Request))
             .BindAsync(command => _sender.Send(command, cancellationToken))
             .ToHttpResponseAsync(
                 TodoResponse.From,

@@ -18,6 +18,8 @@ This template builds ASP.NET Core services on the Trellis framework for .NET 10.
 
 **Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-*.md` reference files, the reference file wins — AgentDocs installs those version-aligned files from the restored, approved packages. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
+**Known erratum — Trellis 3.0.0-alpha.542, cookbook Recipe 23:** its claim that guarded transitions can omit precondition checking is incorrect. Follow this guide's supplied `If-Match` rule below: the header may be optional, but `OptionalETag` must enforce it when present. This narrow HTTP-policy correction overrides that recipe's contrary wording, not the authoritative API signatures. Keep managed package references unchanged until a corrected framework package is published and synced.
+
 | When working on... | Read first |
 |---|---|
 | **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.agentdocs/packages/trellis.core/trellis/trellis-start-here.md` |
@@ -550,11 +552,11 @@ public async Task<TodoItem> GetById(Guid id, CancellationToken cancellationToken
 ```
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md §Endpoint checklist for generated APIs` for the `[Consumes]` placement rule, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md §ActionResultExtensions`, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md §ActionResultExtensionsAsync`, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md §ServiceCollectionExtensions`.
 
-### Require `If-Match` on body-overwriting mutations; omit it on guarded state-transition POSTs
+### Require `If-Match` on body-overwriting mutations; honor it on guarded state-transition POSTs
 
-- **Rule:** 🔴 MUST wire `If-Match` precondition checking on every endpoint whose body can silently overwrite a concurrent write — `PUT`, `PATCH`, `DELETE`, body-carrying mutating `POST` endpoints, and non-commutative additive set operations. The controller parses `ETagHelper.ParseIfMatch(Request)`, the command carries `EntityTagValue[]? IfMatchETags`, and the handler chain includes `.RequireETag(command.IfMatchETags)` between the `NotFound` projection and the mutation. Use `.OptionalETag(...)` only for genuinely idempotent best-effort updates — never as a default.
-- **Rule:** 🟡 SHOULD NOT wire `If-Match` on **body-less state-transition `POST`** endpoints (e.g., `POST /orders/{id}/approve`, `.../submit`, `.../cancel`, `.../return`). The state machine + transition guards already check the current state, so a stale client calling `.../approve` on an order that has already shipped gets `422 Unprocessable Content` from the guard — there is nothing to overwrite. Adding `RequireETag` here is ceremony without benefit. Wire it only if the user-provided spec explicitly requires `412`/`428` on transitions.
-- **Rationale:** Skipping the precondition on body-overwriting mutations lets concurrent clients silently overwrite each other (lost-update race). On body-less guarded transitions there is no body to overwrite — the state machine is the precondition. The full decision table (full-update PUT, partial PATCH, DELETE, additive set ops, resource creation) lives in `.agentdocs/packages/trellis.core/trellis/trellis-api-cookbook.md` Recipe 23.
+- **Rule:** 🔴 MUST require `If-Match` on endpoints that can silently overwrite a concurrent write — `PUT`, `PATCH`, `DELETE`, body-carrying mutating `POST` endpoints, and non-commutative additive set operations. Parse `ETagHelper.ParseIfMatch(Request)`, carry `EntityTagValue[]? IfMatchETags` on the command, and apply `.RequireETagAsync(command.IfMatchETags)` after the `NotFound` projection and before mutation.
+- **Rule:** 🔴 MUST honor a supplied `If-Match` on **body-less state-transition `POST`** endpoints (e.g., `.../approve`, `.../submit`, `.../cancel`, `.../return`). Use the same parsing/command flow with `.OptionalETagAsync(command.IfMatchETags)` before mutation: no header proceeds, a mismatch returns `412` without changing state or metadata, and the domain guard still rejects invalid transitions with `422`. Do not introduce `428` unless the endpoint contract requires the header.
+- **Rationale:** A domain guard validates the current state, not the version the client observed. Header requirement is an endpoint policy; honoring a supplied HTTP precondition is not optional (RFC 9110 §§13.1.1 and 13.2.1). Preserve permission/resource authorization before checking preconditions. See Recipe 23's decision table subject to the known erratum above.
 - **Correct (body-carrying PUT — `RequireETag`):**
 ```csharp
 // Application/src/Todos/UpdateTodoCommand.cs  (record + handler colocated)
@@ -600,23 +602,28 @@ public ValueTask<ActionResult<TodoResponse>> Update(TodoId id, [FromBody] Update
         .AsActionResultAsync<TodoResponse>();
 }
 ```
-- **Correct (body-less state-transition POST — no `If-Match`):**
+- **Correct (body-less state-transition POST — optional `If-Match`, enforced when supplied):**
 ```csharp
 // Application/src/Todos/CompleteTodoCommand.cs  (record + handler colocated)
 public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
 {
     public TodoId TodoId { get; }
+    public EntityTagValue[]? IfMatchETags { get; }
 
     public IReadOnlyList<string> RequiredPermissions { get; } = [Permissions.TodosComplete];
 
-    private CompleteTodoCommand(TodoId todoId) => TodoId = todoId;
+    private CompleteTodoCommand(TodoId todoId, EntityTagValue[]? ifMatchETags)
+    {
+        TodoId = todoId;
+        IfMatchETags = ifMatchETags;
+    }
 
-    public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId) =>
+    public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId, EntityTagValue[]? ifMatchETags = null) =>
         todoId.ToResult(Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Todo id is required."))
-            .Map(validId => new CompleteTodoCommand(validId));
+            .Map(validId => new CompleteTodoCommand(validId, ifMatchETags));
 }
 
 public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCommand, Result<TodoItem>>
@@ -635,20 +642,23 @@ public sealed class CompleteTodoCommandHandler : ICommandHandler<CompleteTodoCom
             .ToResultAsync(Error.NotFound.For<TodoItem>(
                 id: command.TodoId,
                 detail: $"Todo {command.TodoId} not found."))
+            .OptionalETagAsync(command.IfMatchETags)
             .CheckAsync(todo => todo.Complete(_timeProvider));  // state machine guards the transition
 }
 
 // Api/src/{version}/Controllers/TodosController.cs
 [HttpPost("{id}/complete")]
 [ProducesResponseType(typeof(TodoResponse), StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
 [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
 public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationToken cancellationToken) =>
-    CompleteTodoCommand.TryCreate(id)
+    CompleteTodoCommand.TryCreate(id, ETagHelper.ParseIfMatch(Request))
         .BindAsync(command => _sender.Send(command, cancellationToken))
         .ToHttpResponseAsync(TodoResponse.From, opts => opts.WithETag(t => EntityTagValue.Strong(t.ETag)))
         .AsActionResultAsync<TodoResponse>();
 ```
 - **Incorrect:** PUT/PATCH/DELETE handler that calls `new UpdateXyzCommand(id, body)` without `ETagHelper.ParseIfMatch(Request)` and omits `.RequireETag(...)`. Returns `200` even when the client supplied a stale (or missing) `If-Match`, silently overwriting a concurrent change.
+- **Incorrect:** A guarded-transition handler that ignores a supplied `If-Match` and mutates before evaluating it.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md §RequireETag` for the framework primitive.
 
 ### Use namespace-based API versioning
@@ -757,7 +767,7 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 | Complex per-command load logic | `ResourceLoaderById<TMessage, TResource, TId>` | Overfitting a shared loader |
 | Optional `If-Match` handling | `.OptionalETag(expectedETags)` | Manual ETag comparison |
 | Required `If-Match` on body-overwriting mutations (PUT/PATCH/DELETE, body-carrying POST, non-commutative additive ops) | `.RequireETag(expectedETags)` — see critical rule "Require `If-Match` on body-overwriting mutations" and cookbook Recipe 23 | `.OptionalETag(...)` or omitting the check (lost-update race, silent 200) |
-| Body-less state-transition POST (e.g., `.../approve`, `.../cancel`, `.../submit`) | Rely on the state-machine transition guard (returns `422` on a stale transition) | `.RequireETag(...)` — ceremony without benefit; see cookbook Recipe 23 |
+| Body-less state-transition POST (e.g., `.../approve`, `.../cancel`, `.../submit`) | `.OptionalETagAsync(command.IfMatchETags)` before the domain guard: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
 
 ### Handler and controller decisions
 
