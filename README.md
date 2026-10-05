@@ -85,9 +85,13 @@ inbox** flow for effectively-once, cross-service messaging.
 
 ## Built for AI-assisted development
 
-Every generated project ships version-aligned API references under `.agentdocs/`, installed by the
-pinned `Trellis.AgentDocs` local tool. `AGENTS.md` and `.github/copilot-instructions.md` contain managed
-pointers to `.agentdocs/README.md`, which routes agents to required and on-demand references.
+Every generated project ships its architectural rules and coding conventions in **`AGENTS.md`**, the
+canonical instructions for coding agents that support this format. `.github/copilot-instructions.md`
+is a thin compatibility pointer to the same file.
+
+Version-aligned API references live under `.agentdocs/`, installed by the pinned `Trellis.AgentDocs`
+local tool. Managed pointers route agents to `.agentdocs/README.md` for required and on-demand references.
+AgentDocs maintains only the marked pointer blocks in instruction files; curated rules live outside them.
 
 After generating a project, initialize its Git root and refresh the recorded restore graph from there:
 

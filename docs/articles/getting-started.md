@@ -65,8 +65,9 @@ you can see the patterns in context before you replace them. The recommended pat
 
 1. Read the reference domain to see how aggregates, commands, handlers, and endpoints fit together.
 2. Replace it with your own domain, one layer at a time, building as you go.
-3. Start coding agents at `.agentdocs/README.md`, reached through managed pointers in `AGENTS.md` and
-   `.github/copilot-instructions.md`. The index routes to the version-aligned package references.
+3. Start coding agents at `AGENTS.md` for architectural rules and coding conventions. Its managed
+   pointer routes to `.agentdocs/README.md` and the version-aligned package references.
+   `.github/copilot-instructions.md` delegates to the same canonical instructions for Copilot.
 
 To maintain the optional AgentDocs setup, run these commands from the generated project's Git root
 after creating it or upgrading packages:

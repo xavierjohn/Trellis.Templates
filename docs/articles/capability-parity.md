@@ -47,8 +47,11 @@ The **Capability parity** workflow runs the contract against both templates on e
 Drop `AddServiceLevelIndicator` from a template and the build turns red with exactly which capability
 regressed — drift is caught by CI, not by hoping a reviewer notices.
 
-The guidance contract requires the pinned AgentDocs tool, approval policy, managed index and restore
-context, Core router, and pointers in both `AGENTS.md` and `.github/copilot-instructions.md`. The
+The guidance contract requires architectural rules in the root `AGENTS.md` of each generated project,
+including command/handler colocation, Domain permissions, and nullable-field conversion.
+`.github/copilot-instructions.md` must delegate to that canonical guide. It also requires the pinned
+AgentDocs tool, approval policy, managed index and restore context, Core router, and managed pointers
+in both instruction files. AgentDocs owns only the marked pointer blocks, leaving curated rules intact. The
 microservices template also requires its four package-owned microservices references. CI checks an
 isolated Git-root copy of each template with `agentdocs check --strict --strict-references --content-only`,
 so stale guidance, broken instruction pointers, and unresolved cross-package links fail the gate.

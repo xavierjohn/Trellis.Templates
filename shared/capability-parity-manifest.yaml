@@ -143,19 +143,21 @@ capabilities:
       - { kind: source-contains, glob: "**/*.cs", pattern: "DeployedEnvironmentOptions|IResourceNamer" }
 
   build-guidance:
-    title: AI build guidance and Trellis references
+    title: Agent-neutral build guidance and Trellis references
     requiredFor: [asp, microservices]
     docs: conventions/build-guidance.md
     checks:
-      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "command and its handler", desc: "guide present; command + handler colocation rule documented" }
-      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "[Pp]ermission", desc: "permissions-in-Domain rule documented" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "command and its handler", desc: "canonical agent guide documents command + handler colocation" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "[Pp]ermission", desc: "canonical agent guide documents permissions-in-Domain" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "TRLS066", desc: "canonical agent guide documents nullable-field conversion" }
+      - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "\\.\\./AGENTS\\.md", desc: "Copilot delegates to the canonical agent guide" }
       - { kind: source-contains, glob: "**/.config/dotnet-tools.json", pattern: "\"trellis.agentdocs\"", desc: "local AgentDocs tool is pinned" }
       - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Core\"", desc: "framework guidance publisher is approved" }
       - { kind: source-contains, glob: "**/.agentdocs/README.md", pattern: "Required reading by project", desc: "project-aware guidance index is shipped" }
       - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.core/trellis/trellis-start-here.md", pattern: "Trellis.*start here", desc: "framework router is installed in the canonical AgentDocs package location" }
       - { kind: source-contains, glob: "**/.agentdocs/agent-context.json", pattern: "\"Graph\"", desc: "managed context records the restored graph" }
-      - { kind: source-contains, glob: "**/AGENTS.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "agents have a managed index pointer" }
-      - { kind: source-contains, glob: "**/.github/copilot-instructions.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "Copilot has a managed index pointer" }
+      - { kind: source-contains, glob: "AGENTS.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "canonical agent guide has a managed index pointer" }
+      - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "Copilot has a managed index pointer" }
 
   # --- template-specific (still tracked, but not cross-cutting) -------------------------------
   servicebus-transport:

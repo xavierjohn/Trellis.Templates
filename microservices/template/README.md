@@ -26,8 +26,9 @@ Open **`AppHost/src/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual S
 
 ## Coding-agent API references
 
-Start agents at [`.agentdocs/README.md`](.agentdocs/README.md). `AGENTS.md` and
-`.github/copilot-instructions.md` contain managed pointers to this project-aware index.
+Start agents at [`AGENTS.md`](AGENTS.md) for architectural rules and coding conventions.
+Its managed pointer routes to [`.agentdocs/README.md`](.agentdocs/README.md).
+`.github/copilot-instructions.md` delegates to the same canonical instructions for Copilot.
 The pinned `Trellis.AgentDocs` local tool maintains guidance from the approved framework,
 microservices, ResourceNaming, and SLI packages.
 
@@ -41,7 +42,8 @@ dotnet tool run agentdocs sync
 dotnet tool run agentdocs check --strict
 ```
 
-Commit the tool manifest, managed pointers, policy, and `.agentdocs/` with package updates.
+Commit the tool manifest, instruction files, policy, and `.agentdocs/` with package updates.
+Edit curated rules in `AGENTS.md` outside the AgentDocs-managed pointer block.
 AgentDocs is optional; the application builds and runs without it.
 
 ## What it demonstrates
