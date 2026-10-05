@@ -70,10 +70,10 @@ public class HostingConfigurationTests
             ["OTEL_EXPORTER_OTLP_ENDPOINT"] = enabled ? receiver.Urls.Single() : null,
             ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf",
         }));
+        // Keep the in-process collector out of its own export stream.
         services.AddOpenTelemetry()
             .WithTracing(tracing => tracing
                 .AddSource("HostingConfigurationTests")
-                // Keep the in-process collector out of its own export stream.
                 .AddAspNetCoreInstrumentation(options => options.Filter = _ => false))
             .WithMetrics(metrics => metrics.AddMeter("HostingConfigurationTests"));
 
