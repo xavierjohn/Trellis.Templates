@@ -42,6 +42,8 @@ The repository-root CI runs this round-trip on every PR. A change that builds lo
 `../shared/template-tests/Test-TemplateOptions.ps1 -Template microservices -Package <nupkg>` also
 verifies packaged option profiles. APIs are unversioned by default. Native C# generation conditions
 must retain parentheses; the source-only IDE0047 pragma is removed during generation.
+Dockerfile `PackagePath` values use the portable archive directory `content/`; a trailing backslash
+produces duplicate separators when packed on Linux.
 
 ## Key conventions
 

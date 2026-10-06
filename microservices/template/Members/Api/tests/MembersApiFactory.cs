@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ProjectTrackerTemplate.Members.Acl;
 using Trellis.Asp.Authorization;
@@ -44,6 +45,19 @@ public class MembersApiFactory : WebApplicationFactory<Program>, ITestOutputHelp
 
     public ITestOutputHelper? OutputHelper { get; set; }
 
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        if (!UseRealServices)
+            builder.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Gateway:Issuer"] = "https://gateway.test",
+                ["ConnectionStrings:membersdb"] = "Server=(localdb)\\MSSQLLocalDB;Database=members-test",
+                ["ConnectionStrings:messaging"] = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true",
+                ["DeployedEnvironment:Region"] = "test",
+            }));
+        return base.CreateHost(builder);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureLogging(logging => logging.AddXUnit(this));
@@ -54,15 +68,6 @@ public class MembersApiFactory : WebApplicationFactory<Program>, ITestOutputHelp
 
         if (UseRealServices)
             return;
-
-        // Hermetic mode: supply the settings Aspire would inject so AddSqlServerDbContext +
-        // AddAzureServiceBusClient register, then swap the backends for in-memory SQLite + a no-op publisher.
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:membersdb"] = "Server=(localdb)\\MSSQLLocalDB;Database=members-test",
-            ["ConnectionStrings:messaging"] = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true",
-            ["DeployedEnvironment:Region"] = "test",
-        }));
 
         builder.ConfigureTestServices(services =>
         {

@@ -58,6 +58,22 @@ Assert-True ($expectedPackage -in @($packProject.Project.PropertyGroup.PackageId
 if ($MetadataOnly) { return }
 Assert-True (![string]::IsNullOrWhiteSpace($Package)) '-Package is required for the packaged round-trip.'
 
+$archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $Package).Path)
+try {
+    $paths = @($archive.Entries | ForEach-Object FullName)
+    foreach ($path in $paths) {
+        Assert-True ($path -notmatch '\\|//|^/|(^|/)\.\.?(/|$)') "Package entry '$path' must be a canonical relative archive path."
+    }
+    $expectedDockerfiles = if ($Template -eq 'asp') {
+        @('content/Dockerfile', 'content/.devcontainer/Dockerfile')
+    } else {
+        @('content/Gateway/src/Dockerfile', 'content/Members/Api/src/Dockerfile', 'content/Projects/Api/src/Dockerfile')
+    }
+    foreach ($path in $expectedDockerfiles) {
+        Assert-True ($path -in $paths) "Dockerfile must be packed at '$path'."
+    }
+} finally { $archive.Dispose() }
+
 New-Item -ItemType Directory -Path $Workspace -Force | Out-Null
 $hive = Join-Path $Workspace 'hive'
 function Invoke-Dotnet([string[]] $Arguments, [switch] $ExpectFailure) {
@@ -70,6 +86,17 @@ function Invoke-Dotnet([string[]] $Arguments, [switch] $ExpectFailure) {
     }
 }
 Invoke-Dotnet @('new', '--debug:custom-hive', $hive, 'install', (Resolve-Path $Package).Path)
+
+$implicitWorkspace = Join-Path $Workspace 'implicit-output'
+New-Item -ItemType Directory -Path $implicitWorkspace -Force | Out-Null
+Push-Location $implicitWorkspace
+try {
+    Invoke-Dotnet @('new', $configuration.shortName, '--debug:custom-hive', $hive, '-n', 'ImplicitService', '--skip-restore')
+    Assert-True (Test-Path 'ImplicitService\ImplicitService.slnx') 'Creation without -o must place the solution in the named child directory.'
+    if ($Template -eq 'asp') {
+        Assert-True (Test-Path 'ImplicitService\.devcontainer\Dockerfile') 'Implicit output must keep the dev-container Dockerfile inside the project.'
+    }
+} finally { Pop-Location }
 
 function New-Profile([string] $Name, [string[]] $Options) {
     $output = Join-Path $Workspace $Name

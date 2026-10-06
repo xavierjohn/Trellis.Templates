@@ -49,6 +49,9 @@ asp/
 
 ## Building & Testing the Template Pack
 
+Dockerfile `PackagePath` values are archive directory paths: use `content/`, not a trailing backslash,
+so Linux and Windows builds produce the same relative package entries.
+
 ```powershell
 # Build the template NuGet package
 dotnet pack templatepack.csproj
