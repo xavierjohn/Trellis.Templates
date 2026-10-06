@@ -45,15 +45,18 @@ public sealed class SigningKeyTests : IDisposable
         load.Should().Throw<CryptographicException>();
     }
 
-    [Fact]
-    public void Rotation_can_publish_future_or_retiring_public_keys_without_changing_the_signer()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Rotation_can_publish_future_or_retiring_public_keys_without_changing_the_signer(bool pkcs1)
     {
         using var rsa = RSA.Create(2048);
         using var futureRsa = RSA.Create(2048);
         var settings = Configuration(new()
         {
             ["Gateway:SigningKeyPath"] = WriteKey("current.pem", rsa.ExportRSAPrivateKeyPem()),
-            ["Gateway:PublishedKeyPaths:0"] = WriteKey("future.pem", futureRsa.ExportSubjectPublicKeyInfoPem()),
+            ["Gateway:PublishedKeyPaths:0"] = WriteKey("future.pem",
+                pkcs1 ? futureRsa.ExportRSAPublicKeyPem() : futureRsa.ExportSubjectPublicKeyInfoPem()),
         });
         var environment = Environment(Environments.Production);
         var current = SigningKeyRegistration.LoadSigningKey(environment, settings);
@@ -64,6 +67,35 @@ public sealed class SigningKeyTests : IDisposable
         published.Single().KeyId.Should().NotBe(current.KeyId);
         publishedRsa.ExportSubjectPublicKeyInfo().Should().Equal(futureRsa.ExportSubjectPublicKeyInfo());
         currentRsa.ExportSubjectPublicKeyInfo().Should().Equal(rsa.ExportSubjectPublicKeyInfo());
+        var exportPrivate = () => publishedRsa.ExportParameters(includePrivateParameters: true);
+        exportPrivate.Should().Throw<CryptographicException>();
+    }
+
+    [Theory]
+    [InlineData("Production", false)]
+    [InlineData("Production", true)]
+    [InlineData("Development", false)]
+    [InlineData("Development", true)]
+    public void Published_ring_rejects_private_key_material(string environmentName, bool pkcs8)
+    {
+        using var rsa = RSA.Create(2048);
+        using var publishedRsa = RSA.Create(2048);
+        var settings = Configuration(new()
+        {
+            ["Gateway:SigningKeyPath"] = WriteKey("current.pem", rsa.ExportRSAPrivateKeyPem()),
+            ["Gateway:PublishedKeyPaths:0"] = WriteKey("published.pem",
+                pkcs8 ? publishedRsa.ExportPkcs8PrivateKeyPem() : publishedRsa.ExportRSAPrivateKeyPem()),
+        });
+        var environment = Environment(environmentName);
+        var current = SigningKeyRegistration.LoadSigningKey(environment, settings);
+        using var currentRsa = current.Rsa;
+        var load = () =>
+        {
+            foreach (var key in SigningKeyRegistration.LoadPublishedKeys(environment, settings, current))
+                key.Rsa.Dispose();
+        };
+
+        load.Should().Throw<InvalidOperationException>().WithMessage("*public-only RSA PEM*");
     }
 
     private string WriteKey(string name, string pem)

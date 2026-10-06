@@ -18,7 +18,9 @@ dotnet new trellis-asp -n MyService --author-name "Your Name"
 cd MyService; dotnet run --project Api\src
 ```
 
-The template restores packages after creation. Once the app is running, use the API endpoint or OpenAPI UI from the `Api` project output.
+The template restores packages after creation. A restore failure makes `dotnet new` return a non-zero
+exit code; generated files remain on disk. Use `--skip-restore` for deferred/offline creation, then run
+`dotnet restore` explicitly. Once the app is running, use the API endpoint or OpenAPI UI from the `Api` project output.
 
 ## What's Included
 
@@ -74,6 +76,11 @@ Azure requires an explicit server provider; SQLite/Azure fails restore/build and
 PostgreSQL and SQL Server profiles include `compose.database.yaml` for local development. Generated
 `README.md` describes connection configuration, production identity, Cosmos, and deployment bootstrap.
 See the [shared option defaults](../README.md#generation-options).
+
+The Entra profile expects v2 access tokens with the API application's client-ID GUID as `aud`,
+not the calling client's ID or an `api://...` audience. Configure the API registration's
+`api.requestedAccessTokenVersion` as `2`; requested scopes may still use `api://<client-id>/...`.
+The generated production guidance describes the tenant-specific issuer and required claims.
 
 ## Documentation
 

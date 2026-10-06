@@ -12,6 +12,10 @@ exporters: `TEMPLATE_TELEMETRY_EXPORTERS`; deployment: `TEMPLATE_DEPLOYMENT_MODE
 Unversioned controllers/models have undated folders and namespaces. Versioned output uses independent
 date-based controllers and version-aware Location/pagination links.
 
+Creation restores packages automatically unless `--skip-restore` is selected. Restore failures return
+a non-zero creation exit code, but generated files remain on disk. For deferred/offline creation, use
+`--skip-restore` and run `dotnet restore` explicitly when dependencies are available.
+
 ## Due dates
 
 Create and update requests require ISO 8601 due dates with `Z` or an explicit timezone offset, such as
@@ -51,6 +55,17 @@ Outside Development, set the selected external identity: JWT/OIDC needs an HTTPS
 `Authentication:Authority` and `Authentication:Audience`; Entra needs GUID `Authentication:TenantId`
 and `Authentication:ClientId`. JWT subjects use `sub`; Entra subjects use `oid`.
 Permission claims must match the sample's `todos:*` permissions. `X-Test-Actor` is not production identity.
+
+The Entra profile targets single-tenant v2 access tokens issued by
+`https://login.microsoftonline.com/<tenant-id>/v2.0`, with `aud` equal to the **API application's
+client-ID GUID**, not the calling client's ID or an `api://...` URI. Set the API registration's
+`api.requestedAccessTokenVersion` to `2`. Requested scopes may still use `api://<client-id>/...`;
+the token audience must be the GUID. V1 tokens and URI audiences are not supported by this profile.
+Send API access tokens, not sign-in ID tokens.
+
+**Never deploy with Development enabled.** Set `ASPNETCORE_ENVIRONMENT=Production` and ensure
+`DOTNET_ENVIRONMENT` is unset or also `Production`. Development skips external JWT validation and
+the endpoint authentication requirement, accepts test actors, and creates the sample schema.
 
 Configure durable idempotency with `Idempotency:Store=Cosmos` and the Cosmos endpoint, database ID, and
 container ID. Grant the application's Azure credential native Cosmos data-contributor access scoped

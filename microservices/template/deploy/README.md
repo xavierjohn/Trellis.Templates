@@ -56,6 +56,11 @@ For Entra profiles, replace the authority/audience arguments with GUID `-Authent
 `-AuthenticationClientId`. Optionally pass a reachable `-OtlpEndpoint` and its protocol. Application
 Insights configuration is provisioned/injected only when selected.
 
+Entra expects v2 API access tokens from `https://login.microsoftonline.com/<tenant-id>/v2.0`.
+`-AuthenticationClientId` is the API application's client-ID GUID and the expected token `aud`, not the
+calling client's ID or an `api://...` audience. Set the API registration's `api.requestedAccessTokenVersion`
+to `2`; requested scopes may still use `api://<client-id>/...`. Tokens must contain `oid` and `tid`.
+
 The application deployment reuses the foundation and wires HTTPS gateway ingress, internal-only service
 ingress/discovery, the same public HTTPS `Gateway:Issuer` in all hosts, Cosmos identity access for Members,
 and per-service messaging credentials. Members receives topic Send access; Projects receives Listen
@@ -76,6 +81,8 @@ key must be distinct, including from the active signer. Keep the active private 
 Key IDs are deterministic SHA256 hashes of public-key material, so restarts preserve them.
 Published files are mounted at `/keys/published-<alias>.pem`, separate from the private signer's
 `/keys/active.pem`, even when a published alias is named `active`.
+Direct `Gateway:PublishedKeyPaths` configuration rejects private PEMs at startup. The deployment
+script exports only public material into the published-key secrets.
 
 `-WhatIf` creates the resource group and previews resources without deploying them.
 `-FoundationOnly -WhatIf` previews bootstrap without requiring application configuration.
@@ -88,3 +95,9 @@ regional failover, secret rotation automation, or a custom domain. Its database 
 services broadly. Replace those rules with private endpoints or trusted egress; review capacities,
 backups, availability, and access policies before serving production traffic.
 Production requires external tokens; `X-Test-Actor` is Development-only.
+
+**Never run any deployed host in Development.** The scaffold sets `ASPNETCORE_ENVIRONMENT=Production`;
+ensure `DOTNET_ENVIRONMENT` is unset or also `Production` and do not override these through deployment
+settings. Development skips external JWT validation and endpoint authentication requirements,
+accepts test actors, permits ephemeral signing keys, and creates/seeds the sample databases.
+Release compilation does not select the runtime environment.

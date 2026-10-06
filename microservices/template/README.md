@@ -11,6 +11,10 @@ This is a multi-tenant microservices topology demonstrating the [Trellis framewo
 (`TEMPLATE_TELEMETRY_EXPORTERS`), and deployment scaffold (`TEMPLATE_DEPLOYMENT_MODE`).
 HTTP versioning does not change integration-event or internal-JWT contracts.
 
+Creation restores packages automatically unless `--skip-restore` is selected. Restore failures return
+a non-zero creation exit code, but generated files remain on disk. For deferred/offline creation, use
+`--skip-restore` and run `dotnet restore` explicitly when dependencies are available.
+
 ## Quick start
 
 ```bash
@@ -233,9 +237,22 @@ Entra requires GUID `Authentication:TenantId` and `Authentication:ClientId`, an 
 JWT tenants use `tenant_id`; permissions must match the sample's Domain permission constants.
 Tokens without identity or tenant are rejected. There is no built-in login/user database.
 
+The Entra profile targets single-tenant v2 access tokens issued by
+`https://login.microsoftonline.com/<tenant-id>/v2.0`, with `aud` equal to the **API application's
+client-ID GUID**, not the calling client's ID or an `api://...` URI. Set the API registration's
+`api.requestedAccessTokenVersion` to `2`; the token must contain `oid` and `tid`.
+Requested scopes may still use `api://<client-id>/...`; the token audience must be the GUID.
+V1 tokens and URI audiences are not supported by this profile. Send API access tokens, not sign-in ID tokens.
+
+**Never deploy any host with Development enabled.** Set `ASPNETCORE_ENVIRONMENT=Production` and
+ensure `DOTNET_ENVIRONMENT` is unset or also `Production`. Development skips external JWT validation
+and the endpoint authentication requirement, accepts test actors, permits ephemeral signing keys,
+and creates/seeds the sample databases.
+
 Production also requires `Gateway:SigningKeyPath` pointing to persistent RSA private PEM material of
 at least 2048 bits. Every replica/restart must use the same active key. Optional
-`Gateway:PublishedKeyPaths` publishes distinct retiring/future public PEMs without changing the signer.
+`Gateway:PublishedKeyPaths` publishes distinct retiring/future public-only PEMs without changing the signer;
+private PEM material in this ring is rejected at startup.
 Pre-publish a new key before switching; keep the previous public key until tokens and JWKS caches age out.
 Never store private keys in source control.
 

@@ -22,6 +22,10 @@ dotnet run --project AppHost/src
 You get an Aspire-orchestrated **Project Tracker** topology. Open `AppHost/src/*.http` for the
 authorization and cross-service eventing scenarios. Docker or Podman must be running.
 
+Creation restores packages automatically. A restore failure makes `dotnet new` return a non-zero
+exit code; generated files remain on disk. Use `--skip-restore` for deferred/offline creation, then run
+`dotnet restore` explicitly.
+
 ## What gets scaffolded
 
 | Project | Role | Auth shape |
@@ -59,6 +63,11 @@ authorization and cross-service eventing scenarios. Docker or Podman must be run
 Azure requires an explicit `--database`. Production requires external identity, persistent RSA signing
 material, separate service database credentials, Service Bus, and Cosmos idempotency.
 See the [shared defaults](../README.md#generation-options) and the generated deployment README.
+
+The Entra profile expects v2 access tokens with the API application's client-ID GUID as `aud`,
+not the calling client's ID or an `api://...` audience. Configure the API registration's
+`api.requestedAccessTokenVersion` as `2`; requested scopes may still use `api://<client-id>/...`.
+The generated production guidance describes the tenant-specific issuer and required claims.
 
 > **Want a smaller starter?** To drop the Members service after instantiation:
 > 1. Delete the `Members/` directory.

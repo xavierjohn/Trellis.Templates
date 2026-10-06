@@ -5,6 +5,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TodoSample.AntiCorruptionLayer;
+using TodoSample.Domain;
 using Trellis.Testing.AspNetCore;
 
 [Collection(TestWebApplicationFactoryCollectionFixture.Id)]
@@ -109,6 +113,40 @@ public class DueDateTests(TestWebApplicationFactoryFixture factory, ITestOutputH
         response.StatusCode.Should().Be(future ? HttpStatusCode.OK : HttpStatusCode.UnprocessableEntity);
         var expected = future ? date.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) : "2099-02-01T00:00:00Z";
         await AssertPersistedDate(client, created.Headers.Location!, expected);
+    }
+
+    [Fact]
+    public async Task Due_date_filters_use_normalized_utc_instants_with_trellis_interceptors()
+    {
+        factory.OutputHelper = output;
+        var actorId = "date-filter-" + Guid.NewGuid().ToString("N");
+        using var client = factory.CreateClientWithActor(actorId, "todos:create");
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var cutoff = new DateTime(2099, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var dueDate = DueDate.Create(cutoff);
+        var dates = new[]
+        {
+            new { title = "Before", dueDate = "2099-01-01T17:29:59.999+05:30" },
+            new { title = "At", dueDate = "2099-01-01T05:00:00-07:00" },
+            new { title = "After", dueDate = "2099-01-01T12:00:00.001Z" },
+        };
+        foreach (var date in dates)
+        {
+            using var response = await client.PostJsonIdempotentAsync(Url("api/Todos", "2026-12-01"), date, cancellationToken);
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var todos = context.TodoItems.AsNoTracking().Where(item => item.CreatedByActorId == actorId);
+        var before = await todos.Where(item => item.DueDate.Value < cutoff).ToListAsync(cancellationToken);
+        var at = await todos.Where(item => item.DueDate == dueDate).ToListAsync(cancellationToken);
+        var after = await todos.Where(item => item.DueDate.Value > cutoff).ToListAsync(cancellationToken);
+        before.Select(item => item.Title.Value).Should().Equal("Before");
+        at.Select(item => item.Title.Value).Should().Equal("At");
+        after.Select(item => item.Title.Value).Should().Equal("After");
+        at.Single().DueDate.Value.Should().Be(cutoff);
+        before.Concat(at).Concat(after).Should().OnlyContain(item => item.DueDate.Value.Kind == DateTimeKind.Utc);
     }
 
     private static async Task AssertPersistedDate(HttpClient client, Uri uri, string expectedUtc)

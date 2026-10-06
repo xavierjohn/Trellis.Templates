@@ -25,6 +25,11 @@ resources and Cosmos role assignments. Configure the selected external identity:
 Azure Monitor's destination is provisioned and injected when selected. OTLP must point to a collector
 reachable from App Service; the local Aspire/dashboard endpoint is not a production destination.
 
+Entra expects v2 API access tokens from `https://login.microsoftonline.com/<tenant-id>/v2.0`.
+`-AuthenticationClientId` is the API application's client-ID GUID and the expected token `aud`, not the
+calling client's ID or an `api://...` audience. Set the API registration's `api.requestedAccessTokenVersion`
+to `2`; requested scopes may still use `api://<client-id>/...`. Tokens must contain `oid`.
+
 Run from `deploy`. For a JWT/PostgreSQL profile:
 
 ```powershell
@@ -77,6 +82,11 @@ Publish `Api\src\Api.csproj` in Release and deploy its output to every regional 
 (for example, a ZIP with `az webapp deploy`). App Service runs .NET 10 with HTTPS-only ingress.
 Validate external authentication, database access, Cosmos, and exporter destinations before routing
 traffic. Development actors and automatic schema creation are disabled outside Development.
+
+**Never run a deployed application in Development.** The scaffold sets `ASPNETCORE_ENVIRONMENT=Production`;
+ensure `DOTNET_ENVIRONMENT` is unset or also `Production` and do not override these through deployment
+settings. Development skips external JWT validation and endpoint authentication requirements,
+accepts test actors, and creates the sample schema. Release compilation does not select the runtime environment.
 
 This is a bootstrap scaffold, not a complete private-network or disaster-recovery design.
 Database firewalls permit Azure services broadly; replace that rule with private endpoints/VNet

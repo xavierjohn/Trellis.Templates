@@ -59,6 +59,9 @@ internal static class SigningKeyRegistration
             {
                 KeyId = Convert.ToHexString(SHA256.HashData(rsa.ExportSubjectPublicKeyInfo())),
             };
+            // Public-only RSA instances can report Unknown rather than DoesNotExist.
+            if (!requirePrivateKey && key.PrivateKeyStatus == PrivateKeyStatus.Exists)
+                throw new InvalidOperationException("Gateway:PublishedKeyPaths must identify public-only RSA PEM files.");
             loaded = true;
             return key;
         }

@@ -3,6 +3,7 @@
 using Microsoft.EntityFrameworkCore;
 using TodoSample.AntiCorruptionLayer;
 using TodoSample.Domain;
+using Trellis.EntityFrameworkCore;
 
 public sealed class SelectedProviderSchemaTests
 {
@@ -43,6 +44,29 @@ public sealed class SelectedProviderSchemaTests
         rehydrated.Value.Should().Be(date);
     }
 
+    [Fact]
+    public void Selected_provider_translates_due_date_predicates_with_trellis_interceptors()
+    {
+        using var context = CreateContext();
+        var date = new DateTime(2099, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var dueDate = DueDate.Create(date);
+        var queries = new[]
+        {
+            context.TodoItems.Where(item => item.DueDate.Value < date),
+            context.TodoItems.Where(item => item.DueDate.Value > date),
+            context.TodoItems.Where(item => item.DueDate == dueDate),
+            context.TodoItems.Where(new OverdueTodoSpecification(date).ToExpression()),
+        };
+
+        foreach (var query in queries)
+        {
+            var sql = query.ToQueryString();
+            var where = sql.IndexOf("WHERE", StringComparison.Ordinal);
+            where.Should().BeGreaterThanOrEqualTo(0);
+            sql[where..].Should().Contain("DueDate");
+        }
+    }
+
     private static AppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>();
@@ -53,6 +77,6 @@ public sealed class SelectedProviderSchemaTests
 #else
         options.UseSqlite("Data Source=:memory:");
 #endif
-        return new AppDbContext(options.Options);
+        return new AppDbContext(options.AddTrellisInterceptors().Options);
     }
 }
