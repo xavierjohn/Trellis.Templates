@@ -1,10 +1,9 @@
 # Capability-parity gate.
 #
-# For each template, runs the shared contract test against <template>/template and fails the
+# For each template profile, runs the shared contract against generated output and fails the
 # build if any required capability is missing or regressed. This is the guardrail that keeps the
-# two templates from silently drifting apart. The check is instantiation-free: it asserts the
-# capability is wired in the template source (deterministic, fast). Deeper boot/build checks can
-# be added later.
+# two templates from silently drifting apart. It instantiates each profile and asserts the
+# selected capability is present and unselected optional features are absent.
 #
 # Adding a template to the contract = adding its folder name to the matrix below.
 name: Capability parity
@@ -21,12 +20,13 @@ permissions:
 
 jobs:
   contract:
-    name: contract (${{ matrix.template }})
+    name: contract (${{ matrix.template }}, ${{ matrix.profile }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         template: [ asp, microservices ]
+        profile: [ default, versioned-postgres, azure-sqlserver, azure-postgres ]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -36,21 +36,36 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Run capability-parity contract
-        run: >
-          dotnet run --project shared/contract-tests/runner.csproj -c Release --
-          shared/capability-parity-manifest.yaml
-          ${{ matrix.template }}
-          ${{ matrix.template }}/template
+      - name: Generate profile and run capability-parity contract
+        shell: pwsh
+        run: |
+          $hive = Join-Path '${{ runner.temp }}' 'template-hive'
+          $output = Join-Path '${{ runner.temp }}' 'generated'
+          dotnet new install '${{ github.workspace }}/${{ matrix.template }}/template' --debug:custom-hive $hive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $options = switch ('${{ matrix.profile }}') {
+            'versioned-postgres' { '--api-versioning', '--database', 'postgres', '--auth', 'entra', '--telemetry-exporters', 'both', '--deployment', 'container' }
+            'azure-sqlserver' { '--database', 'sqlserver', '--deployment', 'azure', '--telemetry-exporters', 'azure-monitor' }
+            'azure-postgres' { '--database', 'postgres', '--deployment', 'azure', '--auth', 'entra', '--telemetry-exporters', 'both' }
+            default { @() }
+          }
+          $short = if ('${{ matrix.template }}' -eq 'asp') { 'trellis-asp' } else { 'trellis-microservices' }
+          dotnet new $short --debug:custom-hive $hive -n ProfileService -o $output --skip-restore @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project shared/contract-tests/runner.csproj -c Release -- `
+            shared/capability-parity-manifest.yaml '${{ matrix.template }}' $output
+          exit $LASTEXITCODE
 
       - name: Compile Azure infrastructure
+        if: ${{ startsWith(matrix.profile, 'azure-') }}
         run: |
           az bicep install
-          for file in "${{ matrix.template }}"/template/infra/*.bicep; do
+          for file in "${{ runner.temp }}"/generated/infra/*.bicep; do
             az bicep build --file "$file" --outfile "${{ runner.temp }}/$(basename "$file" .bicep).json"
           done
 
       - name: Verify managed AgentDocs
+        if: ${{ matrix.profile == 'default' }}
         run: |
           SOURCE="${{ runner.temp }}/agentdocs-${{ matrix.template }}"
           mkdir -p "$SOURCE"

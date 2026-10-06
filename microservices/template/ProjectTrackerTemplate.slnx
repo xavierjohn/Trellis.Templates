@@ -1,10 +1,14 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/AppHost/">
     <Project Path="AppHost/src/AppHost.csproj" />
     <File Path="AppHost/src/ProjectTrackerTemplate.http" />
   </Folder>
   <Folder Name="/Gateway/">
     <Project Path="Gateway/src/Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Gateway/src/" />
+  <Folder Name="/Gateway/tests/">
+    <Project Path="Gateway/tests/Gateway.Tests.csproj" />
   </Folder>
   <Folder Name="/Members/" />
   <Folder Name="/Members/Domain/">

@@ -25,7 +25,7 @@ Required documents:
 
 ### Group 2
 
-Projects: `Gateway/src/Gateway.csproj`
+Projects: `Gateway/src/Gateway.csproj`, `Gateway/tests/Gateway.Tests.csproj`
 
 Packages: Trellis.Core 3.0.0-alpha.542, Trellis.Microservices.Abstractions 0.1.0-alpha.75, Trellis.ResourceNaming.Abstractions 0.1.0-preview.32, Trellis.ServiceLevelIndicators 10.0.0-preview.34, Trellis.ServiceLevelIndicators.Asp 10.0.0-preview.34, Trellis.ServiceLevelIndicators.Asp.ApiVersioning 10.0.0-preview.34, Trellis.Yarp 0.1.0-alpha.75
 

@@ -6,7 +6,7 @@ work in it.
 ## Layout
 
 ```
-asp/            # the Trellis.AspTemplate ASP.NET template
+asp/            # the Trellis.Asp.Templates ASP.NET template
 microservices/  # the Trellis.Microservices.Templates Aspire template
 shared/
   capability-parity-manifest.yaml   # the required capabilities
@@ -25,14 +25,15 @@ AgentDocs owns that block and routes agents to the version-aligned package refer
 
 ## Run the parity contract locally
 
-The same check CI runs, against a template's source:
+Generate a profile first, then run the same check as CI. The emitted `.trellis-template.json`
+selects the relevant contract checks; raw source contains unexpanded options and is not a profile:
 
 ```bash
 dotnet run --project shared/contract-tests -- \
-  shared/capability-parity-manifest.yaml asp asp/template
+  shared/capability-parity-manifest.yaml asp /tmp/generated-asp
 
 dotnet run --project shared/contract-tests -- \
-  shared/capability-parity-manifest.yaml microservices microservices/template
+  shared/capability-parity-manifest.yaml microservices /tmp/generated-microservices
 ```
 
 It exits non-zero and prints what's missing if a required capability regressed.

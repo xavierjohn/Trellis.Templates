@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -16,7 +17,6 @@ using ProjectTrackerTemplate.Projects.Api;
 using Trellis.Asp.Authorization;
 using Trellis.Authorization;
 using Trellis.EntityFrameworkCore;
-using Azure.Messaging.ServiceBus;
 using Trellis.Testing.AspNetCore;
 
 namespace Eventing.Tests;

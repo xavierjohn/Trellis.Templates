@@ -15,7 +15,12 @@ internal class TodoItemConfiguration : IEntityTypeConfiguration<TodoItem>
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Title).IsRequired();
-        builder.Property(t => t.DueDate).IsRequired();
+        // SQLite and SQL Server do not preserve DateTime.Kind; the column stores UTC instants.
+        builder.Property(t => t.DueDate)
+            .HasConversion(
+                date => date.Value,
+                value => DueDate.Create(DateTime.SpecifyKind(value, DateTimeKind.Utc)))
+            .IsRequired();
         builder.Property(t => t.Status).IsRequired();
         builder.Property(t => t.CreatedByActorId).IsRequired().HasMaxLength(200);
 

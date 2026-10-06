@@ -4,7 +4,9 @@ using Mediator;
 using Microsoft.AspNetCore.Mvc;
 using Trellis;
 using Trellis.Asp;
+#if (!NoApiVersioning)
 using Trellis.Asp.ApiVersioning;
+#endif
 using Trellis.Asp.Idempotency;
 using Trellis.ServiceLevelIndicators;
 using TodoSample.Api.v2026_12_01.Models;
@@ -72,7 +74,9 @@ public class TodosController : ControllerBase
                     {
                         ["id"] = (Guid)t.Id,
                     })
+#if (!NoApiVersioning)
                     .WithVersionedRoute()
+#endif
                     .WithETag(t => EntityTagValue.Strong(t.ETag))
                     .WithLastModified(t => t.LastModified))
             .AsActionResultAsync<TodoResponse>();
@@ -123,9 +127,15 @@ public class TodosController : ControllerBase
         CancellationToken cancellationToken) =>
         _sender.Send(new GetOverdueTodosQuery(cursor, limit), cancellationToken)
             .ToHttpResponseAsync(
+#if (!NoApiVersioning)
                 nextUrlBuilder: HttpContext.PageUrl(
                     "Todos_GetOverdue_v2026_12_01",
                     (c, applied) => new Microsoft.AspNetCore.Routing.RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
+#else
+                nextUrlBuilder: (c, applied) => Url.Link(
+                    "Todos_GetOverdue_v2026_12_01", new { cursor = c.Token, limit = applied })
+                    ?? throw new InvalidOperationException("Could not generate the overdue pagination link."),
+#endif
                 body: todo => TodoResponse.From(todo, _timeProvider.GetUtcNow().UtcDateTime))
             .AsActionResultAsync<PagedResponse<TodoResponse>>();
 

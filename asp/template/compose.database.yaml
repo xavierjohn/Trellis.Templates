@@ -1,0 +1,26 @@
+services:
+  #if (UsePostgres)
+  postgres:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: todos
+      POSTGRES_USER: trellis
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set a local development database password}
+    volumes:
+      - database-data:/var/lib/postgresql
+  #else
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DATABASE_PASSWORD:?Set a strong local development database password}
+    volumes:
+      - database-data:/var/opt/mssql
+  #endif
+
+volumes:
+  database-data:

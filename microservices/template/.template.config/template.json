@@ -25,18 +25,37 @@
     "type": "solution"
   },
   "symbols": {
-    "rootNamespace": {
+    "nameNamespace": {
       "type": "derived",
       "valueSource": "name",
-      "valueTransform": "SafeNamespace",
+      "valueTransform": "SafeNamespace"
+    },
+    "rootNamespace": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "description": "Root C# namespace. Defaults to the namespace derived from -n."
+    },
+    "effectiveNamespace": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "rootNamespace",
+        "fallbackVariableName": "nameNamespace"
+      },
       "replaces": "ProjectTrackerTemplate",
-      "description": "Root namespace, derived from the -n parameter. Any characters that aren't valid C# identifier chars (letters, digits, underscore, dot) are replaced with underscores. Replaces 'ProjectTrackerTemplate' everywhere."
+      "description": "Root namespace and assembly prefix."
     },
     "authorName": {
       "type": "parameter",
       "datatype": "string",
       "description": "Author name written into Directory.Build.props <Authors>.",
-      "defaultValue": "Your Name",
+      "defaultValue": "Your Name"
+    },
+    "encodedAuthorName": {
+      "type": "derived",
+      "valueSource": "authorName",
+      "valueTransform": "XmlEncode",
       "replaces": "TEMPLATE_AUTHOR_NAME"
     },
     "gatewayIssuerUrl": {
@@ -51,13 +70,92 @@
       "datatype": "bool",
       "description": "Skip the post-creation NuGet restore.",
       "defaultValue": "false"
+    },
+    "apiVersioning": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "replaces": "TEMPLATE_API_VERSIONING",
+      "description": "Generate date-versioned HTTP APIs. Event and internal-JWT contract versions are unchanged."
+    },
+    "database": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "sqlserver",
+      "replaces": "TEMPLATE_DATABASE_PROVIDER",
+      "isRequired": "deployment == \"azure\"",
+      "choices": [
+        { "choice": "sqlserver", "description": "SQL Server, provisioned by Aspire locally." },
+        { "choice": "postgres", "description": "PostgreSQL, provisioned by Aspire locally." }
+      ],
+      "description": "Service database provider. Azure requires an explicit choice."
+    },
+    "auth": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "jwt",
+      "replaces": "TEMPLATE_AUTH_PROVIDER",
+      "choices": [
+        { "choice": "jwt", "description": "Gateway ingress uses an external OIDC issuer." },
+        { "choice": "entra", "description": "Gateway ingress uses Microsoft Entra ID." }
+      ],
+      "description": "Gateway identity provider. Downstream internal-JWT validation remains unchanged."
+    },
+    "telemetryExporters": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "otlp",
+      "replaces": "TEMPLATE_TELEMETRY_EXPORTERS",
+      "choices": [
+        { "choice": "otlp", "description": "OTLP traces, metrics, and logs." },
+        { "choice": "azure-monitor", "description": "Azure Monitor." },
+        { "choice": "both", "description": "OTLP and Azure Monitor." }
+      ],
+      "description": "Generate only the selected telemetry exporters."
+    },
+    "deployment": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "none",
+      "replaces": "TEMPLATE_DEPLOYMENT_MODE",
+      "choices": [
+        { "choice": "none", "description": "No deployment scaffold; local Aspire remains." },
+        { "choice": "container", "description": "Container images and composition." },
+        { "choice": "azure", "description": "Azure Container Apps and supporting resources." }
+      ],
+      "description": "Deployment scaffold. Aspire, Service Bus, and Cosmos production idempotency remain."
+    },
+    "NoApiVersioning": { "type": "computed", "value": "!apiVersioning" },
+    "UsePostgres": { "type": "computed", "value": "database == \"postgres\"" },
+    "UseEntra": { "type": "computed", "value": "auth == \"entra\"" },
+    "NoOtlp": { "type": "computed", "value": "telemetryExporters == \"azure-monitor\"" },
+    "NoAzureMonitor": { "type": "computed", "value": "telemetryExporters == \"otlp\"" },
+    "AzureDeployment": { "type": "computed", "value": "deployment == \"azure\"" },
+    "httpApiVersionQuery": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "cases": [
+          { "condition": "apiVersioning", "value": "?api-version={{version}}" },
+          { "condition": "", "value": "" }
+        ]
+      },
+      "replaces": "?api-version={{version}}"
+    },
+    "templateSourcePragma": {
+      "description": "Native template conditions require parentheses; the source-only style suppression is removed from generated code.",
+      "type": "generated",
+      "generator": "constant",
+      "parameters": { "value": "" },
+      "replaces": "#pragma warning disable IDE0047"
     }
   },
   "forms": {
     "SafeNamespace": {
-      "identifier": "replace",
-      "pattern": "[^A-Za-z0-9_.]",
-      "replacement": "_"
+      "identifier": "safe_namespace"
+    },
+    "XmlEncode": {
+      "identifier": "xmlEncode"
     }
   },
   "sources": [
@@ -67,6 +165,10 @@
       ],
       "modifiers": [
         {
+          "condition": "UseEntra",
+          "exclude": [ "Gateway/src/GatewayClaimsActorProvider.cs" ]
+        },
+        {
           "exclude": [
             "**/bin/**",
             "**/obj/**",
@@ -75,6 +177,14 @@
             "**/TestResults/**",
             ".template.config/**"
           ]
+        },
+        {
+          "condition": "deployment != \"azure\"",
+          "exclude": [ "infra/**", "deploy/**" ]
+        },
+        {
+          "condition": "deployment == \"none\"",
+          "exclude": [ "**/Dockerfile", "compose.yaml", ".dockerignore" ]
         }
       ]
     }
@@ -90,7 +200,7 @@
         { "text": "Run 'dotnet restore'" }
       ],
       "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
-      "continueOnError": true
+      "continueOnError": false
     }
   ]
 }

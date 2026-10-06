@@ -1,0 +1,38 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DeployedEnvironment__Environment: prod
+      DeployedEnvironment__Region: ${DEPLOYMENT_REGION:?Set the deployment region}
+      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING for the selected provider}
+#if (UseEntra)
+      Authentication__TenantId: ${ENTRA_TENANT_ID:?Set the Entra tenant ID}
+      Authentication__ClientId: ${ENTRA_CLIENT_ID:?Set the Entra client ID}
+#else
+      Authentication__Authority: ${AUTHORITY:?Set the HTTPS OIDC issuer}
+      Authentication__Audience: ${AUDIENCE:?Set the API audience}
+#endif
+      Idempotency__Store: Cosmos
+      Idempotency__Cosmos__Endpoint: ${COSMOS_ENDPOINT:?Set the durable Cosmos endpoint}
+      Idempotency__Cosmos__DatabaseId: ${COSMOS_DATABASE_ID:-idempotency}
+      Idempotency__Cosmos__ContainerId: ${COSMOS_CONTAINER_ID:-idempotency}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+#if (!NoOtlp)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+#endif
+#if (!NoAzureMonitor)
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+#endif
+#if (!UsePostgres && !UseSqlServer)
+    volumes:
+      - sqlite-data:/data
+
+volumes:
+  sqlite-data:
+#endif

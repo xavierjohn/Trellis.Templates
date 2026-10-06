@@ -1,28 +1,37 @@
 ﻿namespace Api.Tests;
 
+#if (!NoAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+#endif
+#if (!NoOtlp)
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+#if (!NoOtlp)
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+#endif
 using TodoSample.Api;
 using Trellis.Asp.Idempotency;
 using Trellis.Asp.Idempotency.Cosmos;
 
 public class HostingConfigurationTests
 {
+#if (!NoOtlp)
     private static readonly Action<ILogger, Exception?> LogCompositionTest =
         LoggerMessage.Define(LogLevel.Information, new EventId(1), "Composition test");
+#endif
 
+#if (!NoAzureMonitor)
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -46,7 +55,9 @@ public class HostingConfigurationTests
             provider.GetRequiredService<IOptions<AzureMonitorOptions>>().Value.ConnectionString
                 .Should().Be(configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
     }
+#endif
 
+#if (!NoOtlp)
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -112,6 +123,7 @@ public class HostingConfigurationTests
 
         configure.Should().Throw<InvalidOperationException>().WithMessage($"*{setting}*");
     }
+#endif
 
     [Fact]
     public void Development_uses_the_in_memory_store_without_Azure_configuration()

@@ -14,12 +14,26 @@ public class DueDateTests
             .Which.Value.Should().Be(date);
     }
 
-    [Fact]
-    public void TryCreate_min_value_fails()
+    [Theory]
+    [InlineData(DateTimeKind.Utc)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public void TryCreate_min_value_fails(DateTimeKind kind)
     {
-        var result = DueDate.TryCreate(DateTime.MinValue);
+        var result = DueDate.TryCreate(DateTime.SpecifyKind(DateTime.MinValue, kind));
 
         result.Should().BeFailure()
             .Which.Should().BeOfType<Error.InvalidInput>();
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Unspecified)]
+    [InlineData(DateTimeKind.Local)]
+    public void TryCreate_non_utc_date_fails(DateTimeKind kind)
+    {
+        var date = DateTime.SpecifyKind(DateTime.UtcNow.AddDays(7), kind);
+
+        var result = DueDate.TryCreate(date);
+
+        result.Should().BeFailureOfType<Error.InvalidInput>();
     }
 }

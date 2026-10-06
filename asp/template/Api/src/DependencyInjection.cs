@@ -1,16 +1,22 @@
 ﻿namespace TodoSample.Api;
 
+#if (!NoApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Conventions;
+#endif
+#if (!NoAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Logs;
+#if (!NoOtlp)
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+#endif
 using Scalar.AspNetCore;
 using Trellis;
 using Trellis.ServiceLevelIndicators;
@@ -30,6 +36,7 @@ internal static class DependencyInjection
         services.ConfigureOpenTelemetry(configuration);
         services.ConfigureServiceLevelIndicators(configuration);
         services.AddControllers();
+        services.AddConfiguredAuthentication(environment, configuration);
         services.AddTrellis(options =>
         {
             options.UseAsp()
@@ -43,6 +50,12 @@ internal static class DependencyInjection
                 .UseEntityFrameworkUnitOfWork<AppDbContext>();
             if (environment.IsDevelopment())
                 options.UseDevelopmentActorProvider();
+            else
+#if (UseEntra)
+                options.UseEntraActorProvider(actor => actor.IdClaimType = "oid");
+#else
+                options.UseClaimsActorProvider();
+#endif
         });
         services.AddProblemDetails(options =>
         {
@@ -58,17 +71,16 @@ internal static class DependencyInjection
         });
         services.AddResourceCollectionName<TodoItem>("todos");
         services.AddConfiguredIdempotencyStore(environment, configuration);
+#if (!NoApiVersioning)
         services.AddApiVersioning(options =>
                 options.ApiVersionReader = new QueryStringApiVersionReader())
                 .AddMvc(options => options.Conventions.Add(new VersionByNamespaceConvention()))
                 .AddApiExplorer()
                 .AddOpenApi(options => options.Document.AddScalarTransformers());
+#else
+        services.AddOpenApi(options => options.AddScalarTransformers());
+#endif
         services.AddHealthChecks();
-
-        if (!environment.IsDevelopment())
-            throw new InvalidOperationException(
-                "Production IActorProvider not configured. " +
-                "Select UseEntraActorProvider() with your Azure Entra ID configuration for non-development environments.");
 
         return services;
     }
@@ -111,6 +123,7 @@ internal static class DependencyInjection
             options.SetResourceBuilder(resourceBuilder);
         }));
 
+#if (!NoOtlp)
         var endpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
@@ -126,10 +139,13 @@ internal static class DependencyInjection
             };
             telemetry.UseOtlpExporter(protocol, endpointUri);
         }
+#endif
 
+#if (!NoAzureMonitor)
         var connectionString = configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
         if (!string.IsNullOrWhiteSpace(connectionString))
             telemetry.UseAzureMonitor(options => options.ConnectionString = connectionString);
+#endif
 
         return services;
     }
@@ -156,7 +172,10 @@ internal static class DependencyInjection
             options.LocationId = locationId;
         })
         .AddMvc()
-        .AddApiVersion();
+#if (!NoApiVersioning)
+        .AddApiVersion()
+#endif
+        ;
 
         return services;
     }

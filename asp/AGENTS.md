@@ -12,7 +12,7 @@ The `.github/copilot-instructions.md` files are compatibility pointers to these 
 ## Repository Structure
 
 ```
-Trellis.AspTemplate/
+asp/
 ├── templatepack.csproj            ← NuGet template pack project
 ├── version.json                   ← Nerdbank.GitVersioning
 ├── AGENTS.md                      ← Template maintainer instructions
@@ -54,16 +54,21 @@ Trellis.AspTemplate/
 dotnet pack templatepack.csproj
 
 # Install locally for testing
-dotnet new install ./nupkg/Trellis.AspTemplate.*.nupkg
+dotnet new install ./nupkg/Trellis.Asp.Templates.*.nupkg
 
 # Create a new project from the template
 dotnet new trellis-asp -n MyService
 
 # Uninstall
-dotnet new uninstall Trellis.AspTemplate
+dotnet new uninstall Trellis.Asp.Templates
 ```
 
 ## Upgrading Trellis Packages
+
+`../shared/template-tests/Test-TemplateOptions.ps1` validates the packaged defaults and selected
+versioning, provider, identity, exporter, namespace, author, container, and Azure profiles.
+Run it with `-Template asp -Package <nupkg>`. APIs are unversioned by default; do not introduce
+mandatory versioning dependencies into the unversioned output.
 
 After upgrading `TrellisVersion` in `template/Directory.Packages.props`, regenerate the guidance with
 the pinned `Trellis.AgentDocs` tool. AgentDocs operates at the Git root, so run the following in an

@@ -1,13 +1,20 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿#pragma warning disable IDE0047
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+#if (!NoApiVersioning)
 using Asp.Versioning;
+#endif
+#if (!NoAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+#endif
+#if (!NoOtlp)
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+#endif
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Trellis.ServiceLevelIndicators;
@@ -23,6 +30,22 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class Extensions
 {
+    public static string GetGatewayIssuer(this IHostApplicationBuilder builder)
+    {
+        var issuer = builder.Configuration["Gateway:Issuer"];
+        if (string.IsNullOrWhiteSpace(issuer))
+        {
+            if (!builder.Environment.IsDevelopment())
+                throw new InvalidOperationException("Gateway:Issuer is required outside Development and must match the downstream issuer configuration.");
+            issuer = "TEMPLATE_GATEWAY_ISSUER_URL";
+        }
+
+        if (!Uri.TryCreate(issuer, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && !(builder.Environment.IsDevelopment() && uri.Scheme == Uri.UriSchemeHttp)))
+            throw new InvalidOperationException("Gateway:Issuer must be an absolute HTTPS URL (HTTP is Development-only).");
+        return issuer;
+    }
+
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
@@ -96,13 +119,17 @@ public static class Extensions
                 if (!string.IsNullOrEmpty(tenantId))
                     context.SetCustomerResourceId($"tenant://{tenantId}");
             })
-            .AddApiVersion();
+#if (!NoApiVersioning)
+            .AddApiVersion()
+#endif
+            ;
         return builder;
     }
 
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
+#if (!NoOtlp)
         var endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
@@ -119,10 +146,13 @@ public static class Extensions
             builder.Services.AddOpenTelemetry().UseOtlpExporter(protocol, endpointUri);
         }
 
+#endif
+#if (!NoAzureMonitor)
         var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
         if (!string.IsNullOrWhiteSpace(connectionString))
             builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.ConnectionString = connectionString);
 
+#endif
         return builder;
     }
 
@@ -144,13 +174,21 @@ public static class Extensions
             // Tag the health endpoints API-version-neutral so they answer without ?api-version and
             // surface as "Neutral" (not "Unspecified") in the SLI / OpenTelemetry version dimension.
             app.MapHealthChecks("/health")
+#if (!NoApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
+#else
+                ;
+#endif
 
             app.MapHealthChecks("/alive", new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live"),
             })
+#if (!NoApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
+#else
+                ;
+#endif
         }
 
         return app;

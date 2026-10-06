@@ -7,7 +7,7 @@
 templates:
   asp:
     new: trellis-asp
-    boot: { project: Api, urlPath: "/openapi/2026-03-26.json" }   # placeholder boot target
+    boot: { project: Api, urlPath: "/openapi/v1.json" }
   microservices:
     new: trellis-microservices
     boot: { project: Members, port: 5003 }
@@ -18,12 +18,15 @@ templates:
 #   package-referenced - a PackageReference exists
 #   builds           - the instantiated solution builds (global)
 #   docs-in-sync     - AgentDocs-managed package guidance matches the restored graph (global)
+#   when             - selects checks using the emitted .trellis-template.json profile
+#   source-not-contains / package-not-referenced / files-absent - selected options must omit unwanted surfaces
 
 capabilities:
 
   api-versioning:
     title: Date-based API versioning
     requiredFor: [asp, microservices]
+    when: { apiVersioning: "true" }
     docs: conventions/api-versioning.md
     checks:
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddApiVersioning" }
@@ -32,6 +35,57 @@ capabilities:
           - { glob: "**/*Endpoints.cs", pattern: "MapToApiVersion" }            # minimal API
           - { glob: "**/Controllers/**/*.cs", pattern: "v20\\d{2}_\\d{2}_\\d{2}" } # versioned namespace (MVC)
       - { kind: http-status, request: "GET {version}", expect: 200, desc: "per-version OpenAPI doc serves" }
+
+  unversioned-api:
+    title: Unversioned HTTP APIs
+    requiredFor: [asp, microservices]
+    when: { apiVersioning: "false" }
+    checks:
+      - { kind: source-not-contains, glob: "**/src/**/*.cs", pattern: "using Asp\\.Versioning|using Trellis\\.Asp\\.ApiVersioning|AddApiVersioning\\(|\\.WithVersionedRoute\\(|\\.AddApiVersion\\(" }
+      - { kind: package-not-referenced, package: "Trellis.Asp.ApiVersioning" }
+      - { kind: package-not-referenced, package: "Trellis.ServiceLevelIndicators.Asp.ApiVersioning" }
+      - { kind: package-not-referenced, package: "Asp.Versioning.OpenApi" }
+      - { kind: files-absent, glob: "Api/src/2026-*/**" }
+
+  database-selection:
+    title: Selected database provider
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: package-referenced, package: "Npgsql.EntityFrameworkCore.PostgreSQL", when: { database: postgres } }
+      - { kind: source-contains, glob: "**/src/DependencyInjection.cs", pattern: "UseNpgsql|AddNpgsqlDbContext", when: { database: postgres } }
+      - { kind: package-not-referenced, package: "Microsoft.EntityFrameworkCore.SqlServer", when: { database: postgres } }
+      - { kind: package-referenced, package: "Microsoft.EntityFrameworkCore.SqlServer", when: { database: sqlserver } }
+      - { kind: source-contains, glob: "**/src/DependencyInjection.cs", pattern: "UseSqlServer|AddSqlServerDbContext", when: { database: sqlserver } }
+      - { kind: package-not-referenced, package: "Npgsql.EntityFrameworkCore.PostgreSQL", when: { database: [sqlite, sqlserver] } }
+      - { kind: package-referenced, package: "Microsoft.EntityFrameworkCore.Sqlite", when: { database: sqlite } }
+      - { kind: source-contains, glob: "**/src/DependencyInjection.cs", pattern: "UseSqlite", when: { database: sqlite } }
+
+  deployment-selection:
+    title: Selected deployment scaffold
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: files-absent, glob: "infra/**", when: { deployment: [none, container] } }
+      - { kind: files-absent, glob: "deploy/**", when: { deployment: [none, container] } }
+      - { kind: files-absent, glob: "Dockerfile", when: { deployment: none, template: asp } }
+      - { kind: files-absent, glob: "Gateway/src/Dockerfile", when: { deployment: none, template: microservices } }
+      - { kind: files-absent, glob: "Members/Api/src/Dockerfile", when: { deployment: none, template: microservices } }
+      - { kind: files-absent, glob: "Projects/Api/src/Dockerfile", when: { deployment: none, template: microservices } }
+      - { kind: files-absent, glob: "compose.yaml", when: { deployment: none } }
+      - { kind: source-contains, glob: "**/Dockerfile", pattern: "dotnet publish", when: { deployment: [container, azure] } }
+      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "Microsoft\\.Web/sites|Microsoft\\.App/containerApps", when: { deployment: azure } }
+
+  external-authentication:
+    title: Mandatory external production identity
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "environment.IsDevelopment\\(\\)" }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "required outside Development" }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "RequireHttpsMetadata = true" }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "RequireSignedTokens = true" }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "RequireExpirationTime = true" }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "Authentication:Authority", when: { auth: jwt } }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "Authentication:TenantId", when: { auth: entra } }
+      - { kind: source-contains, glob: "**/src/AuthenticationRegistration.cs", pattern: "Authentication:ClientId", when: { auth: entra } }
 
   sli:
     title: Service Level Indicators
@@ -53,11 +107,11 @@ capabilities:
       - { kind: package-referenced, package: "Trellis.Asp.Idempotency.Cosmos" }
       - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "AddCosmosIdempotencyStore" }
       - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "(?s)if \\(!environment.IsDevelopment\\(\\)\\)\\s+throw new InvalidOperationException", desc: "in-memory storage fails closed outside Development" }
-      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "'/scope'", desc: "Cosmos partition key matches the store contract" }
-      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "defaultTtl:\\s*-1\\b", desc: "per-item TTL is enabled without expiring reservations" }
-      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "disableLocalAuth:\\s*true", desc: "Cosmos uses managed identity rather than account keys" }
-      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "00000000-0000-0000-0000-000000000002", desc: "native Cosmos data contributor role" }
-      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "scope:.*?/dbs/.*?/colls/", desc: "role assignment is scoped to the idempotency container" }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "'/scope'", desc: "Cosmos partition key matches the store contract", when: { deployment: azure } }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "defaultTtl:\\s*-1\\b", desc: "per-item TTL is enabled without expiring reservations", when: { deployment: azure } }
+      - { kind: source-contains, glob: "infra/idempotency.bicep", pattern: "disableLocalAuth:\\s*true", desc: "Cosmos uses managed identity rather than account keys", when: { deployment: azure } }
+      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "00000000-0000-0000-0000-000000000002", desc: "native Cosmos data contributor role", when: { deployment: azure } }
+      - { kind: source-contains, glob: "infra/idempotency-access.bicep", pattern: "scope:.*?/dbs/.*?/colls/", desc: "role assignment is scoped to the idempotency container", when: { deployment: azure } }
 
   problem-details:
     title: RFC 9457 ProblemDetails
@@ -95,11 +149,15 @@ capabilities:
       - { kind: source-contains, glob: "**/*.cs", pattern: "[Ll]ogging\\.AddOpenTelemetry" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "AddTrellisMediatorInstrumentation|AddSource\\(\"Trellis.Mediator\"\\)", desc: "mediator spans actually exported" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "LoggerMessage", desc: "handlers emit structured business events" }
-      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "OTEL_EXPORTER_OTLP_ENDPOINT", desc: "OTLP requires an explicitly configured destination" }
-      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "APPLICATIONINSIGHTS_CONNECTION_STRING", desc: "Azure Monitor is configuration-aware" }
-      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "UseAzureMonitor" }
-      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "Microsoft.Insights/components", desc: "Azure deployment provisions application telemetry" }
-      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "WorkspaceResourceId", desc: "Application Insights is workspace-based" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "OTEL_EXPORTER_OTLP_ENDPOINT", desc: "OTLP requires an explicitly configured destination", when: { telemetryExporters: [otlp, both] } }
+      - { kind: package-referenced, package: "OpenTelemetry.Exporter.OpenTelemetryProtocol", when: { telemetryExporters: [otlp, both] } }
+      - { kind: package-not-referenced, package: "OpenTelemetry.Exporter.OpenTelemetryProtocol", when: { telemetryExporters: azure-monitor } }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "APPLICATIONINSIGHTS_CONNECTION_STRING", desc: "Azure Monitor is configuration-aware", when: { telemetryExporters: [azure-monitor, both] } }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "UseAzureMonitor", when: { telemetryExporters: [azure-monitor, both] } }
+      - { kind: package-referenced, package: "Azure.Monitor.OpenTelemetry.AspNetCore", when: { telemetryExporters: [azure-monitor, both] } }
+      - { kind: package-not-referenced, package: "Azure.Monitor.OpenTelemetry.AspNetCore", when: { telemetryExporters: otlp } }
+      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "Microsoft.Insights/components", desc: "Azure deployment provisions application telemetry", when: { deployment: azure, telemetryExporters: [azure-monitor, both] } }
+      - { kind: source-contains, glob: "infra/**/*.bicep", pattern: "WorkspaceResourceId", desc: "Application Insights is workspace-based", when: { deployment: azure, telemetryExporters: [azure-monitor, both] } }
 
   composition-root:
     title: Current Trellis composition APIs
@@ -175,8 +233,9 @@ capabilities:
     requiredFor: [asp]
     checks:
       - { kind: source-contains, glob: "Application/src/Todos/CompleteTodoCommand.cs", pattern: "(?s)\\.ToResultAsync\\(.*\\.OptionalETagAsync\\(command\\.IfMatchETags\\).*\\.CheckAsync\\(todo => todo\\.Complete", desc: "precondition runs before completion" }
-      - { kind: source-contains, glob: "Api/src/2026-03-26/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "first API version forwards the header" }
-      - { kind: source-contains, glob: "Api/src/2026-12-01/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "second API version forwards the header" }
+      - { kind: source-contains, glob: "Api/src/2026-03-26/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "first API version forwards the header", when: { apiVersioning: "true" } }
+      - { kind: source-contains, glob: "Api/src/2026-12-01/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "second API version forwards the header", when: { apiVersioning: "true" } }
+      - { kind: source-contains, glob: "Api/src/Controllers/TodosController.cs", pattern: "CompleteTodoCommand\\.TryCreate\\(id, ETagHelper\\.ParseIfMatch\\(Request\\)\\)", desc: "unversioned API forwards the header", when: { apiVersioning: "false" } }
 
   servicebus-transport:
     title: Shipped Trellis Service Bus transport
@@ -191,6 +250,18 @@ capabilities:
       - { kind: source-contains, glob: "AppHost/src/Program.cs", pattern: "CorrelationFilter", desc: "the emulator subscription has an explicit delivery rule" }
       - { kind: source-contains, glob: "Members/Api/src/Program.cs", pattern: "\\.UseOutbox<" }
       - { kind: source-contains, glob: "Projects/Api/src/Program.cs", pattern: "\\.UseInbox<" }
+
+  gateway-signing:
+    title: Persistent gateway signing and overlapping public keys
+    requiredFor: [microservices]
+    checks:
+      - { kind: source-contains, glob: "Gateway/src/SigningKeyRegistration.cs", pattern: "Gateway:SigningKeyPath" }
+      - { kind: source-contains, glob: "Gateway/src/SigningKeyRegistration.cs", pattern: "persistent RSA private-key PEM file outside Development" }
+      - { kind: source-contains, glob: "Gateway/src/SigningKeyRegistration.cs", pattern: "Gateway:PublishedKeyPaths" }
+      - { kind: source-contains, glob: "Gateway/src/Program.cs", pattern: "PreviousSigningKeys = publishedKeys" }
+      - { kind: source-contains, glob: "ServiceDefaults/src/Extensions.cs", pattern: "Gateway:Issuer is required outside Development" }
+      - { kind: source-contains, glob: "Members/Api/src/Program.cs", pattern: "issuer: builder.GetGatewayIssuer\\(\\)" }
+      - { kind: source-contains, glob: "Projects/Api/src/Program.cs", pattern: "issuer: builder.GetGatewayIssuer\\(\\)" }
 
   microservices-guidance:
     title: AgentDocs-managed microservices references

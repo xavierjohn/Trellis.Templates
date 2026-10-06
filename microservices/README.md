@@ -1,6 +1,6 @@
-﻿# Trellis.Microservices.Template
+﻿# Trellis.Microservices.Templates
 
-[![Build Template](https://github.com/xavierjohn/Trellis.Microservices.Template/actions/workflows/build.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Microservices.Template/actions/workflows/build.yml)
+[![Build Template](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml)
 [![NuGet](https://img.shields.io/nuget/v/Trellis.Microservices.Templates.svg)](https://www.nuget.org/packages/Trellis.Microservices.Templates)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Trellis.Microservices.Templates.svg)](https://www.nuget.org/packages/Trellis.Microservices.Templates)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -16,10 +16,11 @@
 dotnet new install Trellis.Microservices.Templates
 dotnet new trellis-microservices -n MyOrg.Tracker
 cd MyOrg.Tracker
-dotnet run --project AppHost
+dotnet run --project AppHost/src
 ```
 
-You get a working **Project Tracker** topology — Aspire-orchestrated — that demonstrates everything Trellis was built for in roughly 1500 lines of code. Open `MyOrg.Tracker.http` and click-to-send through the 17 outcome-matrix scenarios.
+You get an Aspire-orchestrated **Project Tracker** topology. Open `AppHost/src/*.http` for the
+authorization and cross-service eventing scenarios. Docker or Podman must be running.
 
 ## What gets scaffolded
 
@@ -45,9 +46,19 @@ You get a working **Project Tracker** topology — Aspire-orchestrated — that 
 | Parameter | Default | Description |
 |---|---|---|
 | `-n`, `--name` | `MyTracker` | Solution name. Becomes the root namespace and assembly-name prefix. Hyphens and other non-identifier characters are sanitized to underscores. |
-| `--authorName` | `Your Name` | Author written into `Directory.Build.props`. |
-| `--gatewayIssuerUrl` | `http://localhost:5001` | Issuer/audience prefix the gateway mints internal JWTs against. Default works zero-config under the Aspire AppHost (gateway is pinned to port 5001). Override with your production gateway URL (e.g. `https://gateway.internal`) before deploying. |
-| `--skipRestore` | `false` | Skip post-creation `dotnet restore`. |
+| `--author-name` | `Your Name` | Author written into `Directory.Build.props`. |
+| `--root-namespace` | Derived from `-n` | Valid C# root namespace and assembly prefix. |
+| `--api-versioning` | `false` | Date-versioned HTTP APIs; event and internal-JWT versions are independent. |
+| `--database` | `sqlserver` | `sqlserver` or `postgres`; Aspire provisions the selected provider. |
+| `--auth` | `jwt` | Gateway external `jwt`/OIDC or `entra`; downstream internal JWTs are unchanged. |
+| `--telemetry-exporters` | `otlp` | `otlp`, `azure-monitor`, or `both`. |
+| `--deployment` | `none` | `none`, `container`, or `azure` (Container Apps). |
+| `--gateway-issuer-url` | `http://localhost:5001` | Development gateway issuer; production requires an explicit HTTPS `Gateway:Issuer`. |
+| `--skip-restore` | `false` | Skip post-creation `dotnet restore`. |
+
+Azure requires an explicit `--database`. Production requires external identity, persistent RSA signing
+material, separate service database credentials, Service Bus, and Cosmos idempotency.
+See the [shared defaults](../README.md#generation-options) and the generated deployment README.
 
 > **Want a smaller starter?** To drop the Members service after instantiation:
 > 1. Delete the `Members/` directory.
@@ -62,7 +73,7 @@ This template tracks the [Trellis.Microservices](https://github.com/xavierjohn/T
 
 - [`xavierjohn/Trellis`](https://github.com/xavierjohn/Trellis) — the framework: `Result<T>`, `Maybe<T>`, value objects, DDD primitives, ASP.NET / EF Core / Mediator integration.
 - [`xavierjohn/Trellis.Microservices`](https://github.com/xavierjohn/Trellis.Microservices) — the building blocks this template instantiates: YARP gateway integration + consumer-side actor provider.
-- [`xavierjohn/Trellis.AspTemplate`](https://github.com/xavierjohn/Trellis.AspTemplate) — single-service Clean Architecture template (no microservices topology).
+- [ASP.NET template](../asp/README.md) — single-service Clean Architecture template.
 
 ## License
 

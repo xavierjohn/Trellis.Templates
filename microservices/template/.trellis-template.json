@@ -1,0 +1,8 @@
+{
+  "template": "microservices",
+  "apiVersioning": "TEMPLATE_API_VERSIONING",
+  "database": "TEMPLATE_DATABASE_PROVIDER",
+  "auth": "TEMPLATE_AUTH_PROVIDER",
+  "telemetryExporters": "TEMPLATE_TELEMETRY_EXPORTERS",
+  "deployment": "TEMPLATE_DEPLOYMENT_MODE"
+}

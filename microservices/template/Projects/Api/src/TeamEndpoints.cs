@@ -1,7 +1,10 @@
-﻿namespace ProjectTrackerTemplate.Projects.Api;
+﻿#pragma warning disable IDE0047
+namespace ProjectTrackerTemplate.Projects.Api;
 
+#if (!NoApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Builder;
+#endif
 using Mediator;
 using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.ReadModel;
@@ -15,19 +18,27 @@ using Trellis.ServiceLevelIndicators;
 // authorization, SLI; the operation name is derived per-route by the middleware).
 public static class TeamEndpoints
 {
+#if (!NoApiVersioning)
     private static readonly ApiVersion V20260326 = new(new DateOnly(2026, 3, 26));
+#endif
 
     public static IEndpointRouteBuilder MapTeamEndpoints(this IEndpointRouteBuilder app)
     {
+#if (!NoApiVersioning)
         ApiVersionSet versionSet = app.NewApiVersionSet("Team")
             .HasApiVersion(V20260326)
             .ReportApiVersions()
             .Build();
+#endif
 
         var team = app.MapGroup("/api/team")
+#if (!NoApiVersioning)
             .WithApiVersionSet(versionSet)
+#endif
             .WithTags("Team")
+#if (!NoApiVersioning)
             .MapToApiVersion(V20260326)
+#endif
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 

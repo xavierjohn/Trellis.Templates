@@ -9,7 +9,7 @@
 
     The deployment has two stacks, dictated by the convention:
 
-      * Global  (deployed ONCE)        : cloud-singletons with region-less names — the SQL server and
+      * Global  (deployed ONCE)        : cloud-singletons with region-less names — the database server and
                                          database, and Cosmos idempotency store. Regions share these.
       * Regional(deployed PER REGION)  : resources whose names carry the region token — the managed
                                          identity, Log Analytics, Application Insights, and App Service.
@@ -18,13 +18,12 @@
     no name is invented in Bicep or PowerShell. Re-running is safe: the global names are identical
     every wave, so later waves reference the existing singletons instead of recreating them.
 
-    This script PROVISIONS and CONFIGURES infrastructure. Running the service in production also
-    requires the app-side steps documented in deploy/README.md (SqlServer EF provider, an Entra
-    actor provider, and a database user for each region's managed identity).
+    This script provisions the selected database and App Service configuration. Apply database
+    migrations and publish the application as described in deploy/README.md.
 
 .EXAMPLE
     ./deploy.ps1 -WhatIf
-    Preview every deployment without changing anything.
+    Preview deployments; creates resource groups but does not deploy their resources.
 
 .EXAMPLE
     ./deploy.ps1
@@ -50,8 +49,19 @@ param(
     [string] $SqlAdminPrincipalType = 'User',
 
     [string] $SubscriptionId,
+    [string] $AuthenticationAuthority,
+    [string] $AuthenticationAudience,
+    [string] $AuthenticationTenantId,
+    [string] $AuthenticationClientId,
+    [string] $OtlpEndpoint,
+    [ValidateSet('grpc', 'http/protobuf')]
+    [string] $OtlpProtocol = 'grpc',
+    [string] $PostgresAdministratorLogin = 'trellisadmin',
+    [SecureString] $PostgresAdministratorPassword,
+    [string] $PostgresApplicationLogin,
+    [SecureString] $PostgresApplicationPassword,
 
-    # Preview every deployment (az deployment ... --what-if) without changing anything.
+    # Resource groups are created even when previewing deployments.
     [switch] $WhatIf,
 
     # Skip the global stack (use when re-deploying only the regional waves).
@@ -60,6 +70,41 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+$databaseProvider = 'TEMPLATE_DATABASE_PROVIDER'
+if ($databaseProvider -notin @('postgres', 'sqlserver')) {
+    throw 'Azure deployment requires --database postgres or --database sqlserver. SQLite is not supported on Azure.'
+}
+if ('TEMPLATE_AUTH_PROVIDER' -eq 'entra') {
+    $tenant = [Guid]::Empty
+    $client = [Guid]::Empty
+    if (![Guid]::TryParse($AuthenticationTenantId, [ref] $tenant) -or
+        ![Guid]::TryParse($AuthenticationClientId, [ref] $client)) {
+        throw 'Provide -AuthenticationTenantId and -AuthenticationClientId as Entra GUIDs.'
+    }
+} else {
+    $authority = $null
+    if (![Uri]::TryCreate($AuthenticationAuthority, [UriKind]::Absolute, [ref] $authority) -or
+        $authority.Scheme -ne 'https' -or [string]::IsNullOrWhiteSpace($AuthenticationAudience)) {
+        throw 'Provide an HTTPS -AuthenticationAuthority and a non-empty -AuthenticationAudience.'
+    }
+}
+if ($OtlpEndpoint) {
+    $endpoint = $null
+    if (![Uri]::TryCreate($OtlpEndpoint, [UriKind]::Absolute, [ref] $endpoint) -or
+        $endpoint.Scheme -notin @('http', 'https')) {
+        throw '-OtlpEndpoint must be an absolute HTTP or HTTPS URL.'
+    }
+}
+if ($databaseProvider -eq 'postgres') {
+    if (!$SkipGlobal -and !$PostgresAdministratorPassword) {
+        throw 'Provide -PostgresAdministratorPassword as a SecureString for the PostgreSQL Azure profile.'
+    }
+    if ([string]::IsNullOrWhiteSpace($PostgresApplicationLogin) -or !$PostgresApplicationPassword -or
+        $PostgresApplicationLogin -eq $PostgresAdministratorLogin) {
+        throw 'Provide a separate -PostgresApplicationLogin and -PostgresApplicationPassword for least-privilege runtime access.'
+    }
+}
 
 # Add or remove a region here — that is the only edit needed to change the deployment footprint.
 $Regions = @(
@@ -72,6 +117,10 @@ $namesProject = Join-Path $here 'names'
 $infra = Join-Path (Split-Path -Parent $here) 'infra'
 $workDir = Join-Path ([System.IO.Path]::GetTempPath()) "trellis-names-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Force -Path $workDir | Out-Null
+if (!$IsWindows) {
+    [IO.File]::SetUnixFileMode($workDir,
+        [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+}
 
 function Invoke-Az {
     param([Parameter(ValueFromRemainingArguments)] [string[]] $Arguments)
@@ -79,6 +128,20 @@ function Invoke-Az {
     if ($LASTEXITCODE -ne 0) {
         throw "az $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
     }
+}
+
+function Write-Parameters([hashtable] $Values) {
+    $parameters = @{}
+    foreach ($entry in $Values.GetEnumerator()) {
+        $value = if ($entry.Value -is [SecureString]) {
+            ConvertFrom-SecureString $entry.Value -AsPlainText
+        } else { $entry.Value ?? '' }
+        $parameters[$entry.Key] = @{ value = $value }
+    }
+    $path = Join-Path $workDir ("parameters-" + [guid]::NewGuid().ToString('N') + '.json')
+    [IO.File]::WriteAllText($path, (@{ parameters = $parameters } | ConvertTo-Json -Depth 8),
+        [Text.UTF8Encoding]::new($false))
+    return "@$path"
 }
 
 # Computes the convention names for a stack by running the SAME library the service uses at runtime.
@@ -104,7 +167,7 @@ try {
         Invoke-Az account set --subscription $SubscriptionId
     }
 
-    if (-not $SqlAdminObjectId) {
+    if ($databaseProvider -eq 'sqlserver' -and -not $SqlAdminObjectId) {
         Write-Host 'Resolving the signed-in user as the SQL Entra administrator...'
         $me = Invoke-Az ad signed-in-user show --output json | ConvertFrom-Json
         $SqlAdminObjectId = $me.id
@@ -113,7 +176,7 @@ try {
 
     # The SQL server's Entra administrator block requires both a sid and a login; a bare object id
     # would pass an empty login to Bicep and fail the deployment.
-    if (-not $SqlAdminLogin) {
+    if ($databaseProvider -eq 'sqlserver' -and -not $SqlAdminLogin) {
         throw 'Provide -SqlAdminLogin (the Entra administrator display name / UPN) together with -SqlAdminObjectId.'
     }
 
@@ -136,23 +199,34 @@ try {
     if (-not $SkipGlobal) {
         Write-Host "`n=== Global stack -> $($global.globalResourceGroup) ($PrimaryRegion) ==="
         Invoke-Az group create --name $global.globalResourceGroup --location $PrimaryRegion --output none
+        $globalValues = @{
+            location = $PrimaryRegion
+            databaseServerName = $global.databaseServerName
+            databaseName = $global.databaseName
+            cosmosAccountName = $global.cosmosAccountName
+            idempotencyDatabaseName = $global.idempotencyDatabaseName
+        }
+        if ($databaseProvider -eq 'postgres') {
+            $globalValues.postgresAdministratorLogin = $PostgresAdministratorLogin
+            $globalValues.postgresAdministratorPassword = $PostgresAdministratorPassword
+        } else {
+            $globalValues.sqlAdminObjectId = $SqlAdminObjectId
+            $globalValues.sqlAdminLogin = $SqlAdminLogin
+            $globalValues.sqlAdminPrincipalType = $SqlAdminPrincipalType
+        }
         $globalArgs = @('deployment', 'group', 'create',
             '--resource-group', $global.globalResourceGroup,
             '--template-file', (Join-Path $infra 'global.bicep'),
-            '--parameters',
-            "location=$PrimaryRegion",
-            "sqlServerName=$($global.sqlServerName)",
-            "sqlDatabaseName=$($global.sqlDatabaseName)",
-            "cosmosAccountName=$($global.cosmosAccountName)",
-            "idempotencyDatabaseName=$($global.idempotencyDatabaseName)",
-            "sqlAdminObjectId=$SqlAdminObjectId",
-            "sqlAdminLogin=$SqlAdminLogin",
-            "sqlAdminPrincipalType=$SqlAdminPrincipalType") + $deployMode
+            '--parameters', (Write-Parameters $globalValues)) + $deployMode
         Invoke-Az @globalArgs
     }
     else {
-        Write-Host "Skipping global stack (referencing existing $($global.sqlServerName))."
+        Write-Host "Skipping global stack (referencing existing $($global.databaseServerName))."
     }
+    $globalOutputs = if (!$WhatIf) {
+        Invoke-Az deployment group show --resource-group $global.globalResourceGroup --name global `
+            --query properties.outputs --output json | ConvertFrom-Json
+    } else { $null }
 
     # --- Regional stacks (one by one) --------------------------------------------------------------
     $summary = @()
@@ -160,28 +234,40 @@ try {
         $names = Get-Names @('--region', $region.Name, '--region-short', $region.Short)
         Write-Host "`n=== Region $($region.Name) -> $($names.resourceGroup) ==="
         Invoke-Az group create --name $names.resourceGroup --location $region.Name --output none
+        $regionalValues = @{
+            location = $region.Name
+            appServiceName = $names.appServiceName
+            appServicePlanName = $names.appServicePlanName
+            managedIdentityName = $names.managedIdentityName
+            logAnalyticsName = $names.logAnalyticsName
+            applicationInsightsName = $names.applicationInsightsName
+            cosmosAccountName = $global.cosmosAccountName
+            cosmosResourceGroupName = $global.globalResourceGroup
+            cosmosEndpoint = $global.cosmosEndpoint
+            idempotencyDatabaseName = $global.idempotencyDatabaseName
+            databaseServerFqdn = $(if ($WhatIf) { 'preview.invalid' } else { $globalOutputs.databaseServerFqdn.value })
+            databaseName = $global.databaseName
+            authenticationAuthority = $AuthenticationAuthority
+            authenticationAudience = $AuthenticationAudience
+            authenticationTenantId = $AuthenticationTenantId
+            authenticationClientId = $AuthenticationClientId
+            otlpEndpoint = $OtlpEndpoint
+            otlpProtocol = $OtlpProtocol
+            deployedSystem = $System
+            deployedEnvironment = $Environment
+            deployedCloud = $Cloud
+            deployedRegion = $region.Name
+            deployedRegionShortName = $region.Short
+            deployedScope = $Scope
+        }
+        if ($databaseProvider -eq 'postgres') {
+            $regionalValues.postgresApplicationLogin = $PostgresApplicationLogin
+            $regionalValues.postgresApplicationPassword = $PostgresApplicationPassword
+        }
         $regionalArgs = @('deployment', 'group', 'create',
             '--resource-group', $names.resourceGroup,
             '--template-file', (Join-Path $infra 'regional.bicep'),
-            '--parameters',
-            "location=$($region.Name)",
-            "appServiceName=$($names.appServiceName)",
-            "appServicePlanName=$($names.appServicePlanName)",
-            "managedIdentityName=$($names.managedIdentityName)",
-            "logAnalyticsName=$($names.logAnalyticsName)",
-            "applicationInsightsName=$($names.applicationInsightsName)",
-            "cosmosAccountName=$($global.cosmosAccountName)",
-            "cosmosResourceGroupName=$($global.globalResourceGroup)",
-            "cosmosEndpoint=$($global.cosmosEndpoint)",
-            "idempotencyDatabaseName=$($global.idempotencyDatabaseName)",
-            "sqlServerFqdn=$($global.sqlServerFqdn)",
-            "sqlDatabaseName=$($global.sqlDatabaseName)",
-            "deployedSystem=$System",
-            "deployedEnvironment=$Environment",
-            "deployedCloud=$Cloud",
-            "deployedRegion=$($region.Name)",
-            "deployedRegionShortName=$($region.Short)",
-            "deployedScope=$Scope") + $deployMode
+            '--parameters', (Write-Parameters $regionalValues)) + $deployMode
         Invoke-Az @regionalArgs
 
         $summary += [pscustomobject]@{
@@ -195,12 +281,10 @@ try {
         Write-Host "`n=== Provisioned ==="
         $summary | Format-Table -AutoSize | Out-String | Write-Host
         Write-Host 'Next steps to serve traffic (see deploy/README.md):'
-        Write-Host '  1. Grant each region''s managed identity a SQL database user (data-plane step).'
-        Write-Host '  2. Switch the Acl from the SQLite provider to the SqlServer provider.'
-        Write-Host '  3. Register a production IActorProvider (e.g. AddEntraActorProvider).'
-        Write-Host '  4. Publish the app to each region''s App Service (e.g. az webapp deploy).'
+        Write-Host '  1. Grant the application least-privilege database access and apply EF migrations.'
+        Write-Host '  2. Publish the app to each region''s App Service (e.g. az webapp deploy).'
     }
 }
 finally {
-    Remove-Item -Recurse -Force -Path $workDir -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force -LiteralPath $workDir
 }

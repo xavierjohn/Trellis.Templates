@@ -1,4 +1,8 @@
+﻿#if (!NoApiVersioning)
 namespace Api.Tests._2026_12_01;
+#else
+namespace Api.Tests;
+#endif
 
 using System.Net;
 using System.Net.Http.Headers;
@@ -11,8 +15,15 @@ using Trellis.Testing.AspNetCore;
 public class TodosControllerTests
 {
     private readonly TestWebApplicationFactoryFixture _factory;
-    private const string BaseUrl = "api/Todos?api-version=2026-12-01";
+#if (!NoApiVersioning)
     private const string VersionParam = "api-version=2026-12-01";
+    private const string VersionQuery = "?" + VersionParam;
+    private const string VersionFilter = "&" + VersionParam;
+#else
+    private const string VersionQuery = "";
+    private const string VersionFilter = "";
+#endif
+    private const string BaseUrl = "api/Todos" + VersionQuery;
 
     public TodosControllerTests(TestWebApplicationFactoryFixture factory, ITestOutputHelper output)
     {
@@ -67,10 +78,16 @@ public class TodosControllerTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
+#if (!NoApiVersioning)
         // The Location header must round-trip the requested api-version so the follow-up GET
         // dereferences correctly. CreatedAtVersionedRoute (Trellis.Asp.ApiVersioning) injects
         // this automatically — without it the URL would 404 under query-string versioning.
         response.Headers.Location!.OriginalString.Should().Contain("api-version=2026-12-01");
+#else
+        response.Headers.Location!.OriginalString.Should().NotContain("api-version");
+#endif
+        using var followUp = await client.GetAsync(response.Headers.Location, TestContext.Current.CancellationToken);
+        followUp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var todo = await response.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         todo.Title.Should().Be("Buy groceries");
@@ -154,7 +171,7 @@ public class TodosControllerTests
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        var response = await client.GetAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var todo = await response.Content.ReadAsAsyncWithAssertion<TodoResponse>();
@@ -168,7 +185,7 @@ public class TodosControllerTests
         var client = CreateClient("user-1", "todos:read");
         var fakeId = Guid.NewGuid();
 
-        var response = await client.GetAsync($"api/Todos/{fakeId}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/{fakeId}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
@@ -185,7 +202,7 @@ public class TodosControllerTests
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        var response = await client.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var response = await client.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var completed = await response.Content.ReadAsAsyncWithAssertion<TodoResponse>();
@@ -207,10 +224,10 @@ public class TodosControllerTests
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        var first = await client.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var first = await client.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
         first.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var second = await client.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var second = await client.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
 
         second.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -228,7 +245,7 @@ public class TodosControllerTests
         // Try to complete as different user. Resource-authorization runs before the handler, so the
         // 403 wins without us needing to present a valid If-Match.
         var otherClient = CreateClient("other-user", "todos:complete");
-        var response = await otherClient.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var response = await otherClient.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -243,7 +260,7 @@ public class TodosControllerTests
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         var etag = createResponse.Headers.ETag!;
 
-        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}?{VersionParam}");
+        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}{VersionQuery}");
         delete.Headers.IfMatch.Add(etag);
         var response = await client.SendAsync(delete, TestContext.Current.CancellationToken);
 
@@ -259,7 +276,7 @@ public class TodosControllerTests
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        var response = await client.DeleteAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.DeleteAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.PreconditionRequired);
     }
@@ -273,7 +290,7 @@ public class TodosControllerTests
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}?{VersionParam}");
+        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}{VersionQuery}");
         delete.Headers.TryAddWithoutValidation("If-Match", "\"this-tag-does-not-match\"");
         var response = await client.SendAsync(delete, TestContext.Current.CancellationToken);
 
@@ -292,7 +309,7 @@ public class TodosControllerTests
         etag.Should().NotBeNull();
 
         var newDueDate = DateTime.UtcNow.AddDays(14);
-        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}?{VersionParam}")
+        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Updated", dueDate = newDueDate, tag = "changed" }),
         };
@@ -316,7 +333,7 @@ public class TodosControllerTests
 
         var newDueDate = DateTime.UtcNow.AddDays(14);
         var response = await client.PutAsJsonAsync(
-            $"api/Todos/{created.Id}?{VersionParam}",
+            $"api/Todos/{created.Id}{VersionQuery}",
             new { title = "Updated", dueDate = newDueDate },
             TestContext.Current.CancellationToken);
 
@@ -333,7 +350,7 @@ public class TodosControllerTests
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
         var newDueDate = DateTime.UtcNow.AddDays(14);
-        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}?{VersionParam}")
+        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Updated", dueDate = newDueDate }),
         };
@@ -354,7 +371,7 @@ public class TodosControllerTests
         var etag = createResponse.Headers.ETag!;
 
         var newDueDate = DateTime.UtcNow.AddDays(14);
-        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}?{VersionParam}")
+        using var put = new HttpRequestMessage(HttpMethod.Put, $"api/Todos/{created.Id}{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Minimal", dueDate = newDueDate }),
         };
@@ -378,7 +395,7 @@ public class TodosControllerTests
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
         var pastDate = DateTime.UtcNow.AddDays(-1);
-        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}?{VersionParam}", new { title = "Updated", dueDate = pastDate }, TestContext.Current.CancellationToken);
+        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}{VersionQuery}", new { title = "Updated", dueDate = pastDate }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -393,7 +410,7 @@ public class TodosControllerTests
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
         // Omit dueDate entirely — TryCreate must fail closed (422), not NRE on `dueDate > ...` (500).
-        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}?{VersionParam}", new { title = "Updated" }, TestContext.Current.CancellationToken);
+        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}{VersionQuery}", new { title = "Updated" }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -411,23 +428,23 @@ public class TodosControllerTests
         created.Status.Should().Be("Active");
 
         // Get
-        var getResponse = await client.GetAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var getResponse = await client.GetAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Complete — body-less state-transition POST, no If-Match required
-        var completeResponse = await client.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var completeResponse = await client.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
         completeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var completed = await completeResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         completed.Status.Should().Be("Completed");
 
         // Delete (use the post-complete ETag — completing mutated the aggregate)
-        using var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}?{VersionParam}");
+        using var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"api/Todos/{created.Id}{VersionQuery}");
         deleteRequest.Headers.IfMatch.Add(completeResponse.Headers.ETag!);
         var deleteResponse = await client.SendAsync(deleteRequest, TestContext.Current.CancellationToken);
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verify deleted
-        var getDeletedResponse = await client.GetAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var getDeletedResponse = await client.GetAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
         getDeletedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -442,7 +459,7 @@ public class TodosControllerTests
         var createResponse = await client.PostJsonIdempotentAsync(BaseUrl, new { title = "Overdue todo", dueDate = pastDue }, TestContext.Current.CancellationToken);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var response = await client.GetAsync($"api/Todos/overdue?limit=10&{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/overdue?limit=10{VersionFilter}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var paged = await response.Content.ReadFromJsonAsync<PagedTodoResponse>(TestContext.Current.CancellationToken);
@@ -464,7 +481,7 @@ public class TodosControllerTests
             seed.StatusCode.Should().Be(HttpStatusCode.Created);
         }
 
-        var response = await client.GetAsync($"api/Todos/overdue?limit=1&{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/overdue?limit=1{VersionFilter}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.TryGetValues("Link", out var linkValues).Should().BeTrue();
@@ -485,16 +502,20 @@ public class TodosControllerTests
         }
 
         var firstPage = await client.GetFromJsonAsync<PagedTodoResponse>(
-            $"api/Todos/overdue?limit=1&{VersionParam}", TestContext.Current.CancellationToken);
+            $"api/Todos/overdue?limit=1{VersionFilter}", TestContext.Current.CancellationToken);
         firstPage.Should().NotBeNull();
         firstPage!.Items.Should().HaveCount(1);
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
+#if (!NoApiVersioning)
         firstPage.Next.Href.Should().Contain(VersionParam, "PageUrl must inject the api-version so the next-page link resolves under query-string versioning");
+#else
+        firstPage.Next.Href.Should().NotContain("api-version");
+#endif
 
         var secondPage = await client.GetFromJsonAsync<PagedTodoResponse>(
-            $"api/Todos/overdue?cursor={firstPage.Next.Cursor}&limit=1&{VersionParam}",
+            firstPage.Next.Href,
             TestContext.Current.CancellationToken);
         secondPage.Should().NotBeNull();
         secondPage!.Items.Should().HaveCount(1);
@@ -506,7 +527,7 @@ public class TodosControllerTests
     {
         var client = CreateClient("user-1", "todos:read");
 
-        var response = await client.GetAsync($"api/Todos/overdue?cursor=not-a-guid&{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/overdue?cursor=not-a-guid{VersionFilter}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -521,7 +542,7 @@ public class TodosControllerTests
     {
         var client = CreateClient("user-1", "todos:read");
 
-        var response = await client.GetAsync($"api/Todos/overdue?cursor=00000000000000000000000000000000&{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/overdue?cursor=00000000000000000000000000000000{VersionFilter}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -538,7 +559,7 @@ public class TodosControllerTests
         var createResponse = await client.PostJsonIdempotentAsync(BaseUrl, new { title = "Headers", dueDate }, TestContext.Current.CancellationToken);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        var response = await client.GetAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.ETag.Should().NotBeNull();
@@ -554,7 +575,7 @@ public class TodosControllerTests
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         var etag = createResponse.Headers.ETag!;
 
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}?{VersionParam}");
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}{VersionQuery}");
         get.Headers.IfNoneMatch.Add(etag);
         var response = await client.SendAsync(get, TestContext.Current.CancellationToken);
 
@@ -569,7 +590,7 @@ public class TodosControllerTests
         var createResponse = await client.PostJsonIdempotentAsync(BaseUrl, new { title = "ims-304", dueDate }, TestContext.Current.CancellationToken);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}?{VersionParam}");
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}{VersionQuery}");
         // Any date after the resource's Last-Modified should produce 304.
         get.Headers.IfModifiedSince = DateTimeOffset.UtcNow.AddDays(1);
         var response = await client.SendAsync(get, TestContext.Current.CancellationToken);
@@ -585,7 +606,7 @@ public class TodosControllerTests
         var createResponse = await client.PostJsonIdempotentAsync(BaseUrl, new { title = "ius-412", dueDate }, TestContext.Current.CancellationToken);
         var created = await createResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
 
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}?{VersionParam}");
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"api/Todos/{created.Id}{VersionQuery}");
         // Any date strictly before the resource's Last-Modified should produce 412.
         get.Headers.IfUnmodifiedSince = DateTimeOffset.UtcNow.AddDays(-7);
         var response = await client.SendAsync(get, TestContext.Current.CancellationToken);
@@ -625,7 +646,7 @@ public class TodosControllerTests
         var client = CreateClient("user-1"); // no permissions at all
         var fakeId = Guid.NewGuid();
 
-        var response = await client.GetAsync($"api/Todos/{fakeId}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/{fakeId}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -635,7 +656,7 @@ public class TodosControllerTests
     {
         var client = CreateClient("user-1"); // no todos:read
 
-        var response = await client.GetAsync($"api/Todos/overdue?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"api/Todos/overdue{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -651,7 +672,7 @@ public class TodosControllerTests
 
         // Try to update without todos:update
         var client = CreateClient("user-1", "todos:read");
-        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}?{VersionParam}", new { title = "Updated", dueDate = DateTime.UtcNow.AddDays(10) }, TestContext.Current.CancellationToken);
+        var response = await client.PutAsJsonAsync($"api/Todos/{created.Id}{VersionQuery}", new { title = "Updated", dueDate = DateTime.UtcNow.AddDays(10) }, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -666,7 +687,7 @@ public class TodosControllerTests
 
         // Try to complete without todos:complete
         var client = CreateClient("owner-1", "todos:read");
-        var response = await client.PostAsync($"api/Todos/{created.Id}/complete?{VersionParam}", null, TestContext.Current.CancellationToken);
+        var response = await client.PostAsync($"api/Todos/{created.Id}/complete{VersionQuery}", null, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -681,7 +702,7 @@ public class TodosControllerTests
 
         // Try to delete without todos:delete
         var client = CreateClient("user-1", "todos:read");
-        var response = await client.DeleteAsync($"api/Todos/{created.Id}?{VersionParam}", TestContext.Current.CancellationToken);
+        var response = await client.DeleteAsync($"api/Todos/{created.Id}{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

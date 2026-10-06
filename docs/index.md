@@ -1,7 +1,7 @@
 # Trellis Templates
 
 **Opinionated .NET service templates that are correct by construction.** Pick one with `dotnet new` and
-you start from a service that already has versioned APIs, observability, authorization, idempotency, and
+you start from a service that already has optional API versioning, observability, authorization, idempotency, and
 RFC-compliant error handling wired up — not a blank `Program.cs` you have to harden yourself.
 
 There are two templates, and a contract that keeps them honest.
@@ -10,7 +10,7 @@ There are two templates, and a contract that keeps them honest.
 | --- | --- | --- |
 | **For** | One focused service | A platform of services behind a gateway |
 | **`dotnet new`** | `trellis-asp` | `trellis-microservices` |
-| **NuGet** | `Trellis.AspTemplate` | `Trellis.Microservices.Templates` |
+| **NuGet** | `Trellis.Asp.Templates` | `Trellis.Microservices.Templates` |
 | **Shape** | Domain / Application / Acl / Api | Aspire AppHost + ServiceDefaults + Gateway + services |
 
 Both ship the **same cross-cutting capabilities**, enforced by an executable
@@ -21,7 +21,7 @@ the other.
 
 ```bash
 # Install the templates (one-time)
-dotnet new install Trellis.AspTemplate
+dotnet new install Trellis.Asp.Templates
 dotnet new install Trellis.Microservices.Templates
 
 # Scaffold a project
@@ -33,7 +33,7 @@ dotnet new trellis-microservices -n MyPlatform
 
 ## What you get out of the box
 
-- **[Date-based API versioning](articles/capabilities.md#api-versioning)** — version your API by date, no breaking changes by accident.
+- **[Optional date-based API versioning](articles/capabilities.md#api-versioning)** — unversioned by default; select `--api-versioning` when needed.
 - **[Service Level Indicators](articles/capabilities.md#service-level-indicators)** — per-operation latency/availability metrics, named from the route.
 - **[Idempotent writes](articles/capabilities.md#idempotency)** — safe retries via the `Idempotency-Key` header.
 - **[RFC 9457 ProblemDetails](articles/capabilities.md#problem-details)** — every error is a standard, machine-readable problem document.

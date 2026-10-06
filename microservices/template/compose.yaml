@@ -1,0 +1,79 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Gateway/src/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DeployedEnvironment__Environment: prod
+      DeployedEnvironment__Region: ${DEPLOYMENT_REGION:?Set the deployment region}
+      Gateway__Issuer: ${GATEWAY_ISSUER:?Set the HTTPS public gateway URL}
+      Gateway__SigningKeyPath: /keys/active.pem
+#if (UseEntra)
+      Authentication__TenantId: ${ENTRA_TENANT_ID:?Set the Entra tenant ID}
+      Authentication__ClientId: ${ENTRA_CLIENT_ID:?Set the Entra client ID}
+#else
+      Authentication__Authority: ${AUTHORITY:?Set the HTTPS OIDC issuer}
+      Authentication__Audience: ${AUDIENCE:?Set the API audience}
+#endif
+#if (!NoOtlp)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+#endif
+#if (!NoAzureMonitor)
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+#endif
+      services__projects__http__0: http://projects:8080
+      services__members__http__0: http://members:8080
+    volumes:
+      - ${GATEWAY_KEY_DIRECTORY:?Set a directory containing active.pem}:/keys:ro
+    depends_on:
+      - projects
+      - members
+
+  members:
+    build:
+      context: .
+      dockerfile: Members/Api/src/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DeployedEnvironment__Environment: prod
+      DeployedEnvironment__Region: ${DEPLOYMENT_REGION:?Set the deployment region}
+      Gateway__Issuer: ${GATEWAY_ISSUER:?Set the HTTPS public gateway URL}
+      ConnectionStrings__membersdb: ${MEMBERS_DATABASE_CONNECTION_STRING:?Set the selected provider connection string}
+      ConnectionStrings__messaging: ${SERVICEBUS_CONNECTION_STRING:?Set the Service Bus connection string}
+      Idempotency__Store: Cosmos
+      Idempotency__Cosmos__Endpoint: ${COSMOS_ENDPOINT:?Set the durable Cosmos endpoint}
+      Idempotency__Cosmos__DatabaseId: ${COSMOS_DATABASE_ID:-idempotency}
+      Idempotency__Cosmos__ContainerId: ${COSMOS_CONTAINER_ID:-idempotency}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+#if (!NoOtlp)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+#endif
+#if (!NoAzureMonitor)
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+#endif
+
+  projects:
+    build:
+      context: .
+      dockerfile: Projects/Api/src/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DeployedEnvironment__Environment: prod
+      DeployedEnvironment__Region: ${DEPLOYMENT_REGION:?Set the deployment region}
+      Gateway__Issuer: ${GATEWAY_ISSUER:?Set the HTTPS public gateway URL}
+      ConnectionStrings__projectsdb: ${PROJECTS_DATABASE_CONNECTION_STRING:?Set the selected provider connection string}
+      ConnectionStrings__messaging: ${SERVICEBUS_CONNECTION_STRING:?Set the Service Bus connection string}
+#if (!NoOtlp)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+#endif
+#if (!NoAzureMonitor)
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+#endif

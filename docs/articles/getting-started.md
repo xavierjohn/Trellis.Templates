@@ -3,12 +3,13 @@
 ## Prerequisites
 
 - **.NET 10 SDK** or later. Check with `dotnet --version`.
-- That's it. Both templates restore everything else from NuGet.org — no private feeds, no extra tooling.
+- Docker or Podman for microservices and ASP server-database profiles. Both templates restore packages
+  from NuGet.org without private feeds.
 
 ## 1. Install the templates
 
 ```bash
-dotnet new install Trellis.AspTemplate
+dotnet new install Trellis.Asp.Templates
 dotnet new install Trellis.Microservices.Templates
 ```
 
@@ -30,7 +31,14 @@ dotnet new trellis-asp -n MyService
 dotnet new trellis-microservices -n MyPlatform
 ```
 
-The `-n` value becomes your project/namespace name everywhere.
+The `-n` value names the solution and supplies the default namespace. Use `--root-namespace` for a
+different valid C# namespace and `--author-name` for project authorship.
+
+Both templates default to unversioned APIs, external JWT/OIDC authentication, OTLP, and no deployment
+scaffold. `--api-versioning`, `--database postgres|sqlserver`, `--auth entra`,
+`--telemetry-exporters azure-monitor|both`, and `--deployment container|azure` customize the output.
+ASP defaults to SQLite; microservices defaults to SQL Server. Azure requires an explicit server
+provider and rejects SQLite. `--skip-restore` suppresses automatic restore.
 
 ## 3. Build and run
 
@@ -43,7 +51,8 @@ dotnet run --project Api/src
 ```
 
 Then open the **Scalar API reference** (printed in the console) to explore the API, or hit
-`/health` for a readiness check, and `/openapi/{version}.json` for the OpenAPI document.
+the generated HTTP requests for the sample endpoints. Unversioned output publishes `/openapi/v1.json`;
+versioned output publishes a document for each API version.
 
 ### Microservices
 
@@ -52,7 +61,7 @@ gateway and every service together, with the Aspire dashboard for traces, logs, 
 
 ```bash
 cd MyPlatform
-dotnet run --project AppHost
+dotnet run --project AppHost/src
 ```
 
 The dashboard URL is printed on startup. From there you can reach the gateway and each service, and watch

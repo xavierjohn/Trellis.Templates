@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿#pragma warning disable IDE0047
+using System.Net;
 using System.Net.Http.Json;
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis.Authorization;
@@ -11,14 +12,19 @@ namespace Members.Api.Tests;
 // pipeline against in-memory SQLite.
 public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersApiFactory>
 {
+#if (!NoApiVersioning)
     private const string Version = "2026-03-26";
+    private const string VersionQuery = "?api-version=" + Version;
+#else
+    private const string VersionQuery = "";
+#endif
 
     [Fact]
     public async Task Get_member_without_the_required_permission_is_403()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme"));
 
-        var response = await client.GetAsync($"/api/members/acme-alice?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/members/acme-alice{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -28,7 +34,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersRead));
 
-        var response = await client.GetAsync($"/api/members/acme-alice?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/members/acme-alice{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<MemberBody>(TestContext.Current.CancellationToken);
@@ -41,7 +47,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersRead));
 
-        var response = await client.GetAsync($"/api/members/globex-carol?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/members/globex-carol{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -50,7 +56,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     public async Task Invite_member_is_201_with_location_and_the_member_body()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members{VersionQuery}")
         {
             Content = JsonContent.Create(new { email = "newhire@acme.example", role = "contributor" }),
         };
@@ -60,7 +66,14 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
+#if (!NoApiVersioning)
         response.Headers.Location!.OriginalString.Should().Contain($"api-version={Version}", "WithVersionedRoute must inject the api-version so the created resource's Location resolves");
+#else
+        response.Headers.Location!.OriginalString.Should().NotContain("api-version");
+#endif
+        using var reader = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersRead));
+        using var followUp = await reader.GetAsync(response.Headers.Location, TestContext.Current.CancellationToken);
+        followUp.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<MemberBody>(TestContext.Current.CancellationToken);
         body!.Id.Should().Be("acme-newhire");
         body.TenantId.Should().Be("acme");
@@ -72,7 +85,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     public async Task Invite_member_with_a_malformed_email_is_422()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members{VersionQuery}")
         {
             Content = JsonContent.Create(new { email = "not-an-email", role = "contributor" }),
         };
@@ -88,11 +101,11 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersRead));
 
-        var read = await client.GetAsync($"/api/members/acme-alice?api-version={Version}", TestContext.Current.CancellationToken);
+        var read = await client.GetAsync($"/api/members/acme-alice{VersionQuery}", TestContext.Current.CancellationToken);
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         read.Headers.ETag.Should().NotBeNull();
 
-        var conditional = new HttpRequestMessage(HttpMethod.Get, $"/api/members/acme-alice?api-version={Version}");
+        var conditional = new HttpRequestMessage(HttpMethod.Get, $"/api/members/acme-alice{VersionQuery}");
         conditional.Headers.IfNoneMatch.Add(read.Headers.ETag!);
 
         var response = await client.SendAsync(conditional, TestContext.Current.CancellationToken);

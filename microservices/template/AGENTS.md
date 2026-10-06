@@ -6,6 +6,15 @@
 
 This template scaffolds a **multi-tenant microservices topology** on the Trellis framework for .NET 10, orchestrated by .NET Aspire. It ships two reference services — **Members** and **Projects** — behind a **Gateway**, communicating asynchronously through integration events. Build new services and features by following the patterns the reference services already demonstrate.
 
+## Generated profile
+
+Read `.trellis-template.json` before changing composition or endpoints. HTTP APIs are unversioned unless
+`apiVersioning` is `"true"`; versioned examples below apply only to that profile. Unversioned endpoint
+groups must not gain version sets, versioning packages, `WithVersionedRoute`, or version query parameters.
+Keep the selected database, external identity, exporters, and deployment mode consistent. HTTP API
+versioning does not change integration-event or internal-JWT contracts. Development actors and ephemeral
+signing keys are Development-only; production must use an external issuer and persistent private keys.
+
 ## 🔴 Before Writing Code — Read AgentDocs
 
 **STOP. Do not write or generate any code until you have read the reference material for your task.** These files document the exact method signatures, overloads, conventions, and EF Core mapping rules. Guessing based on type names produces code that compiles but fails at runtime (e.g., adding explicit EF `Property()` configuration on types that Trellis conventions already handle).
@@ -479,9 +488,9 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 - **Incorrect:** A guarded-transition handler that ignores a supplied `If-Match` and mutates before evaluating it.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md` §RequireETag, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md`.
 
-### Version minimal-API routes with a version set and `WithVersionedRoute()`
+### Version minimal-API routes with a version set and `WithVersionedRoute()` when selected
 
-- **Rule:** 🔴 MUST bind each endpoint group to an `ApiVersionSet` (`NewApiVersionSet(...).HasApiVersion(...).Build()`) and `MapToApiVersion(...)` on the group, and on any `CreatedAtRoute`/`WithLocation` chain include the version by calling `.WithVersionedRoute()`. Omitting it produces `Location` headers that drop `api-version` and 404 on dereference (analyzer `TRLS023`).
+- **Rule:** When `apiVersioning` is enabled, 🔴 MUST bind each endpoint group to an `ApiVersionSet` (`NewApiVersionSet(...).HasApiVersion(...).Build()`) and `MapToApiVersion(...)` on the group, and on any `CreatedAtRoute`/`WithLocation` chain include the version by calling `.WithVersionedRoute()`. Omitting it produces `Location` headers that drop `api-version` and 404 on dereference (analyzer `TRLS023`).
 - **Rationale:** Query-string API versioning means a generated `Location` without the version points at a route that cannot be resolved; `WithVersionedRoute()` injects the active version automatically.
 - **Correct:** `.CreatedAtRoute("Members_GetById", m => m.Id).WithVersionedRoute()` — see `Members/Api/src/MemberEndpoints.cs`.
 - **Incorrect:** `.CreatedAtRoute("Members_GetById", m => m.Id)` with no `.WithVersionedRoute()` under query-string versioning.
@@ -588,7 +597,7 @@ Study these files before adding a service or feature.
 | Project | Role |
 |---|---|
 | `SharedKernel` | Cross-service domain identities (e.g. `TenantId`) **and** published-language integration-event contracts. References only `Trellis.Core` + `Trellis.Primitives` — **not** `Trellis.Authorization` — so keep auth helpers (like the tenant extension) per service. |
-| `AppHost` | .NET Aspire orchestration — provisions SQL Server + databases and the Service Bus (emulator in dev), and wires every service and the Gateway. |
+| `AppHost` | .NET Aspire orchestration — provisions the selected SQL Server/PostgreSQL databases and Service Bus (emulator in dev), and wires every service and the Gateway. |
 | `ServiceDefaults` | OpenTelemetry, health, discovery and resilience via `AddServiceDefaults`; shared region binding, tenant enrichment and API-version SLI registration via `ConfigureServiceLevelIndicators`. |
 | `Gateway` | YARP reverse proxy + internal-JWT minting (JWKS endpoint) — the only public trust boundary; mints the actor JWT downstream services consume. |
 

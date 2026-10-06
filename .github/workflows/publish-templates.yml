@@ -97,12 +97,18 @@ jobs:
           dotnet build PublishSmoke.slnx -c Release
           git init --quiet
           dotnet tool restore
-          dotnet tool run agentdocs check --strict --strict-references --content-only
           dotnet tool run agentdocs sync --strict --strict-references
           dotnet tool run agentdocs check --strict --strict-references
 
       - name: List packages
         run: ls -lh nupkg/*.nupkg
+
+      - name: Verify packaged generation options (gate)
+        shell: pwsh
+        run: |
+          $package = (Get-ChildItem nupkg -Filter '*.nupkg' | Select-Object -First 1).FullName
+          & ../shared/template-tests/Test-TemplateOptions.ps1 -Template '${{ inputs.template }}' -Package $package `
+            -Workspace (Join-Path '${{ runner.temp }}' 'publish-options')
 
       - name: NuGet login (OIDC trusted publishing)
         id: login

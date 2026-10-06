@@ -1,20 +1,20 @@
-﻿# Trellis.AspTemplate
+﻿# Trellis.Asp.Templates
 
-[![Build](https://github.com/xavierjohn/Trellis.AspTemplate/actions/workflows/build.yml/badge.svg)](https://github.com/xavierjohn/Trellis.AspTemplate/actions/workflows/build.yml)
-[![NuGet](https://img.shields.io/nuget/v/Trellis.AspTemplate.svg)](https://www.nuget.org/packages/Trellis.AspTemplate)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Trellis.AspTemplate.svg)](https://www.nuget.org/packages/Trellis.AspTemplate)
+[![Build](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml)
+[![NuGet](https://img.shields.io/nuget/v/Trellis.Asp.Templates.svg)](https://www.nuget.org/packages/Trellis.Asp.Templates)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Trellis.Asp.Templates.svg)](https://www.nuget.org/packages/Trellis.Asp.Templates)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/download)
 [![C#](https://img.shields.io/badge/C%23-14.0-blue.svg)](https://docs.microsoft.com/en-us/dotnet/csharp/)
-[![GitHub Stars](https://img.shields.io/github/stars/xavierjohn/Trellis.AspTemplate?style=social)](https://github.com/xavierjohn/Trellis.AspTemplate/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/xavierjohn/Trellis.Templates?style=social)](https://github.com/xavierjohn/Trellis.Templates/stargazers)
 
-> `dotnet new trellis-asp` template scaffolding a production-ready single-service ASP.NET application on the [Trellis framework](https://github.com/xavierjohn/Trellis) with Clean Architecture layout (API + Application + Domain + ACL), API versioning, EF Core, OpenAPI, and test infrastructure already wired in.
+> `dotnet new trellis-asp` scaffolds a single-service ASP.NET application on the [Trellis framework](https://github.com/xavierjohn/Trellis) with Clean Architecture (API + Application + Domain + ACL), optional API versioning, EF Core, OpenAPI, and test infrastructure.
 
 ## Quick Start
 
 ```powershell
-dotnet new install Trellis.AspTemplate
-dotnet new trellis-asp -n MyService --authorName "Your Name"
+dotnet new install Trellis.Asp.Templates
+dotnet new trellis-asp -n MyService --author-name "Your Name"
 cd MyService; dotnet run --project Api\src
 ```
 
@@ -61,19 +61,31 @@ Api -> Application -> Domain
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `-n`, `--name` | Service name. Also drives solution, directory, and namespace naming. | `MyService` |
-| `--authorName` | Author value written into `Directory.Build.props`. | `Your Name` |
+| `--author-name` | Author value written into `Directory.Build.props`. | `Your Name` |
+| `--root-namespace` | Valid C# root namespace and assembly prefix. | Derived from `-n` |
+| `--api-versioning` | Generate date-versioned controllers instead of unversioned APIs. | `false` |
+| `--database` | `sqlite`, `postgres`, `sqlserver`. | `sqlite` |
+| `--auth` | External `jwt`/OIDC or `entra`. | `jwt` |
+| `--telemetry-exporters` | `otlp`, `azure-monitor`, `both`. | `otlp` |
+| `--deployment` | `none`, `container`, `azure` (App Service). | `none` |
+| `--skip-restore` | Skip post-creation restore. | `false` |
+
+Azure requires an explicit server provider; SQLite/Azure fails restore/build and deployment preflight.
+PostgreSQL and SQL Server profiles include `compose.database.yaml` for local development. Generated
+`README.md` describes connection configuration, production identity, Cosmos, and deployment bootstrap.
+See the [shared option defaults](../README.md#generation-options).
 
 ## Documentation
 
 - Trellis docs: <https://xavierjohn.github.io/Trellis/>
-- Dev Container guide: [`template/.devcontainer/README.md`](https://github.com/xavierjohn/Trellis.AspTemplate/blob/main/template/.devcontainer/README.md)
-- OpenTelemetry guide: [`template/DockerOpenTelemetry/README.md`](https://github.com/xavierjohn/Trellis.AspTemplate/blob/main/template/DockerOpenTelemetry/README.md)
+- Dev Container guide: [`template/.devcontainer/README.md`](template/.devcontainer/README.md)
+- OpenTelemetry guide: [`template/DockerOpenTelemetry/README.md`](template/DockerOpenTelemetry/README.md)
 
 ## Related repositories
 
 - [`xavierjohn/Trellis`](https://github.com/xavierjohn/Trellis) — the framework: `Result<T>`, `Maybe<T>`, value objects, DDD primitives, ASP.NET / EF Core / Mediator integration.
 - [`xavierjohn/Trellis.Microservices`](https://github.com/xavierjohn/Trellis.Microservices) — microservice trust-boundary packages: YARP gateway integration + consumer-side actor provider for multi-tenant ABAC.
-- [`xavierjohn/Trellis.Microservices.Template`](https://github.com/xavierjohn/Trellis.Microservices.Template) — `dotnet new trellis-microservices` Project Tracker starter (multi-service topology with Aspire).
+- [Microservices template](../microservices/README.md) — `dotnet new trellis-microservices` Project Tracker starter with Aspire.
 - [`xavierjohn/Trellis.ServiceLevelIndicators`](https://github.com/xavierjohn/Trellis.ServiceLevelIndicators) — latency SLI metrics library for emitting operation-duration histograms via System.Diagnostics.Metrics + OpenTelemetry.
 
 ## Requirements

@@ -51,9 +51,15 @@ var json = new JsonObject
     // stack creates them; each regional stack references them (e.g. the SQL FQDN the app connects to).
     // The region-less resource group uses the escape hatch because the named ResourceGroupName()
     // accessor requires a region.
-    ["sqlServerName"] = context.SqlServerName(),
-    ["sqlServerFqdn"] = context.SqlServerFqdn(),
-    ["sqlDatabaseName"] = context.Name(AzureResourceTypes.SqlDatabase),
+#if (UsePostgres)
+    ["databaseServerName"] = context.Name(
+        new ResourceTypeSpec("psql", 3, 63, NameSeparator.Dash, IsDnsGlobal: true)),
+    ["databaseName"] = context.Name(
+        new ResourceTypeSpec("pgdb", 1, 63, NameSeparator.Dash, IsDnsGlobal: false)),
+#else
+    ["databaseServerName"] = context.SqlServerName(),
+    ["databaseName"] = context.Name(AzureResourceTypes.SqlDatabase),
+#endif
     ["globalResourceGroup"] = context.Name(AzureResourceTypes.ResourceGroup),
     ["cosmosAccountName"] = context.CosmosName(),
     ["cosmosEndpoint"] = context.CosmosUrl().AbsoluteUri,

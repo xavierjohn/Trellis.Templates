@@ -5,23 +5,35 @@
   </PropertyGroup>
   <!-- Runtime -->
   <ItemGroup>
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.2.3" />
+    <!--#endif -->
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+    <!--#if (!NoAzureMonitor) -->
     <PackageVersion Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
+    <!--#endif -->
     <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.5" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="MartinCostello.Logging.XUnit.v3" Version="0.7.1" />
     <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <!--#if (UseSqlServer) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <!--#elseif (UsePostgres) -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!--#endif -->
     <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
+    <!--#if (!NoOtlp) -->
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <!--#endif -->
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.13" />
@@ -29,7 +41,9 @@
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
     <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
+    <!--#endif -->
     <PackageVersion Include="Trellis.Asp.Idempotency.Cosmos" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
@@ -42,7 +56,9 @@
     <PackageVersion Include="Trellis.ServiceDefaults" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" Version="$(TrellisSliVersion)" />
+    <!--#endif -->
     <PackageVersion Include="Trellis.StateMachine" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Testing" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Testing.AspNetCore" Version="$(TrellisVersion)" />

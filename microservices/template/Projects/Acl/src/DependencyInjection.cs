@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿#pragma warning disable IDE0047
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ProjectTrackerTemplate.Projects.Application;
 using Trellis.EntityFrameworkCore;
@@ -20,7 +21,11 @@ public static class DependencyInjection
 
         // EF Core over SQL Server for the inbox dedup table + the read models. Aspire injects "projectsdb";
         // AddTrellisInterceptors wires the value-object column conventions.
+#if (UsePostgres)
+        builder.AddNpgsqlDbContext<ProjectsDbContext>("projectsdb",
+#else
         builder.AddSqlServerDbContext<ProjectsDbContext>("projectsdb",
+#endif
             configureDbContextOptions: options => options.AddTrellisInterceptors());
 
         var services = builder.Services;

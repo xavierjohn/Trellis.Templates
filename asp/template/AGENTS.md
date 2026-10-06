@@ -6,6 +6,18 @@
 
 This template builds ASP.NET Core services on the Trellis framework for .NET 10.
 
+## Generated profile
+
+Read `.trellis-template.json` before changing composition or endpoints. APIs are unversioned unless
+`apiVersioning` is `"true"`; versioned examples below apply only to that profile. Unversioned controllers
+and models use `Api/src/Controllers`, `Api/src/Models`, and undated namespaces. Do not add versioning
+packages, dated namespaces, or version parameters to their Location/pagination links.
+Keep the selected database, external identity provider, exporters, and deployment mode consistent.
+Development actors are not a production authentication mechanism.
+Todo due dates are UTC instants. API requests must supply `Z` or an explicit offset, normalized by
+`DueDateJsonConverter`; timezone-free dates are rejected with 422. Construct `DueDate` only from UTC
+`DateTime` values, and preserve UTC kind when rehydrating this column with any database provider.
+
 ## 🔴 Before Writing Code — Read AgentDocs
 
 **STOP. Do not write or generate any code until you have read the reference material for your task.** These files document the exact method signatures, overloads, conventions, and EF Core mapping rules. Guessing based on type names will produce code that compiles but fails at runtime (e.g., adding explicit EF `Property()` configuration on types that Trellis conventions already handle).
@@ -661,9 +673,9 @@ public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationTok
 - **Incorrect:** A guarded-transition handler that ignores a supplied `If-Match` and mutates before evaluating it.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-cookbook.md` Recipe 23 for the full endpoint-shape decision table; `Application/src/Todos/UpdateTodoCommand.cs`, `Application/src/Todos/CompleteTodoCommand.cs`, `Application/src/Todos/DeleteTodoCommand.cs` and the matching `Api/src/{date}/Controllers/TodosController.cs` for the canonical patterns; `.agentdocs/packages/trellis.core/trellis/trellis-api-core.md §RequireETag` for the framework primitive.
 
-### Use namespace-based API versioning
+### Use namespace-based API versioning when selected
 
-- **Rule:** 🔴 MUST place each API version's controllers in its own `Api/src/{yyyy-MM-dd}/Controllers/` folder with a matching `{ServiceName}.Api.v{yyyy_MM_dd}.Controllers` namespace. Do NOT add `[ApiVersion("...")]` attributes — `VersionByNamespaceConvention` derives the version from the namespace segment.
+- **Rule:** When `apiVersioning` is enabled, 🔴 MUST place each API version's controllers in its own `Api/src/{yyyy-MM-dd}/Controllers/` folder with a matching `{ServiceName}.Api.v{yyyy_MM_dd}.Controllers` namespace. Do NOT add `[ApiVersion("...")]` attributes — `VersionByNamespaceConvention` derives the version from the namespace segment.
 - **Rationale:** Trellis template controllers are deliberately thin (route binding + `_sender.Send(...)` + response mapping), so duplicating a controller per version is cheaper than maintaining a single shared controller with version-aware projection seams (`HttpContext.RequestedApiVersion` branches, per-version DTO selection, `[MapToApiVersion]` per action). One folder = one version is easier to reason about and impossible to silently break across versions (a v2 edit cannot affect v1 by accident).
 - **When to add a new version:** Copy the latest version's `Api/src/{date}/Controllers/` and `Api/src/{date}/Models/` folders to a new `{date}` folder, change the namespace from `v{yyyy_MM_dd}` to the new value everywhere in the copy, then evolve the v2 copy independently — add fields to its `TodoResponse`, change endpoint shapes, etc. Older versions stay frozen.
 - **Correct:**
@@ -845,7 +857,7 @@ Study these files before replacing the Todo sample.
 - Keep in-memory idempotency restricted to Development. Outside Development, configure the
   Cosmos store through `Idempotency:Cosmos:*` and managed identity; never fall back to memory.
 - Enable OTLP only with `OTEL_EXPORTER_OTLP_ENDPOINT`, and Azure Monitor only with
-  `APPLICATIONINSIGHTS_CONNECTION_STRING`. See `deploy/README.md` for the matching Azure resources.
+  `APPLICATIONINSIGHTS_CONNECTION_STRING`. Azure profiles include a deployment guide for the matching resources.
 
 - **Rule:** 🔴 MUST keep repository interfaces in Application, implementations in Acl, one `DependencyInjection.cs` per layer, `IActorProvider` as singleton in Api, and `TimeProvider.System` as a singleton in Application.
 - **Rationale:** Trellis pipeline behaviors are singleton-based, and ASP.NET Core does not auto-register `TimeProvider`.
