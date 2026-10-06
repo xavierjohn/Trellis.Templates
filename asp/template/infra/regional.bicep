@@ -3,9 +3,8 @@
 // deploy.ps1 loops the region list; for each region it computes the names (which carry the region
 // token, e.g. tdo-app-prod-usw3-<hash>) from the Trellis.ResourceNaming.Azure convention, creates
 // the regional resource group (rg-tdo-prod-<region-short>), and deploys this stack into it. The names are
-// passed in — this template never invents one. Every region connects to the SAME global SQL server
-// (its name is region-less): deploy.ps1 supplies that server's FQDN, which the convention computes to
-// the same value the global stack provisioned.
+// passed in — this template never invents one. Every region connects to the same global database
+// server using its actual provisioned FQDN, returned by the global deployment.
 
 targetScope = 'resourceGroup'
 
@@ -30,11 +29,25 @@ param cosmosResourceGroupName string
 param cosmosEndpoint string
 param idempotencyDatabaseName string
 
-@description('FQDN of the global SQL server the app connects to (convention-computed; identical to the value the global stack provisions).')
-param sqlServerFqdn string
+@description('Actual provisioned FQDN returned by the global database deployment.')
+param databaseServerFqdn string
 
-@description('Database name on the global SQL server.')
-param sqlDatabaseName string
+@description('Database name on the global database server.')
+param databaseName string
+
+@allowed(['postgres', 'sqlserver'])
+param databaseProvider string = 'TEMPLATE_DATABASE_PROVIDER'
+
+param postgresApplicationLogin string = ''
+@secure()
+param postgresApplicationPassword string = ''
+
+param authenticationAuthority string = ''
+param authenticationAudience string = ''
+param authenticationTenantId string = ''
+param authenticationClientId string = ''
+param otlpEndpoint string = ''
+param otlpProtocol string = 'grpc'
 
 @description('Deployed-environment values surfaced to the app as DeployedEnvironment:* settings.')
 param deployedSystem string
@@ -77,7 +90,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-resource insights 'Microsoft.Insights/components@2020-02-02' = {
+resource insights 'Microsoft.Insights/components@2020-02-02' = if ('TEMPLATE_TELEMETRY_EXPORTERS' != 'otlp') {
   name: applicationInsightsName
   location: location
   tags: tags
@@ -132,7 +145,7 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       linuxFxVersion: 'DOTNETCORE|10.0'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      appSettings: [
+      appSettings: concat([
         {
           name: 'ASPNETCORE_ENVIRONMENT'
           value: aspNetCoreEnvironment
@@ -170,10 +183,6 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
           value: identity.properties.clientId
         }
         {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: insights.properties.ConnectionString
-        }
-        {
           name: 'Idempotency__Store'
           value: 'Cosmos'
         }
@@ -189,14 +198,46 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
           name: 'Idempotency__Cosmos__ContainerId'
           value: 'idempotency'
         }
-        // Passwordless SQL via the app's managed identity. Requires the Acl to use the SqlServer EF
-        // provider (the sample ships with SQLite for local dev) and the identity to be granted a
-        // database user — see deploy/README.md.
+        // Grant the selected runtime identity/role database access before publishing the app.
         {
           name: 'ConnectionStrings__DefaultConnection'
-          value: 'Server=tcp:${sqlServerFqdn},1433;Database=${sqlDatabaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;'
+          value: databaseProvider == 'postgres'
+            ? 'Host=${databaseServerFqdn};Database=${databaseName};Username="${replace(postgresApplicationLogin, '"', '""')}";Password="${replace(postgresApplicationPassword, '"', '""')}";SSL Mode=VerifyFull;'
+            : 'Server=tcp:${databaseServerFqdn},1433;Database=${databaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;'
         }
-      ]
+      ], ('TEMPLATE_AUTH_PROVIDER' == 'entra' ? [
+        {
+          name: 'Authentication__TenantId'
+          value: authenticationTenantId
+        }
+        {
+          name: 'Authentication__ClientId'
+          value: authenticationClientId
+        }
+      ] : [
+        {
+          name: 'Authentication__Authority'
+          value: authenticationAuthority
+        }
+        {
+          name: 'Authentication__Audience'
+          value: authenticationAudience
+        }
+      ]), ('TEMPLATE_TELEMETRY_EXPORTERS' != 'azure-monitor' ? [
+        {
+          name: 'OTEL_EXPORTER_OTLP_ENDPOINT'
+          value: otlpEndpoint
+        }
+        {
+          name: 'OTEL_EXPORTER_OTLP_PROTOCOL'
+          value: otlpProtocol
+        }
+      ] : []), ('TEMPLATE_TELEMETRY_EXPORTERS' != 'otlp' ? [
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: insights!.properties.ConnectionString
+        }
+      ] : []))
     }
   }
 }

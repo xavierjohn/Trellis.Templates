@@ -1,8 +1,9 @@
-﻿using System.Net;
+﻿#pragma warning disable IDE0047
+using System.Net;
 using System.Net.Http.Json;
+using ProjectTrackerTemplate.SharedKernel;
 using Trellis.Authorization;
 using Trellis.Testing.AspNetCore;
-using ProjectTrackerTemplate.SharedKernel;
 
 namespace Eventing.Tests;
 
@@ -12,6 +13,11 @@ namespace Eventing.Tests;
 // team directory — proving outbox -> broker -> inbox -> read-model projection -> read port end to end.
 public sealed class MemberInvitedEventingTests : IAsyncDisposable
 {
+#if (!NoApiVersioning)
+    private const string VersionQuery = "?api-version=2026-03-26";
+#else
+    private const string VersionQuery = "";
+#endif
     private readonly InMemoryBroker _broker = new();
     private readonly MembersEventingFactory _members;
     private readonly ProjectsEventingFactory _projects;
@@ -31,7 +37,7 @@ public sealed class MemberInvitedEventingTests : IAsyncDisposable
         var projectsClient = _projects.CreateClientWithActor(
             Actor("alice", "acme", ProjectTrackerTemplate.Projects.Domain.Permissions.ProjectsRead));
 
-        var invite = new HttpRequestMessage(HttpMethod.Post, "/api/members?api-version=2026-03-26")
+        var invite = new HttpRequestMessage(HttpMethod.Post, "/api/members" + VersionQuery)
         {
             Content = JsonContent.Create(new { email = "dana@acme.example", role = "contributor" }),
         };
@@ -45,7 +51,7 @@ public sealed class MemberInvitedEventingTests : IAsyncDisposable
         TeamMember[] team = [];
         for (var attempt = 0; attempt < 50; attempt++)
         {
-            var teamResponse = await projectsClient.GetAsync("/api/team?api-version=2026-03-26", cancellationToken);
+            var teamResponse = await projectsClient.GetAsync("/api/team" + VersionQuery, cancellationToken);
             teamResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             team = await teamResponse.Content.ReadFromJsonAsync<TeamMember[]>(cancellationToken) ?? [];
             if (team.Length > 0 && !_broker.Completed.IsEmpty)

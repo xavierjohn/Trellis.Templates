@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProjectTrackerTemplate.Members.Api;
@@ -16,7 +18,6 @@ using ProjectTrackerTemplate.Projects.Api;
 using Trellis.Asp.Authorization;
 using Trellis.Authorization;
 using Trellis.EntityFrameworkCore;
-using Azure.Messaging.ServiceBus;
 using Trellis.Testing.AspNetCore;
 
 namespace Eventing.Tests;
@@ -43,6 +44,7 @@ internal static class EventingTestServices
 
     public static IDictionary<string, string?> Configuration(string dbConnectionName) => new Dictionary<string, string?>
     {
+        ["Gateway:Issuer"] = "https://gateway.test",
         [$"ConnectionStrings:{dbConnectionName}"] = $"Server=(localdb)\\MSSQLLocalDB;Database={dbConnectionName}-test",
         ["ConnectionStrings:messaging"] = Messaging,
         ["DeployedEnvironment:Region"] = "test",
@@ -72,11 +74,14 @@ internal sealed class MembersEventingFactory : WebApplicationFactory<MembersApiE
         _connection.Open();
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
-        builder.ConfigureAppConfiguration((_, config) =>
+        builder.ConfigureHostConfiguration(config =>
             config.AddInMemoryCollection(EventingTestServices.Configuration("membersdb")));
+        return base.CreateHost(builder);
+    }
 
+    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
         builder.ConfigureTestServices(services =>
         {
             services.ReplaceDbProvider<ProjectTrackerTemplate.Members.Acl.MembersDbContext>(options =>
@@ -84,7 +89,6 @@ internal sealed class MembersEventingFactory : WebApplicationFactory<MembersApiE
             services.ReplaceSingleton<ServiceBusClient>(new InMemoryServiceBusClient(_broker));
             EventingTestServices.AddTestAuthentication(services);
         });
-    }
 
     protected override void Dispose(bool disposing)
     {
@@ -108,11 +112,14 @@ internal sealed class ProjectsEventingFactory : WebApplicationFactory<ProjectsAp
         _connection.Open();
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
-        builder.ConfigureAppConfiguration((_, config) =>
+        builder.ConfigureHostConfiguration(config =>
             config.AddInMemoryCollection(EventingTestServices.Configuration("projectsdb")));
+        return base.CreateHost(builder);
+    }
 
+    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
         builder.ConfigureTestServices(services =>
         {
             services.ReplaceDbProvider<ProjectTrackerTemplate.Projects.Acl.ProjectsDbContext>(options =>
@@ -122,7 +129,6 @@ internal sealed class ProjectsEventingFactory : WebApplicationFactory<ProjectsAp
 
             EventingTestServices.AddTestAuthentication(services);
         });
-    }
 
     protected override void Dispose(bool disposing)
     {

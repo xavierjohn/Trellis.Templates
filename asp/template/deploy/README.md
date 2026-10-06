@@ -1,132 +1,95 @@
-﻿# Multi-region Azure deployment
+# Azure App Service deployment
 
-A worked example of deploying this service to **two Azure regions** where every resource name comes
-from the [Trellis Azure naming convention](../Acl/tests/ResourceNamingLibraryTests.cs)
-(`Trellis.ResourceNaming.Azure`).
+This scaffold is generated only for `--deployment azure`. Select `--database postgres` or
+`--database sqlserver` explicitly. SQLite/Azure is rejected during restore/build and deployment
+preflight; no provider is silently substituted.
 
-The point: the **same** library the service uses at runtime computes the names here, so the running
-service and the infrastructure agree on every name — including the deterministic global-uniqueness
-suffix that Bicep's `uniqueString()` cannot reproduce. No name is ever invented in Bicep or
-PowerShell.
+`deploy\names` uses `Trellis.ResourceNaming.Azure` to compute resource names. The global stack owns
+the selected database server/database and keyless Cosmos idempotency store. Each regional stack owns
+an identity, workspace, App Service plan/app, and Application Insights when selected. The script uses
+the **actual provisioned database FQDN**, not a guessed DNS suffix.
 
-```
-deploy/names  (C#)              infra/*.bicep            Azure
-DeployedEnvironmentOptions  ->  parameters          ->  named resources
-        |                                                     ^
-        +----------------- same names at runtime -------------+
-```
+## Prerequisites and configuration
 
-## Two stacks, dictated by the convention
+Use PowerShell 7, .NET 10, Azure CLI with Bicep, and an authenticated Azure account authorized to create
+resources and Cosmos role assignments. Configure the selected external identity:
 
-The convention assigns each resource type either a **region-less** name (a cloud-singleton) or a
-**region-bearing** name. That split is the deployment topology:
+| Selection | Script parameters |
+| --- | --- |
+| JWT/OIDC | HTTPS `-AuthenticationAuthority`, non-empty `-AuthenticationAudience` |
+| Entra | GUID `-AuthenticationTenantId`, `-AuthenticationClientId` |
+| OTLP | Optional `-OtlpEndpoint`, `-OtlpProtocol grpc` or `http/protobuf` |
+| PostgreSQL | Secure administrator password plus a **different** application login/password |
+| SQL Server | Entra `-SqlAdminObjectId`, `-SqlAdminLogin`, optionally principal type; defaults to signed-in user |
 
-| Stack | When | Resources | Example name |
-|---|---|---|---|
-| **Global** | once per cloud | SQL server/database, Cosmos idempotency account/database/container | `tdo-sql-prod-nhm4y`, `tdo-cosmos-prod-n82im` |
-| **Regional** | once per region | Managed identity, Log Analytics, Application Insights, App Service | `tdo-app-prod-usw3-5yqp9`, `tdo-id-prod-usw3` |
+Azure Monitor's destination is provisioned and injected when selected. OTLP must point to a collector
+reachable from App Service; the local Aspire/dashboard endpoint is not a production destination.
 
-Because the singleton names are identical in every region, every region's app connects to the **same**
-SQL server, and re-running a later region never recreates it. Because the regional names carry the
-region token, each region gets its own identity/workspace/app. Deploying "one by one" is then
-stateless: each wave just rebinds the region and recomputes — there is nothing to remember between
-waves.
+Entra expects v2 API access tokens from `https://login.microsoftonline.com/<tenant-id>/v2.0`.
+`-AuthenticationClientId` is the API application's client-ID GUID and the expected token `aud`, not the
+calling client's ID or an `api://...` audience. Set the API registration's `api.requestedAccessTokenVersion`
+to `2`; requested scopes may still use `api://<client-id>/...`. Tokens must contain `oid`.
 
-> **No Key Vault?** The sample is passwordless — SQL uses the app's managed identity
-> (`Authentication=Active Directory Default`), Cosmos idempotency uses managed identity, and auth is Entra/OIDC, so
-> there is no secret to store. Add a Key Vault (a `tdo-kv-prod-<region-short>-<hash>` regional resource)
-> only when your service has a secret that cannot use managed identity — a third-party API key, a
-> signing/TLS certificate, or a credential for a dependency that does not support Entra auth.
-
-> **Data tier note.** The convention currently models SQL as a single cloud-singleton (one writable
-> server). For active-active per-region SQL you would add a failover-group alias — tracked as a future
-> enhancement, out of scope for this example.
-
-## Prerequisites
-
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az login` completed)
-- The Bicep CLI (`az bicep install`)
-- .NET SDK 10 (to run the names tool)
-- An Azure subscription you can create resource groups in, and rights to make yourself the SQL
-  Microsoft Entra administrator
-
-## Run it
+Run from `deploy`. For a JWT/PostgreSQL profile:
 
 ```powershell
-# Preview everything first — no changes are made to deployments.
-./deploy.ps1 -WhatIf
-
-# Provision the global stack, then each region in turn.
-./deploy.ps1
+$adminPassword = Read-Host 'Database administrator password' -AsSecureString
+$appPassword = Read-Host 'Separate runtime role password' -AsSecureString
+.\deploy.ps1 -AuthenticationAuthority 'https://issuer.example.com' -AuthenticationAudience 'api' `
+    -PostgresAdministratorPassword $adminPassword -PostgresApplicationLogin 'todo_runtime' `
+    -PostgresApplicationPassword $appPassword -WhatIf
 ```
 
-Useful switches:
+Remove `-WhatIf` to provision. For Entra, replace the authentication arguments with its tenant/client
+GUIDs. For SQL Server, omit PostgreSQL parameters. Temporary ARM parameter files carry credentials
+rather than command-line arguments; the script removes them and restricts their directory on Unix.
+Run only on a trusted deployment host. Do not commit credential values or deployment logs.
 
-| Switch / parameter | Purpose |
-|---|---|
-| `-WhatIf` | Preview each deployment without applying it (the resource groups are still created so the previews can run). |
-| `-SkipGlobal` | Re-deploy only the regional waves (singletons already exist). |
-| `-System`, `-Environment`, `-Cloud`, `-Scope` | Override the deployment context (defaults: `tdo` / `prod` / `AzureCloud` / `Shared`). |
-| `-PrimaryRegion` | Region that homes the global resource group (default `westus3`). |
-| `-SqlAdminObjectId`, `-SqlAdminLogin` | Entra SQL administrator (defaults to the signed-in user). |
+**WhatIf still creates resource groups.** It previews their resources without applying them. The
+regional preview uses `preview.invalid` for a not-yet-provisioned database endpoint; that placeholder
+is never used for a real deployment. `-SkipGlobal` reads an existing `global` deployment's outputs.
+Edit the `$Regions` list to change the regional footprint; keep existing short tokens stable.
 
-### Add or remove a region
+## Bootstrap the database before publishing
 
-Edit the one list at the top of [`deploy.ps1`](./deploy.ps1):
+Provisioning does not deploy application code, create runtime database users, apply migrations, or
+seed production data. Keep schema deployment and runtime privileges separate.
 
-```powershell
-$Regions = @(
-    [pscustomobject]@{ Name = 'westus3'; Short = 'usw3' }
-    [pscustomobject]@{ Name = 'eastus2'; Short = 'use2' }
-)
-```
+For **SQL Server**, connect as the Entra administrator. Create a database user for each regional
+managed identity (`CREATE USER [...] FROM EXTERNAL PROVIDER`) and grant only the needed data access.
+Use a separate schema-deployment principal for DDL; runtime identities must not be administrators.
+The generated runtime connection uses `Authentication=Active Directory Default` and the regional
+user-assigned identity's client ID.
 
-`Short` is the region token that appears in the resource names (keep it stable — it is part of the
-durable name).
+For **PostgreSQL**, connect as the administrator to the returned FQDN. Create the supplied application
+login with its separate password and no superuser/role/database-creation privileges. Apply migrations
+as a separate schema owner, then grant the runtime role CONNECT, schema USAGE, required table
+SELECT/INSERT/UPDATE/DELETE, and sequence USAGE/SELECT. Set corresponding default privileges for
+future migrations. The app receives only this runtime credential and uses `SSL Mode=VerifyFull`;
+the administrator password is never injected into App Service.
 
-## What this provisions — and what it does not
+Generate migrations for the **selected** EF provider; do not reuse SQLite migrations for a server
+provider. The EF design-time startup needs Development configuration and the selected connection
+string. Use your pinned EF tooling with `Acl\src\AntiCorruptionLayer.csproj` and startup
+`Api\src\Api.csproj`, then apply the migration/script using the schema-deployment credential.
 
-`deploy.ps1` **provisions and configures the infrastructure**: the resource groups, SQL server +
-database (Entra-only auth), and per region a managed identity, Log Analytics workspace, and an App
-Service wired with the `DeployedEnvironment:*` settings and a passwordless SQL connection string.
-The global Cosmos container is partitioned on `/scope` with `defaultTtl: -1`; each regional identity
-receives the native Cosmos data contributor role scoped only to that container. Account-key
-authentication is disabled. All regions share the same idempotency records.
+Cosmos is provisioned with `/scope`, `defaultTtl: -1`, disabled account-key auth, and native
+data-contributor access scoped to the idempotency container for each app identity.
 
-Application Insights is linked to each regional Log Analytics workspace, and its connection string
-is injected as `APPLICATIONINSIGHTS_CONNECTION_STRING`. The app enables Azure Monitor only when
-that setting exists. An explicit `OTEL_EXPORTER_OTLP_ENDPOINT` independently enables OTLP for
-traces, metrics and logs; without either setting, ordinary console logging remains enabled and
-no exporter is registered. The [local dashboard](../DockerOpenTelemetry/README.md) is opt-in.
+## Publish and harden
 
-Development defaults to in-memory idempotency. Other environments default to Cosmos and reject
-`Idempotency:Store=InMemory`. The regional stack supplies `Idempotency:Store=Cosmos` and the required
-`Idempotency:Cosmos:Endpoint`, `DatabaseId`, and `ContainerId`. The app uses `DefaultAzureCredential`
-and the injected `AZURE_CLIENT_ID`; it does not create containers or use account keys at startup.
-When adding another Azure write service, provision its own container and matching data-plane role.
+Publish `Api\src\Api.csproj` in Release and deploy its output to every regional App Service
+(for example, a ZIP with `az webapp deploy`). App Service runs .NET 10 with HTTPS-only ingress.
+Validate external authentication, database access, Cosmos, and exporter destinations before routing
+traffic. Development actors and automatic schema creation are disabled outside Development.
 
-To actually **serve traffic**, the sample needs a few app-side steps it intentionally leaves to you
-(it ships SQLite + a development actor provider for zero-setup local dev):
+**Never run a deployed application in Development.** The scaffold sets `ASPNETCORE_ENVIRONMENT=Production`;
+ensure `DOTNET_ENVIRONMENT` is unset or also `Production` and do not override these through deployment
+settings. Development skips external JWT validation and endpoint authentication requirements,
+accepts test actors, and creates the sample schema. Release compilation does not select the runtime environment.
 
-1. **Grant each region's managed identity a database user** (a SQL data-plane step Bicep cannot do):
-   ```sql
-   CREATE USER [tdo-id-prod-usw3] FROM EXTERNAL PROVIDER;
-   ALTER ROLE db_datareader ADD MEMBER [tdo-id-prod-usw3];
-   ALTER ROLE db_datawriter ADD MEMBER [tdo-id-prod-usw3];
-   ```
-2. **Switch the Acl from the SQLite provider to the SqlServer provider** so the app uses the
-   provisioned Azure SQL (the connection string is already injected as `ConnectionStrings:DefaultConnection`).
-3. **Register a production `IActorProvider`** (e.g. `AddEntraActorProvider`) — the sample throws in
-   non-Development environments by design until you do.
-4. **Publish the app** to each region's App Service (e.g. `az webapp deploy`), or wire CI to do so.
-
-## Files
-
-| File | Role |
-|---|---|
-| [`names/`](./names) | C# tool: `DeployedEnvironmentOptions` → resource-name JSON (the C# → IaC seam). |
-| [`deploy.ps1`](./deploy.ps1) | Orchestrates the global stack, then each regional wave. |
-| [`../infra/global.bicep`](../infra/global.bicep) | Cloud-singleton resources (SQL and Cosmos). |
-| [`../infra/regional.bicep`](../infra/regional.bicep) | Per-region identity, telemetry, App Service, and Cosmos access. |
-| [`../infra/idempotency.bicep`](../infra/idempotency.bicep) | Keyless Cosmos account and the framework-compatible container. |
-| [`../infra/idempotency-access.bicep`](../infra/idempotency-access.bicep) | Container-scoped native Cosmos role assignment. |
+This is a bootstrap scaffold, not a complete private-network or disaster-recovery design.
+Database firewalls permit Azure services broadly; replace that rule with private endpoints/VNet
+integration or explicit trusted egress before production. Review database capacity, backups,
+regional data availability, secret storage/rotation, and access policies for your workload.
+Never put runtime traffic on a database administrator credential.

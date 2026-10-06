@@ -42,9 +42,11 @@
     <Content Remove="**\*" />
     <Compile Remove="**\*" />
     <None Include="template\**\*"
-          Exclude="template\**\bin\**;template\**\obj\**;template\**\.vs\**;template\**\.git\**;template\**\TestResults\**;**\*.user;**\.DS_Store"
+          Exclude="template\**\bin\**;template\**\obj\**;template\**\.vs\**;template\**\.git\**;template\**\TestResults\**;**\*.user;**\.DS_Store;template\**\Dockerfile"
           Pack="true"
           PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Extensionless files need an archive directory path, with portable forward slashes. -->
+    <None Include="template\**\Dockerfile" Pack="true" PackagePath="content/" />
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="icon.png" Pack="true" PackagePath="" />
   </ItemGroup>

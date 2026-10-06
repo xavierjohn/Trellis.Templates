@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿#pragma warning disable IDE0047
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ProjectTrackerTemplate.Projects.Domain;
@@ -12,14 +13,21 @@ namespace Projects.Api.Tests;
 // through the real pipeline against in-memory SQLite.
 public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<ProjectsApiFactory>
 {
+#if (!NoApiVersioning)
     private const string Version = "2026-03-26";
+    private const string VersionQuery = "?api-version=" + Version;
+    private const string VersionFilter = "&api-version=" + Version;
+#else
+    private const string VersionQuery = "";
+    private const string VersionFilter = "";
+#endif
 
     [Fact]
     public async Task Missing_route_uses_the_Trellis_ProblemDetails_envelope()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
-        var response = await client.GetAsync($"/missing-route?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/missing-route{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
@@ -33,7 +41,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme"));
 
-        var response = await client.GetAsync($"/api/projects/acme-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/projects/acme-p1{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -43,7 +51,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
-        var response = await client.GetAsync($"/api/projects/acme-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/projects/acme-p1{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<ProjectBody>(TestContext.Current.CancellationToken);
@@ -56,7 +64,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
-        var response = await client.GetAsync($"/api/projects/globex-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/projects/globex-p1{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -66,7 +74,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
-        var response = await client.GetAsync($"/api/team?api-version={Version}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/api/team{VersionQuery}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var team = await response.Content.ReadFromJsonAsync<TeamMemberBody[]>(TestContext.Current.CancellationToken);
@@ -77,7 +85,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     public async Task Update_project_without_if_match_is_428()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsWrite));
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Q2 launch", description = "Coordinate Q2 launch." }),
         };
@@ -91,7 +99,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     public async Task Update_project_with_a_stale_if_match_is_412()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsWrite));
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Q2 launch", description = "Coordinate Q2 launch." }),
         };
@@ -107,12 +115,12 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead, Permissions.ProjectsWrite));
 
-        var read = await client.GetAsync($"/api/projects/acme-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var read = await client.GetAsync($"/api/projects/acme-p1{VersionQuery}", TestContext.Current.CancellationToken);
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         var currentETag = read.Headers.ETag;
         currentETag.Should().NotBeNull();
 
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Q2 launch", description = "Coordinate Q2 launch." }),
         };
@@ -129,7 +137,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     public async Task Update_project_with_an_empty_title_is_422()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsWrite));
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "", description = "Coordinate Q2 launch." }),
         };
@@ -147,17 +155,21 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
 
         // The acme tenant is seeded with two projects, so limit=1 yields one item plus a next cursor.
         var firstPage = await client.GetFromJsonAsync<PagedProjects>(
-            $"/api/projects?limit=1&api-version={Version}", TestContext.Current.CancellationToken);
+            $"/api/projects?limit=1{VersionFilter}", TestContext.Current.CancellationToken);
         firstPage.Should().NotBeNull();
         firstPage!.Items.Should().HaveCount(1);
         firstPage.Items[0].TenantId.Should().Be("acme");
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
+#if (!NoApiVersioning)
         firstPage.Next.Href.Should().Contain($"api-version={Version}", "PageUrl must inject the api-version so the next-page link resolves");
+#else
+        firstPage.Next.Href.Should().NotContain("api-version");
+#endif
 
         var secondPage = await client.GetFromJsonAsync<PagedProjects>(
-            $"/api/projects?cursor={firstPage.Next.Cursor}&limit=1&api-version={Version}",
+            firstPage.Next.Href,
             TestContext.Current.CancellationToken);
         secondPage.Should().NotBeNull();
         secondPage!.Items.Should().HaveCount(1);
@@ -170,7 +182,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
         var response = await client.GetAsync(
-            $"/api/projects?cursor=not-a-valid-cursor&api-version={Version}", TestContext.Current.CancellationToken);
+            $"/api/projects?cursor=not-a-valid-cursor{VersionFilter}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -180,11 +192,11 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead));
 
-        var read = await client.GetAsync($"/api/projects/acme-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var read = await client.GetAsync($"/api/projects/acme-p1{VersionQuery}", TestContext.Current.CancellationToken);
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         read.Headers.ETag.Should().NotBeNull();
 
-        var conditional = new HttpRequestMessage(HttpMethod.Get, $"/api/projects/acme-p1?api-version={Version}");
+        var conditional = new HttpRequestMessage(HttpMethod.Get, $"/api/projects/acme-p1{VersionQuery}");
         conditional.Headers.IfNoneMatch.Add(read.Headers.ETag!);
 
         var response = await client.SendAsync(conditional, TestContext.Current.CancellationToken);
@@ -197,12 +209,12 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.ProjectsRead, Permissions.ProjectsWrite));
 
-        var read = await client.GetAsync($"/api/projects/acme-p1?api-version={Version}", TestContext.Current.CancellationToken);
+        var read = await client.GetAsync($"/api/projects/acme-p1{VersionQuery}", TestContext.Current.CancellationToken);
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         var currentETag = read.Headers.ETag;
         currentETag.Should().NotBeNull();
 
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1?api-version={Version}")
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/projects/acme-p1{VersionQuery}")
         {
             Content = JsonContent.Create(new { title = "Prefer minimal", description = "Edited with Prefer: return=minimal." }),
         };

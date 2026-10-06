@@ -15,8 +15,13 @@
     <PackageReference Include="Trellis.Messaging.AzureServiceBus" />
     <PackageReference Include="Trellis.ResourceNaming.Azure" />
     <!-- Persistence: EF Core on SQL Server (inbox dedup + read models), provisioned and wired by Aspire. -->
+    <!--#if (UsePostgres)-->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!--#else-->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <!--#endif-->
     <!-- Azure Service Bus client (Aspire-wired) for consuming integration events cross-service. -->
     <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" />
   </ItemGroup>

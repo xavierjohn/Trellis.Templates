@@ -8,7 +8,8 @@ already there, consistently, in both templates. This page explains what each one
 
 ## API versioning
 
-APIs are versioned by **date** (e.g. `2026-03-26`). A new version is a new, additive thing — you never
+APIs are **unversioned by default**. Select `--api-versioning` to version by **date**
+(e.g. `2026-03-26`). A new version is a new, additive thing — you never
 silently break an existing client. In the ASP template each version is its own controller namespace; in the
 microservices template each version is an endpoint group. Clients select a version per the configured
 version reader, and each version gets its own OpenAPI document.
@@ -34,7 +35,8 @@ errors programmatically.
 
 ## OpenAPI & Scalar
 
-Each API version publishes an **OpenAPI document** at `/openapi/{version}.json`, and a modern
+Unversioned APIs publish `/openapi/v1.json`; versioned APIs publish an **OpenAPI document** for each
+selected version at `/openapi/{version}.json`. A modern
 **[Scalar](https://scalar.com/)** API reference UI to explore and try the API in the browser. The OpenAPI
 document is generated from your code, so it never drifts from reality.
 
@@ -44,6 +46,10 @@ Services are instrumented with **OpenTelemetry** for traces, metrics, and logs. 
 pipeline's spans are exported and **business events are logged structurally**, all sharing the same trace
 and span ids — so a single request can be followed from the HTTP edge, across services, through each handler,
 in one trace.
+
+`--telemetry-exporters` selects `otlp` (default), `azure-monitor`, or `both`. Only selected dependencies
+and registration code are generated. Configure the OTLP endpoint or Application Insights connection
+string to activate the corresponding exporter.
 
 ## Authorization
 

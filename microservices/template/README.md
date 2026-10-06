@@ -1,8 +1,19 @@
 # ProjectTrackerTemplate
 
-> Generated from [`xavierjohn/Trellis.Microservices.Template`](https://github.com/xavierjohn/Trellis.Microservices.Template).
+> Generated from [`xavierjohn/Trellis.Templates`](https://github.com/xavierjohn/Trellis.Templates).
 
 This is a multi-tenant microservices topology demonstrating the [Trellis framework](https://github.com/xavierjohn/Trellis) and the [Trellis.Microservices](https://github.com/xavierjohn/Trellis.Microservices) packages, scaffolded with `dotnet new trellis-microservices`.
+
+## Selected profile
+
+`.trellis-template.json` records the selected HTTP versioning (`TEMPLATE_API_VERSIONING`), database
+(`TEMPLATE_DATABASE_PROVIDER`), gateway identity (`TEMPLATE_AUTH_PROVIDER`), telemetry exporters
+(`TEMPLATE_TELEMETRY_EXPORTERS`), and deployment scaffold (`TEMPLATE_DEPLOYMENT_MODE`).
+HTTP versioning does not change integration-event or internal-JWT contracts.
+
+Creation restores packages automatically unless `--skip-restore` is selected. Restore failures return
+a non-zero creation exit code, but generated files remain on disk. For deferred/offline creation, use
+`--skip-restore` and run `dotnet restore` explicitly when dependencies are available.
 
 ## Quick start
 
@@ -20,9 +31,14 @@ That boots the Aspire dashboard at <http://localhost:15151> and brings up three 
 
 Open **`AppHost/src/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
 
-> **HTTP vs HTTPS.** AppHost's launch profile sets `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` so the template runs without a dev cert. Switch to HTTPS for production: change `applicationUrl`, drop the flag, and update `Gateway/src/Program.cs` + the downstream `Authority`/`ValidIssuer` URLs to `https://gateway.internal` (or your real prod URL). See <https://aka.ms/aspire/allowunsecuredtransport>.
+> **HTTP vs HTTPS.** Local Aspire permits unsecured Development transport. Outside Development,
+> configure the same explicit HTTPS `Gateway:Issuer` on all hosts and use HTTPS ingress.
+> For containers, terminate TLS at a reverse proxy and ensure the issuer's discovery/JWKS endpoints
+> are reachable by both services. Azure profiles wire this through Container Apps ingress.
 
-> **Docker.** Aspire runs SQL Server for **both** services and the Service Bus emulator — **Docker (or Podman) must be running**. Schemas and demo data are created automatically in Development. Projects persists its aggregate, team read model and inbox in its own database.
+> **Docker.** Aspire runs the selected SQL Server/PostgreSQL provider for both services plus the
+> Service Bus emulator. Docker or Podman must be running. Schemas/demo data are Development-only.
+> Production requires selected-provider migrations and separate least-privilege service credentials.
 
 ## Coding-agent API references
 
@@ -70,11 +86,13 @@ Falsifiable proof: the `projects.resource_loads` counter (in the Aspire dashboar
 
 Members' API composition calls `.UseResourceAuthorization(policy => policy.HideExistence<Member>())`. That single line collapses cross-tenant 403 into 404 at the response-mapping stage — a caller probing for the existence of an employee in another tenant gets the same 404 they'd get for a non-existent MemberId. Compare with Projects, which intentionally returns 403 on cross-tenant access.
 
-### Persistence (Members) — EF Core + UnitOfWork on SQL Server
+### Persistence (Members) — EF Core + UnitOfWork on the selected provider
 
-The **Members** service is the template's write data plane. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over **SQL Server** that Aspire provisions and connection-injects (`AppHost/src/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; `.UseEntityFrameworkUnitOfWork<MembersDbContext>()` selects the transactional behavior that commits when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects to columns with no hand-written `HasConversion`.
+The **Members** service is the template's write data plane. `Member` is a Trellis `Aggregate<MemberId>` (so it carries an ETag concurrency token + Created/LastModified timestamps), persisted by `MembersDbContext` over the selected SQL Server/PostgreSQL provider that Aspire provisions and connection-injects (`AppHost/src/Program.cs`). `EfMemberRepository : RepositoryBase<Member, MemberId>` only *stages* changes; `.UseEntityFrameworkUnitOfWork<MembersDbContext>()` selects the transactional behavior that commits when a command handler succeeds, so handlers never call `SaveChanges`. `ApplyTrellisConventionsFor<MembersDbContext>()` maps the value objects to columns with no hand-written `HasConversion`.
 
-**Projects** uses its own SQL Server context for the Project aggregate, team read model and inbox. Its API root also selects the EF unit of work; the inbox independently commits each received event's projection and dedup record together.
+**Projects** uses its own database with the same selected provider for the aggregate, read model, and
+inbox. Its API root selects the EF unit of work; the inbox independently commits each projection and
+dedup record together.
 
 ### Cross-service eventing — transactional outbox + inbox over Azure Service Bus
 
@@ -140,9 +158,9 @@ remaining components are single `src/` projects:
 
 ```
 SharedKernel/     src + tests   — shared kernel (TenantId) + published language (MemberInvited contract)
-Gateway/          src           — YARP + JWT minting + JWKS endpoints
+Gateway/          src + tests   — YARP + JWT minting + JWKS endpoints and real bearer/signing tests
 ServiceDefaults/  src           — shared OpenTelemetry, health, service discovery
-AppHost/          src           — Aspire orchestration (SQL Server + Service Bus emulator) + ProjectTrackerTemplate.http
+AppHost/          src           — Aspire orchestration (selected database + Service Bus emulator) + ProjectTrackerTemplate.http
 ```
 
 ## Testing
@@ -155,7 +173,7 @@ versioning, and the resource-authorization outcomes (200 / 403 / 404). A cross-s
 eventing flow end to end: inviting a member surfaces them in the other service's team directory with no
 synchronous call between services.
 
-By default the integration tests are **hermetic** — the SQL Server contexts are swapped for in-memory
+By default the integration tests are **hermetic** — the selected provider contexts are swapped for in-memory
 SQLite, Azure SDK clients are replaced (a no-op publisher in API-only tests / in-memory SDK doubles
 that exercise the real Trellis publisher and consumer in eventing tests), and the gateway-minted
 JWT is swapped for a test auth scheme. Run everything with:
@@ -165,7 +183,7 @@ dotnet test --solution ProjectTrackerTemplate.slnx -c Release
 ```
 
 Set **`USE_REAL_SERVICES=true`** (the default lives in `.runsettings`) to run the *same* Api integration
-tests against the real configured SQL Server + Azure Service Bus instead — e.g. a gated CI lane that
+tests against the real configured provider + Azure Service Bus instead — e.g. a gated CI lane that
 validates the production providers.
 
 
@@ -175,7 +193,7 @@ The API hosts use `Trellis.ServiceDefaults.AddTrellis` for ASP integration, scal
 the standard ProblemDetails envelope. The local `ServiceDefaults/` project remains the Aspire
 telemetry, health and service-discovery layer; these are different components.
 
-Telemetry exporters are opt-in. `OTEL_EXPORTER_OTLP_ENDPOINT` enables traces, metrics and logs
+Only selected exporter code/dependencies are generated. `OTEL_EXPORTER_OTLP_ENDPOINT` enables traces, metrics and logs
 (the default protocol is `grpc`; `http/protobuf` is also supported).
 `APPLICATIONINSIGHTS_CONNECTION_STRING` independently enables Azure Monitor. Both may be enabled;
 with neither, normal console logging remains and no exporter is registered. Aspire supplies its
@@ -198,13 +216,11 @@ Provision the database/container before starting the service: `/scope` is the pa
 scoped to this container. Missing or invalid configuration fails startup instead of falling back
 to memory. Adding idempotent endpoints to another service requires its own store composition.
 
-[`infra/production.bicep`](infra/production.bicep) provisions this keyless, serverless Cosmos store,
-the Members identity's container-scoped role, and workspace-based Application Insights. Supply
-`location`, convention-derived `cosmosAccountName`, `logAnalyticsName`, `applicationInsightsName`,
-and the deployed Members identity's `membersPrincipalId`. Its outputs provide the Cosmos endpoint
-and Application Insights connection string. This is a dependency stack, not deployment of the
-gateway, services, SQL Server or Service Bus; those hosting choices remain application-owned.
-Azure resources incur charges.
+Azure output includes `infra/production.bicep` and `deploy/README.md`: foundation-first provisioning
+of the selected databases, Service Bus, Cosmos and identity access, telemetry, and Container Apps.
+After schema/user bootstrap, the deployment script rolls out supplied images and persistent signing
+material. Database firewall hardening, private-registry AcrPull grants, and schema migration remain
+explicit deployment prerequisites. Azure resources incur charges.
 
 When using AppHost, its `APPLICATIONINSIGHTS_CONNECTION_STRING` is forwarded to all three hosts.
 An AppHost `Idempotency:Cosmos:Endpoint` explicitly selects Cosmos for Members, with optional
@@ -213,9 +229,40 @@ needs no Cosmos account.
 Configure deployed services with `ASPNETCORE_ENVIRONMENT=Production`, their real gateway issuer
 and a production authentication/signing-key setup as described below.
 
-## Replacing the dev-mode actor provider
+## Production identity and signing
 
-`Gateway/src/Program.cs` registers `AddDevelopmentActorProvider` for the inbound side — it reads an `X-Test-Actor` header so you can curl scenarios without minting real JWTs. **Replace it for production** with one of the actor providers in `Trellis.Asp.Authorization`:
+Development reads `X-Test-Actor`; production automatically uses the selected external bearer provider.
+JWT/OIDC requires HTTPS `Authentication:Authority` plus `Authentication:Audience` and a `sub` identity.
+Entra requires GUID `Authentication:TenantId` and `Authentication:ClientId`, an `oid` identity, and `tid`.
+JWT tenants use `tenant_id`; permissions must match the sample's Domain permission constants.
+Tokens without identity or tenant are rejected. There is no built-in login/user database.
+
+The Entra profile targets single-tenant v2 access tokens issued by
+`https://login.microsoftonline.com/<tenant-id>/v2.0`, with `aud` equal to the **API application's
+client-ID GUID**, not the calling client's ID or an `api://...` URI. Set the API registration's
+`api.requestedAccessTokenVersion` to `2`; the token must contain `oid` and `tid`.
+Requested scopes may still use `api://<client-id>/...`; the token audience must be the GUID.
+V1 tokens and URI audiences are not supported by this profile. Send API access tokens, not sign-in ID tokens.
+
+**Never deploy any host with Development enabled.** Set `ASPNETCORE_ENVIRONMENT=Production` and
+ensure `DOTNET_ENVIRONMENT` is unset or also `Production`. Development skips external JWT validation
+and the endpoint authentication requirement, accepts test actors, permits ephemeral signing keys,
+and creates/seeds the sample databases.
+
+Production also requires `Gateway:SigningKeyPath` pointing to persistent RSA private PEM material of
+at least 2048 bits. Every replica/restart must use the same active key. Optional
+`Gateway:PublishedKeyPaths` publishes distinct retiring/future public-only PEMs without changing the signer;
+private PEM material in this ring is rejected at startup.
+Pre-publish a new key before switching; keep the previous public key until tokens and JWKS caches age out.
+Never store private keys in source control.
+
+Container output includes three Dockerfiles and `compose.yaml`. Supply `DEPLOYMENT_REGION`, both runtime database
+connections, Service Bus credentials, Members Cosmos configuration/credential, selected external
+identity, and a read-only key directory containing `active.pem`. Set `GATEWAY_ISSUER` to the HTTPS
+front door, reachable from both services. Compose does not terminate TLS or bootstrap production schemas.
+Azure output documents the same prerequisites in `deploy/README.md`.
+
+Other claim shapes can adopt the corresponding Trellis actor provider:
 
 | Provider | Use when |
 |---|---|

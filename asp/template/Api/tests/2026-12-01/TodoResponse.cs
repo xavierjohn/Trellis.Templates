@@ -1,4 +1,8 @@
-﻿namespace Api.Tests._2026_12_01;
+﻿#if (!NoApiVersioning)
+namespace Api.Tests._2026_12_01;
+#else
+namespace Api.Tests;
+#endif
 
 /// <summary>
 /// Response model for deserialization in tests.

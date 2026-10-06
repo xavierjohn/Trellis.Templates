@@ -25,7 +25,7 @@ service-building conventions for all coding agents; `.github/copilot-instruction
 Always verify the round-trip locally:
 
 ```powershell
-cd C:\GitHub\Trellis\Trellis.Microservices.Template
+cd C:\github\xavier\Trellis\Templates\microservices
 ./build.cmd
 # then in a clean shell:
 dotnet new uninstall Trellis.Microservices.Templates
@@ -38,6 +38,12 @@ dotnet build SmokeTest.slnx -c Release   # MUST produce 0 warnings, 0 errors
 ```
 
 The repository-root CI runs this round-trip on every PR. A change that builds locally inside `template/` but breaks the instantiation will fail CI.
+
+`../shared/template-tests/Test-TemplateOptions.ps1 -Template microservices -Package <nupkg>` also
+verifies packaged option profiles. APIs are unversioned by default. Native C# generation conditions
+must retain parentheses; the source-only IDE0047 pragma is removed during generation.
+Dockerfile `PackagePath` values use the portable archive directory `content/`; a trailing backslash
+produces duplicate separators when packed on Linux.
 
 ## Key conventions
 

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿#pragma warning disable IDE0047
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ProjectTrackerTemplate.Members.Application;
 using Trellis.EntityFrameworkCore;
@@ -19,7 +20,11 @@ public static class DependencyInjection
         // connection resilience, health checks, and telemetry; AddTrellisInterceptors stamps the ETag +
         // timestamps and rewrites value-object / Maybe<T> queries; the outbox interceptor captures domain
         // events in the SAME transaction as the aggregate.
+#if (UsePostgres)
+        builder.AddNpgsqlDbContext<MembersDbContext>("membersdb",
+#else
         builder.AddSqlServerDbContext<MembersDbContext>("membersdb",
+#endif
             configureDbContextOptions: options => options
                 .AddTrellisInterceptors()
                 .AddTrellisOutboxInterceptor());

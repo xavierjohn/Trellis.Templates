@@ -1,5 +1,6 @@
 ﻿namespace TodoSample.Api.v2026_03_26.Models;
 
+using System.Text.Json.Serialization;
 using TodoSample.Domain;
 
 /// <summary>
@@ -10,7 +11,8 @@ public record UpdateTodoRequest
     /// <summary>Updated title (1–200 characters).</summary>
     public Title Title { get; init; } = null!;
 
-    /// <summary>Updated due date (must be in the future).</summary>
+    /// <summary>Future due date with Z or an explicit timezone offset, normalized to UTC.</summary>
+    [JsonConverter(typeof(DueDateJsonConverter))]
     public DueDate DueDate { get; init; } = null!;
 
     /// <summary>Updated optional categorization tag.</summary>

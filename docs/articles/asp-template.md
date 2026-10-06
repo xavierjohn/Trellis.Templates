@@ -1,6 +1,6 @@
 # ASP.NET service template
 
-> `dotnet new trellis-asp` · NuGet package **`Trellis.AspTemplate`**
+> `dotnet new trellis-asp` · NuGet package **`Trellis.Asp.Templates`**
 
 A single, well-structured ASP.NET Core service built on the [Trellis](https://github.com/xavierjohn)
 framework, using **Domain-Driven Design** and **Railway-Oriented Programming**. Reach for this when you're
@@ -31,14 +31,15 @@ MyService/
 
 ## What's wired up
 
-Out of the box the service has every [cross-cutting capability](capabilities.md): date-based API
-versioning, Service Level Indicators, idempotent writes, RFC 9457 ProblemDetails, an OpenAPI document with
+Out of the box the service has every baseline [cross-cutting capability](capabilities.md): Service
+Level Indicators, idempotent writes, RFC 9457 ProblemDetails, an OpenAPI document with
 a Scalar UI, OpenTelemetry, actor-based authorization, the mediator pipeline, and health checks. EF Core is
 configured with Trellis conventions and interceptors.
 
 ## API versioning by namespace
 
-Controllers live in date-stamped folders and namespaces — one folder per version:
+APIs are unversioned by default, with controllers in `Api/src/Controllers` and models in
+`Api/src/Models`. Generate with `--api-versioning` to use date-stamped folders and namespaces:
 
 ```
 Api/src/2026-03-26/Controllers/TodosController.cs   →  namespace MyService.Api.v2026_03_26.Controllers

@@ -72,6 +72,17 @@ jobs:
             az bicep build --file "$file"
           done
 
+      - name: Verify managed source guidance
+        run: |
+          SOURCE="${{ runner.temp }}/source-guidance-${{ matrix.template }}"
+          mkdir -p "$SOURCE"
+          cp -a template/. "$SOURCE/"
+          cd "$SOURCE"
+          git init --quiet
+          dotnet tool restore
+          dotnet restore
+          dotnet tool run agentdocs check --strict --strict-references --content-only
+
       - name: Pack template
         run: dotnet pack templatepack.csproj -c Release -o nupkg
 
@@ -89,7 +100,6 @@ jobs:
           dotnet test --solution SmokeTest.slnx --no-build -c Release -- --filter-not-trait "Category=Integration"
           git init --quiet
           dotnet tool restore
-          dotnet tool run agentdocs check --strict --strict-references --content-only
           dotnet tool run agentdocs sync --strict --strict-references
           dotnet tool run agentdocs check --strict --strict-references
 
@@ -98,3 +108,10 @@ jobs:
         with:
           name: ${{ matrix.template }}-nupkg
           path: ${{ matrix.template }}/nupkg/*.nupkg
+
+      - name: Verify packaged generation options
+        shell: pwsh
+        run: |
+          $package = (Get-ChildItem nupkg -Filter '*.nupkg' | Select-Object -First 1).FullName
+          & ../shared/template-tests/Test-TemplateOptions.ps1 -Template '${{ matrix.template }}' -Package $package `
+            -Workspace (Join-Path '${{ runner.temp }}' 'options-${{ matrix.template }}')

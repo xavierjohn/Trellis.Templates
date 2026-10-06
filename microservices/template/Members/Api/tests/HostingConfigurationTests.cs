@@ -1,17 +1,26 @@
-﻿using Azure.Monitor.OpenTelemetry.AspNetCore;
+﻿#pragma warning disable IDE0047
+#if (!NoOtlp)
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+#endif
+#if (!NoAzureMonitor)
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
+#if (!NoOtlp)
 using Microsoft.Extensions.Logging;
+#endif
+using Microsoft.Extensions.Options;
+#if (!NoOtlp)
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+#endif
 using ProjectTrackerTemplate.Members.Api;
 using Trellis.Asp.Idempotency;
 using Trellis.Asp.Idempotency.Cosmos;
@@ -22,8 +31,10 @@ namespace Members.Api.Tests;
 
 public class HostingConfigurationTests
 {
+#if (!NoOtlp)
     private static readonly Action<ILogger, Exception?> LogCompositionTest =
         LoggerMessage.Define(LogLevel.Information, new EventId(1), "Composition test");
+#endif
 
     [Fact]
     public void Shared_SLI_configuration_uses_the_configured_deployment_region()
@@ -56,6 +67,7 @@ public class HostingConfigurationTests
         configure.Should().Throw<InvalidOperationException>().WithMessage("*DeployedEnvironment:Region*");
     }
 
+#if (!NoAzureMonitor)
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -80,6 +92,8 @@ public class HostingConfigurationTests
                 .Should().Be(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
     }
 
+#endif
+#if (!NoOtlp)
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -149,6 +163,7 @@ public class HostingConfigurationTests
         configure.Should().Throw<InvalidOperationException>().WithMessage($"*{setting}*");
     }
 
+#endif
     [Fact]
     public void Development_uses_the_in_memory_store_without_Azure_configuration()
     {

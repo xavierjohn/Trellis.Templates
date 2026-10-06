@@ -1,4 +1,6 @@
-﻿using Asp.Versioning;
+﻿#if (!NoApiVersioning)
+using Asp.Versioning;
+#endif
 using Scalar.AspNetCore;
 using Trellis.ServiceLevelIndicators;
 using TodoSample.AntiCorruptionLayer;
@@ -9,10 +11,17 @@ using Trellis.Asp.Idempotency;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+#if (!UsePostgres && !UseSqlServer)
+connectionString ??= "Data Source=todos.db";
+#endif
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("Configuration 'ConnectionStrings:DefaultConnection' is required for the selected database provider.");
+
 builder.Services
     .AddPresentation(builder.Environment, builder.Configuration)
     .AddApplication()
-    .AddAntiCorruptionLayer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=todos.db");
+    .AddAntiCorruptionLayer(connectionString);
 
 var app = builder.Build();
 
@@ -26,6 +35,7 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
+#if (!NoApiVersioning)
     app.MapOpenApi().WithDocumentPerVersion();
     app.MapScalarApiReference(
         options =>
@@ -39,6 +49,10 @@ if (app.Environment.IsDevelopment())
                 options.AddDocument(description.GroupName, description.GroupName, isDefault: isDefault);
             }
         });
+#else
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+#endif
 }
 
 app.UseTrellisProblemDetails();
@@ -50,10 +64,13 @@ app.UseHttpsRedirection();
 // idempotency replay) is still counted instead of being silently dropped from the metrics.
 app.UseServiceLevelIndicator();
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseTrellisIdempotency();
 app.UseScalarValueValidation();
-app.MapControllers();
+var controllers = app.MapControllers();
+if (!app.Environment.IsDevelopment())
+    controllers.RequireAuthorization();
 // /health is a cross-cutting infra endpoint — it must respond to liveness/readiness probes
 // regardless of which API version a client speaks. Tagging it explicitly api-version-neutral
 // (rather than relying on it being implicitly outside the MVC versioning pipeline) makes
@@ -61,7 +78,11 @@ app.MapControllers();
 // SLI/OpenTelemetry tags, and documents the intent for future readers. We attach the metadata
 // directly because `IsApiVersionNeutral()` requires an associated `WithApiVersionSet(...)`,
 // which doesn't apply to non-versioned endpoints like health checks.
-app.MapHealthChecks("/health").WithMetadata(new ApiVersionNeutralAttribute());
+app.MapHealthChecks("/health")
+#if (!NoApiVersioning)
+    .WithMetadata(new ApiVersionNeutralAttribute())
+#endif
+    ;
 
 app.Run();
 

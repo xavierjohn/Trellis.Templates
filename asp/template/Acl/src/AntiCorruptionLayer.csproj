@@ -3,7 +3,13 @@
     <PackageReference Include="Trellis.EntityFrameworkCore" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.ResourceNaming.Azure" />
+    <!--#if (UsePostgres)-->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!--#elseif (UseSqlServer)-->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <!--#else-->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <!--#endif-->
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Application\src\Application.csproj" />

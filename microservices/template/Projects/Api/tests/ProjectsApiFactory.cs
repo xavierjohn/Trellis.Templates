@@ -44,6 +44,19 @@ public class ProjectsApiFactory : WebApplicationFactory<Program>, ITestOutputHel
 
     public ITestOutputHelper? OutputHelper { get; set; }
 
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        if (!UseRealServices)
+            builder.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Gateway:Issuer"] = "https://gateway.test",
+                ["ConnectionStrings:projectsdb"] = "Server=(localdb)\\MSSQLLocalDB;Database=projects-test",
+                ["ConnectionStrings:messaging"] = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true",
+                ["DeployedEnvironment:Region"] = "test",
+            }));
+        return base.CreateHost(builder);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureLogging(logging => logging.AddXUnit(this));
@@ -54,13 +67,6 @@ public class ProjectsApiFactory : WebApplicationFactory<Program>, ITestOutputHel
 
         if (UseRealServices)
             return;
-
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:projectsdb"] = "Server=(localdb)\\MSSQLLocalDB;Database=projects-test",
-            ["ConnectionStrings:messaging"] = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true",
-            ["DeployedEnvironment:Region"] = "test",
-        }));
 
         builder.ConfigureTestServices(services =>
         {

@@ -14,26 +14,136 @@
     "type": "solution"
   },
   "symbols": {
-    "serviceName": {
+    "nameNamespace": {
       "type": "derived",
       "valueSource": "name",
-      "valueTransform": "ValueWithoutSpaces",
+      "valueTransform": "SafeNamespace"
+    },
+    "rootNamespace": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "description": "Root C# namespace. Defaults to the namespace derived from -n."
+    },
+    "effectiveNamespace": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "rootNamespace",
+        "fallbackVariableName": "nameNamespace"
+      },
       "replaces": "TodoSample",
-      "description": "Derived from -n parameter. Used as namespace prefix (RootNamespace/AssemblyName)."
+      "description": "Namespace and assembly prefix."
     },
     "authorName": {
       "type": "parameter",
       "datatype": "string",
       "description": "Author name for the project (appears in Directory.Build.props <Authors>)",
-      "defaultValue": "Your Name",
+      "defaultValue": "Your Name"
+    },
+    "encodedAuthorName": {
+      "type": "derived",
+      "valueSource": "authorName",
+      "valueTransform": "XmlEncode",
       "replaces": "Xavier John"
+    },
+    "apiVersioning": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "replaces": "TEMPLATE_API_VERSIONING",
+      "description": "Generate date-versioned HTTP APIs."
+    },
+    "database": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "sqlite",
+      "replaces": "TEMPLATE_DATABASE_PROVIDER",
+      "isRequired": "deployment == \"azure\"",
+      "choices": [
+        { "choice": "sqlite", "description": "SQLite for local development." },
+        { "choice": "postgres", "description": "PostgreSQL with a local development container." },
+        { "choice": "sqlserver", "description": "SQL Server with a local development container." }
+      ],
+      "description": "Database provider. Azure requires an explicit postgres or sqlserver choice."
+    },
+    "auth": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "jwt",
+      "replaces": "TEMPLATE_AUTH_PROVIDER",
+      "choices": [
+        { "choice": "jwt", "description": "Bearer tokens from an external OIDC issuer." },
+        { "choice": "entra", "description": "Microsoft Entra ID bearer tokens." }
+      ],
+      "description": "Production identity provider. Development actors remain Development-only."
+    },
+    "telemetryExporters": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "otlp",
+      "replaces": "TEMPLATE_TELEMETRY_EXPORTERS",
+      "choices": [
+        { "choice": "otlp", "description": "OTLP traces, metrics, and logs." },
+        { "choice": "azure-monitor", "description": "Azure Monitor." },
+        { "choice": "both", "description": "OTLP and Azure Monitor." }
+      ],
+      "description": "Generate only the selected telemetry exporters."
+    },
+    "deployment": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "none",
+      "replaces": "TEMPLATE_DEPLOYMENT_MODE",
+      "choices": [
+        { "choice": "none", "description": "No deployment scaffold." },
+        { "choice": "container", "description": "Container image and composition." },
+        { "choice": "azure", "description": "Azure App Service and supporting resources." }
+      ],
+      "description": "Deployment scaffold. Cosmos remains the production idempotency store in every mode."
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Skip the post-creation NuGet restore."
+    },
+    "NoApiVersioning": { "type": "computed", "value": "!apiVersioning" },
+    "UsePostgres": { "type": "computed", "value": "database == \"postgres\"" },
+    "UseSqlServer": { "type": "computed", "value": "database == \"sqlserver\"" },
+    "UseEntra": { "type": "computed", "value": "auth == \"entra\"" },
+    "NoOtlp": { "type": "computed", "value": "telemetryExporters == \"azure-monitor\"" },
+    "NoAzureMonitor": { "type": "computed", "value": "telemetryExporters == \"otlp\"" },
+    "AzureDeployment": { "type": "computed", "value": "deployment == \"azure\"" },
+    "httpApiVersionQuery": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "cases": [
+          { "condition": "apiVersioning", "value": "?api-version={{apiVersion}}" },
+          { "condition": "", "value": "" }
+        ]
+      },
+      "replaces": "?api-version={{apiVersion}}"
+    },
+    "latestVersionNamespace": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "cases": [
+          { "condition": "apiVersioning", "value": "v2026_12_01." },
+          { "condition": "", "value": "" }
+        ]
+      },
+      "replaces": "v2026_12_01."
     }
   },
   "forms": {
-    "ValueWithoutSpaces": {
-      "identifier": "replace",
-      "pattern": " ",
-      "replacement": ""
+    "SafeNamespace": {
+      "identifier": "safe_namespace"
+    },
+    "XmlEncode": {
+      "identifier": "xmlEncode"
     }
   },
   "sources": [
@@ -49,10 +159,39 @@
             "**/.vs/**",
             "**/TestResults/**",
             "**/.git/**",
-            ".template.config/**"
+            ".template.config/**",
+            "Api/src/2026-*/**",
+            "Api/tests/2026-*/**"
           ]
+        },
+        {
+          "condition": "deployment != \"azure\"",
+          "exclude": [ "infra/**", "deploy/**" ]
+        },
+        {
+          "condition": "deployment == \"none\"",
+          "exclude": [ "Dockerfile", "compose.yaml", ".dockerignore" ]
+        },
+        {
+          "condition": "database == \"sqlite\"",
+          "exclude": [ "compose.database.yaml" ]
         }
       ]
+    },
+    {
+      "condition": "apiVersioning",
+      "include": [ "Api/src/2026-*/**", "Api/tests/2026-*/**" ],
+      "exclude": [ "**/bin/**", "**/obj/**" ]
+    },
+    {
+      "condition": "!apiVersioning",
+      "include": [ "Api/src/2026-12-01/**", "Api/tests/2026-12-01/**" ],
+      "exclude": [ "**/bin/**", "**/obj/**" ],
+      "rename": {
+        "Api/src/2026-12-01/Controllers": "Api/src/Controllers",
+        "Api/src/2026-12-01/Models": "Api/src/Models",
+        "Api/tests/2026-12-01": "Api/tests/Controllers"
+      }
     }
   ],
   "primaryOutputs": [
@@ -63,14 +202,14 @@
   "postActions": [
     {
       "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
-      "condition": "true",
+      "condition": "(!skipRestore)",
       "description": "Restore NuGet packages",
       "manualInstructions": [
         {
           "text": "Run 'dotnet restore'"
         }
       ],
-      "continueOnError": true
+      "continueOnError": false
     }
   ]
 }

@@ -1,35 +1,48 @@
-﻿namespace ProjectTrackerTemplate.Projects.Api;
+﻿#pragma warning disable IDE0047
+namespace ProjectTrackerTemplate.Projects.Api;
 
+#if (!NoApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Builder;
+#endif
 using Mediator;
 using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
 using Trellis;
 using Trellis.Asp;
+#if (!NoApiVersioning)
 using Trellis.Asp.ApiVersioning;
+#endif
 using Trellis.ServiceLevelIndicators;
 
 // Versioned route group for the Projects API, extracted from Program.cs so it scales and so the
 // API version is a first-class concept. Clients select the version with ?api-version=2026-03-26.
 public static class ProjectEndpoints
 {
+#if (!NoApiVersioning)
     private static readonly ApiVersion V20260326 = new(new DateOnly(2026, 3, 26));
+#endif
 
     public static IEndpointRouteBuilder MapProjectEndpoints(this IEndpointRouteBuilder app)
     {
+#if (!NoApiVersioning)
         ApiVersionSet versionSet = app.NewApiVersionSet("Projects")
             .HasApiVersion(V20260326)
             .ReportApiVersions()
             .Build();
+#endif
 
         // Conventions shared by EVERY endpoint in the group are declared once here — authorization,
         // the supported version, and SLI emission (the operation name is derived per-route by the
         // middleware, e.g. "GET /api/projects/{id}"). Endpoints below add nothing of their own.
         var projects = app.MapGroup("/api/projects")
+#if (!NoApiVersioning)
             .WithApiVersionSet(versionSet)
+#endif
             .WithTags("Projects")
+#if (!NoApiVersioning)
             .MapToApiVersion(V20260326)
+#endif
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 
@@ -40,9 +53,15 @@ public static class ProjectEndpoints
         projects.MapGet("/", (string? cursor, int? limit, HttpContext http, IMediator mediator, CancellationToken ct) =>
                 mediator.Send(new ListProjectsQuery(cursor, limit ?? 0), ct)
                     .ToHttpResponseAsync(
+#if (!NoApiVersioning)
                         nextUrlBuilder: http.PageUrl(
                             "Projects_List",
                             (c, applied) => new RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
+#else
+                        nextUrlBuilder: (c, applied) => http.RequestServices.GetRequiredService<LinkGenerator>()
+                            .GetUriByName(http, "Projects_List", new { cursor = c.Token, limit = applied })
+                            ?? throw new InvalidOperationException("Could not generate the projects pagination link."),
+#endif
                         body: ProjectResponse.From))
             .WithName("Projects_List");
 

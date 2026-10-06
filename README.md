@@ -3,19 +3,19 @@
 [![Build templates](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/build-templates.yml)
 [![Capability parity](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/contract-parity.yml/badge.svg)](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/contract-parity.yml)
 [![Docs](https://github.com/xavierjohn/Trellis.Templates/actions/workflows/docs.yml/badge.svg)](https://xavierjohn.github.io/Trellis.Templates/)
-[![Trellis.AspTemplate](https://img.shields.io/nuget/vpre/Trellis.AspTemplate?label=Trellis.AspTemplate)](https://www.nuget.org/packages/Trellis.AspTemplate)
+[![Trellis.Asp.Templates](https://img.shields.io/nuget/vpre/Trellis.Asp.Templates?label=Trellis.Asp.Templates)](https://www.nuget.org/packages/Trellis.Asp.Templates)
 [![Trellis.Microservices.Templates](https://img.shields.io/nuget/vpre/Trellis.Microservices.Templates?label=Trellis.Microservices.Templates)](https://www.nuget.org/packages/Trellis.Microservices.Templates)
 
 Production-ready `dotnet new` templates for building **.NET 10** services on the
 [Trellis](https://github.com/xavierjohn/Trellis) framework — Domain-Driven Design + Railway-Oriented
-Programming, with API versioning, authorization, observability, tests, and AI coding guidance wired in
+Programming, with authorization, observability, tests, optional API versioning, and AI coding guidance wired in
 from the first commit. Scaffold a service, press run, and start building.
 
 ## Choose a template
 
 | I want to build... | Template | `dotnet new` id | NuGet |
 | --- | --- | --- | --- |
-| A single ASP.NET Core service | **ASP.NET service** | `trellis-asp` | [`Trellis.AspTemplate`](https://www.nuget.org/packages/Trellis.AspTemplate) |
+| A single ASP.NET Core service | **ASP.NET service** | `trellis-asp` | [`Trellis.Asp.Templates`](https://www.nuget.org/packages/Trellis.Asp.Templates) |
 | A multi-service platform (gateway + services, .NET Aspire) | **Microservices** | `trellis-microservices` | [`Trellis.Microservices.Templates`](https://www.nuget.org/packages/Trellis.Microservices.Templates) |
 
 Start with **`trellis-asp`** when you are building one service. Reach for **`trellis-microservices`**
@@ -32,7 +32,7 @@ when you need multiple services behind a gateway with asynchronous, cross-servic
 ### Single service — `trellis-asp`
 
 ```bash
-dotnet new install Trellis.AspTemplate
+dotnet new install Trellis.Asp.Templates
 dotnet new trellis-asp -n MyService
 cd MyService
 dotnet run --project Api/src
@@ -58,13 +58,45 @@ This boots the **.NET Aspire dashboard** (<http://localhost:15151>) and brings u
 and the cross-service eventing flow (invite a member, then watch them appear in another service's team
 list). The generated `README.md` is a full guided tour.
 
+## Generation options
+
+Both short names remain unchanged. APIs are **unversioned by default**; `--api-versioning` selects
+the versioned sample instead of installing a separate template. Choices affect generated code,
+dependencies, tests, and deployment assets, not just runtime configuration.
+
+| Option | Choices | ASP default | Microservices default |
+| --- | --- | --- | --- |
+| `--api-versioning` | `true`, `false` | `false` | `false` |
+| `--database` | `sqlite` (ASP only), `postgres`, `sqlserver` | `sqlite` | `sqlserver` |
+| `--auth` | `jwt`, `entra` | `jwt` | `jwt` |
+| `--telemetry-exporters` | `otlp`, `azure-monitor`, `both` | `otlp` | `otlp` |
+| `--deployment` | `none`, `container`, `azure` | `none` | `none` |
+| `--author-name` | Project author | `Your Name` | `Your Name` |
+| `--root-namespace` | Root C# namespace | Derived from `-n` | Derived from `-n` |
+| `--skip-restore` | Skip post-generation restore | `false` | `false` |
+
+```powershell
+dotnet new trellis-asp -n Billing --database postgres --api-versioning --auth entra --deployment container
+dotnet new trellis-microservices -n Platform --database postgres --telemetry-exporters both
+```
+
+Azure selects **App Service** for ASP and **Container Apps** for microservices. It requires an explicit
+`--database postgres` or `--database sqlserver`; ASP's SQLite/Azure combination fails restore, build,
+and deployment preflight rather than silently changing the provider. `--author-name` avoids the
+.NET CLI's reserved `--author` filter.
+
+Authentication uses an external OIDC issuer or Entra ID, not a built-in user database. Development
+actors work only in Development. Production requires identity configuration, durable Cosmos
+idempotency, and, for the gateway, persistent private-key material. Aspire, messaging, tenancy,
+integration-event schema versions, and internal-JWT contract versions are independent of HTTP API versioning.
+
 ## What every generated project gives you
 
 Both templates scaffold a clean, layered service (**Domain -> Application -> Acl -> Api**, each with its
 own `src/` and `tests/`) built around Trellis's `Result<T>` / `Maybe<T>` and always-valid value objects —
 plus these cross-cutting capabilities, already wired and tested:
 
-- **Date-based API versioning**
+- **Unversioned APIs**, or **date-based API versioning** when selected
 - **Actor-based authorization** — permission gates and per-resource/ownership checks
 - **RFC 9457 ProblemDetails** error responses using Trellis's standard `code`/`kind` envelope
 - **RFC 9110 conditional requests** — strong ETags, `If-Match` (412 / 428), `If-None-Match` -> 304
@@ -128,7 +160,7 @@ The two templates live in one repository so a single **capability-parity contrac
 drifting apart: a developer who picks either template should get the same guardrails.
 [`shared/capability-parity-manifest.yaml`](shared/capability-parity-manifest.yaml) is the source of truth
 for the required cross-cutting capabilities. CI runs [`shared/contract-tests/`](shared/contract-tests/)
-against each template's source and fails the build if a required capability is missing or regressed —
+against generated option profiles and fails the build if a required capability is missing or regressed —
 drift is caught by CI, not by human discipline. (A separate workflow instantiates each template with
 `dotnet new` and builds the generated solution end to end.)
 
@@ -141,10 +173,11 @@ shared/
   conventions/                          cross-template conventions (e.g. Azure resource naming)
 ```
 
-Run the contract check locally (against a template's source — no instantiation needed):
+Run the contract check locally against a generated project. Its `.trellis-template.json` records the
+selected options:
 
 ```bash
-dotnet run --project shared/contract-tests -- shared/capability-parity-manifest.yaml microservices microservices/template
+dotnet run --project shared/contract-tests -- shared/capability-parity-manifest.yaml microservices C:\Temp\MyPlatform
 ```
 
 ## License

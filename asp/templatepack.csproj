@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageId>Trellis.AspTemplate</PackageId>
+    <PackageId>Trellis.Asp.Templates</PackageId>
     <Title>Trellis ASP.NET Service Template</Title>
     <Description>A dotnet new template for creating ASP.NET services using the Trellis framework with Railway-Oriented Programming (ROP) and Domain-Driven Design (DDD). Includes solution structure, build system, test infrastructure, agent-neutral AGENTS.md instructions, and API reference.</Description>
     <Authors>Xavier John</Authors>
@@ -38,13 +38,13 @@
     <Content Remove="**\*" />
     <Compile Remove="**\*" />
     <None Include="template\**\*"
-          Exclude="template\**\bin\**;template\**\obj\**;template\**\.vs\**;template\**\.git\**;template\**\TestResults\**;**\*.user;**\.DS_Store;template\.devcontainer\Dockerfile"
+          Exclude="template\**\bin\**;template\**\obj\**;template\**\.vs\**;template\**\.git\**;template\**\TestResults\**;**\*.user;**\.DS_Store;template\**\Dockerfile"
           Pack="true"
           PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- Extensionless files need PackagePath as directory (NuGet appends filename) -->
-    <None Include="template\.devcontainer\Dockerfile"
+    <!-- Extensionless files need an archive directory path, with portable forward slashes. -->
+    <None Include="template\**\Dockerfile"
           Pack="true"
-          PackagePath="content\.devcontainer\" />
+          PackagePath="content/" />
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="icon.png" Pack="true" PackagePath="" />
   </ItemGroup>

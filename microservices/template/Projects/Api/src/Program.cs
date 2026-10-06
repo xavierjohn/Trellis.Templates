@@ -1,11 +1,12 @@
-﻿using ProjectTrackerTemplate.Projects.Acl;
+﻿#pragma warning disable IDE0047
+using ProjectTrackerTemplate.Projects.Acl;
 using ProjectTrackerTemplate.Projects.Api;
 using ProjectTrackerTemplate.Projects.Application;
 using Scalar.AspNetCore;
 using Trellis.Asp;
 using Trellis.Microservices.AspNetCore;
-using Trellis.ServiceLevelIndicators;
 using Trellis.ServiceDefaults;
+using Trellis.ServiceLevelIndicators;
 
 // Projects microservice — operational cluster (CRUD on Project aggregate).
 //
@@ -40,9 +41,13 @@ builder.Services.AddOpenTelemetry()
 // ProblemDetails, scalar value-object validation, and Service Level Indicators. The endpoints —
 // versioned route groups — live in Endpoints/ProjectEndpoints.cs.
 
+#if (!NoApiVersioning)
 builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
     .AddApiExplorer()
     .AddOpenApi(options => options.Document.AddScalarTransformers());
+#else
+builder.Services.AddOpenApi(options => options.AddScalarTransformers());
+#endif
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
 {
@@ -76,7 +81,7 @@ builder.ConfigureServiceLevelIndicators();
 // production composition root keeps RequireHttpsMetadata=true and does not leak validation-failure
 // reasons.
 builder.Services.AddTrellisInternalJwtBearer(
-    issuer: "TEMPLATE_GATEWAY_ISSUER_URL",
+    issuer: builder.GetGatewayIssuer(),
     audience: "projects",
     configureActor: o =>
     {
@@ -113,6 +118,7 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
+#if (!NoApiVersioning)
     app.MapOpenApi().WithDocumentPerVersion();
     app.MapScalarApiReference(options =>
     {
@@ -123,6 +129,10 @@ if (app.Environment.IsDevelopment())
             options.AddDocument(description.GroupName, description.GroupName, isDefault: i == descriptions.Count - 1);
         }
     });
+#else
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+#endif
 }
 
 // Render any 4xx/5xx (including pipeline short-circuits) as RFC 9457 ProblemDetails.

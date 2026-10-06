@@ -69,7 +69,14 @@ jobs:
       - name: Pack
         run: dotnet pack templatepack.csproj -c Release -o nupkg
 
-      - name: Push to GitHub Packages
+      - name: Verify packaged generation options (gate)
+        shell: pwsh
+        run: |
+          $package = (Get-ChildItem nupkg -Filter '*.nupkg' | Select-Object -First 1).FullName
+          & ../shared/template-tests/Test-TemplateOptions.ps1 -Template '${{ inputs.template }}' -Package $package `
+            -Workspace (Join-Path '${{ runner.temp }}' 'publish-options')
+
+      - name: Publish verified package to GitHub Packages
         run: >
           dotnet nuget push nupkg/*.nupkg
           --api-key ${{ secrets.GITHUB_TOKEN }}

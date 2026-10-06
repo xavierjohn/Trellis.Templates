@@ -1,13 +1,18 @@
-﻿namespace ProjectTrackerTemplate.Members.Api;
+﻿#pragma warning disable IDE0047
+namespace ProjectTrackerTemplate.Members.Api;
 
+#if (!NoApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Builder;
+#endif
 using Mediator;
 using ProjectTrackerTemplate.Members.Application;
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis;
 using Trellis.Asp;
+#if (!NoApiVersioning)
 using Trellis.Asp.ApiVersioning;
+#endif
 using Trellis.Asp.Idempotency;
 using Trellis.Primitives;
 using Trellis.ServiceLevelIndicators;
@@ -20,23 +25,31 @@ public static class MemberEndpoints
 {
     // Date-based API version, matching the rest of the platform. Clients select it with the
     // query string ?api-version=2026-03-26 (the default Asp.Versioning reader).
+#if (!NoApiVersioning)
     private static readonly ApiVersion V20260326 = new(new DateOnly(2026, 3, 26));
+#endif
 
     public static IEndpointRouteBuilder MapMemberEndpoints(this IEndpointRouteBuilder app)
     {
+#if (!NoApiVersioning)
         ApiVersionSet versionSet = app.NewApiVersionSet("Members")
             .HasApiVersion(V20260326)
             .ReportApiVersions()
             .Build();
+#endif
 
         // Conventions shared by EVERY endpoint in the group are declared once here — authorization,
         // the supported version, and SLI emission (the operation name is derived per-route by the
         // middleware, e.g. "GET /api/members/{id}"). The only thing an endpoint adds for itself below
         // is idempotency on the create.
         var members = app.MapGroup("/api/members")
+#if (!NoApiVersioning)
             .WithApiVersionSet(versionSet)
+#endif
             .WithTags("Members")
+#if (!NoApiVersioning)
             .MapToApiVersion(V20260326)
+#endif
             .RequireAuthorization()
             .AddServiceLevelIndicator();
 
@@ -66,7 +79,9 @@ public static class MemberEndpoints
                         MemberResponse.From,
                         opts => opts
                             .CreatedAtRoute("Members_GetById", m => m.Id)
+#if (!NoApiVersioning)
                             .WithVersionedRoute()
+#endif
                             .WithETag(m => EntityTagValue.Strong(m.ETag))
                             .WithLastModified(m => m.LastModified)))
             .WithScalarValueValidation()

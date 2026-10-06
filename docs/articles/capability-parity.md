@@ -31,11 +31,13 @@ the other template?"* — so each template can satisfy a capability in its own i
 
 [`shared/contract-tests`](https://github.com/xavierjohn/Trellis.Templates/tree/main/shared/contract-tests) is
 a small .NET program that reads the manifest and, for a given template, evaluates every required capability's
-checks against the template's source. It exits non-zero if any required capability is missing.
+checks against generated output. `.trellis-template.json` records the selected options; manifest
+`when` conditions select versioning, provider, identity, exporter, and deployment checks. Absence
+checks also reject unselected packages and scaffolds. It exits non-zero if a required capability is missing.
 
 ```bash
 dotnet run --project shared/contract-tests -- \
-  shared/capability-parity-manifest.yaml microservices microservices/template
+  shared/capability-parity-manifest.yaml microservices /tmp/generated-microservices
 ```
 
 A capability marked `status: planned` (for example, [Azure resource naming](resource-naming.md)) is reported
@@ -55,13 +57,23 @@ in both instruction files. AgentDocs owns only the marked pointer blocks, leavin
 microservices template also requires its four package-owned microservices references. CI checks an
 isolated Git-root copy of each template with `agentdocs check --strict --strict-references --content-only`,
 so stale guidance, broken instruction pointers, and unresolved cross-package links fail the gate.
-The template round trip checks the installed guidance before refreshing the renamed restore graph.
+The template round trip syncs the selected profile's restore graph and then checks it strictly.
+Unversioned output legitimately drops versioning-package guidance from the raw source graph.
 
 The contract also requires the shipped Trellis composition and ProblemDetails APIs, conditional
 OTLP/Azure Monitor exporters, and durable idempotency outside Development. Cosmos infrastructure
 must use `/scope`, per-item TTL (`defaultTtl: -1`), keyless authentication and container-scoped native
 data-plane access. CI compiles each template's Bicep modules in addition to the source contract.
 Runtime composition and loopback-export tests belong to the generated projects.
+
+The source runner does not execute the manifest's declarative `http-status`, `builds`, or
+`docs-in-sync` checks; it reports them as skipped. Separate build, generated API regressions, and
+AgentDocs gates cover those surfaces. CI generates default, versioned PostgreSQL, Azure SQL Server,
+and Azure PostgreSQL profiles, while the packaged regression gate builds and runs each profile.
+
+Stable required checks `contract (asp)` and `contract (microservices)` summarize the whole profile
+matrix. Both succeed only when every profile job succeeds; failed, canceled, or skipped profile jobs
+fail these gates. Branch protection depends on these stable names, not individual profile names.
 
 Conditional-write parity requires HTTP header parsing, typed command preconditions, and required
 ETag checks on overwrite handlers. Both canonical agent guides must distinguish requiring `If-Match`

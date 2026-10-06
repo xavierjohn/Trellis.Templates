@@ -1,10 +1,10 @@
 ﻿### Project Tracker — outcome matrix
 ### Click any "Send Request" link above a row. Each row exercises one auth path.
 ###
-### Run the app first:  dotnet run --project AppHost/src   (needs Docker for SQL Server + Service Bus).
+### Run the app first:  dotnet run --project AppHost/src   (needs Docker for the database + Service Bus).
 ### Wait for the gateway on http://localhost:5001 (the Aspire dashboard URL prints in the console).
 ###
-### Every /api request carries ?api-version=2026-03-26 (date-based API versioning), and every POST
+### HTTP API version queries are included only in versioned output. Every POST
 ### carries an Idempotency-Key header (any unique value; re-sending the same key returns the cached
 ### response instead of repeating the operation). The /.well-known/* endpoints are not versioned.
 ###
@@ -30,7 +30,9 @@
 ### The gateway re-mints these claims as a real internal JWT before forwarding.
 
 @gateway = http://localhost:5001
+#if (!NoApiVersioning)
 @version = 2026-03-26
+#endif
 
 ###
 ### ============================================================================

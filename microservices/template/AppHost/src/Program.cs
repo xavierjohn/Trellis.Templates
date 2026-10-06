@@ -1,4 +1,5 @@
-﻿// Aspire AppHost — orchestrates the Project Tracker template topology.
+﻿#pragma warning disable IDE0047
+// Aspire AppHost — orchestrates the Project Tracker template topology.
 //
 //   AppHost
 //     ├── projects (audience="projects", /api/projects/* endpoints)
@@ -10,8 +11,8 @@
 // assigned Projects port, and opens the Aspire dashboard with logs, traces, and
 // metrics flowing in from every service.
 
-using ProjectTrackerTemplate.SharedKernel;
 using Aspire.Hosting.Azure;
+using ProjectTrackerTemplate.SharedKernel;
 using Trellis.Mediator;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -26,9 +27,13 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // SQL Server backs both services' data planes. Aspire provisions the container, the per-service
 // databases ("membersdb", "projectsdb"), and injects each connection string into its owner.
-var sql = builder.AddSqlServer("sql");
-var membersDb = sql.AddDatabase("membersdb");
-var projectsDb = sql.AddDatabase("projectsdb");
+#if (UsePostgres)
+var databaseServer = builder.AddPostgres("postgres");
+#else
+var databaseServer = builder.AddSqlServer("sql");
+#endif
+var membersDb = databaseServer.AddDatabase("membersdb");
+var projectsDb = databaseServer.AddDatabase("projectsdb");
 
 // Azure Service Bus carries integration events between the services. RunAsEmulator runs the Service
 // Bus emulator as a local container (needs Docker) — no Azure subscription for development. Members

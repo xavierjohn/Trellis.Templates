@@ -3,7 +3,11 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+#if (!NoApiVersioning)
 using TodoSample.Api.v2026_03_26.Models;
+#else
+using TodoSample.Api.v2026_12_01.Models;
+#endif
 using Trellis.Asp;
 using Trellis.Testing.AspNetCore;
 
@@ -11,6 +15,7 @@ using Trellis.Testing.AspNetCore;
 public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factory, ITestOutputHelper output)
 {
     [Theory]
+#if (!NoApiVersioning)
     [InlineData("2026-03-26", null, HttpStatusCode.OK)]
     [InlineData("2026-03-26", "current", HttpStatusCode.OK)]
     [InlineData("2026-03-26", "wildcard", HttpStatusCode.OK)]
@@ -18,6 +23,7 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
     [InlineData("2026-03-26", "weak", HttpStatusCode.PreconditionFailed)]
     [InlineData("2026-03-26", "empty", HttpStatusCode.PreconditionFailed)]
     [InlineData("2026-03-26", "malformed", HttpStatusCode.PreconditionFailed)]
+#endif
     [InlineData("2026-12-01", null, HttpStatusCode.OK)]
     [InlineData("2026-12-01", "current", HttpStatusCode.OK)]
     [InlineData("2026-12-01", "wildcard", HttpStatusCode.OK)]
@@ -32,17 +38,17 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
         using var client = factory.CreateClientWithActor("owner", "todos:create", "todos:read", "todos:complete");
         var cancellationToken = TestContext.Current.CancellationToken;
         using var createdResponse = await client.PostJsonIdempotentAsync(
-            $"api/Todos?api-version={version}",
+            Url("api/Todos", version),
             new { title = "Conditional completion", dueDate = DateTime.UtcNow.AddDays(7) },
             cancellationToken);
         createdResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createdResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         var etag = createdResponse.Headers.ETag
             ?? throw new InvalidOperationException("Create response must include an ETag.");
-        var resourceUrl = $"api/Todos/{created.Id}?api-version={version}";
+        var resourceUrl = Url($"api/Todos/{created.Id}", version);
 
         using var request = new HttpRequestMessage(
-            HttpMethod.Post, $"api/Todos/{created.Id}/complete?api-version={version}");
+            HttpMethod.Post, Url($"api/Todos/{created.Id}/complete", version));
         if (headerKind is not null)
         {
             var header = headerKind switch
@@ -92,14 +98,16 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
     }
 
     [Theory]
+#if (!NoApiVersioning)
     [InlineData("2026-03-26")]
+#endif
     [InlineData("2026-12-01")]
     public async Task Complete_with_stale_If_Match_preserves_not_found(string version)
     {
         factory.OutputHelper = output;
         using var client = factory.CreateClientWithActor("owner", "todos:complete");
         using var request = new HttpRequestMessage(
-            HttpMethod.Post, $"api/Todos/{Guid.NewGuid()}/complete?api-version={version}");
+            HttpMethod.Post, Url($"api/Todos/{Guid.NewGuid()}/complete", version));
         request.Headers.TryAddWithoutValidation("If-Match", "\"stale-etag\"").Should().BeTrue();
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -108,7 +116,9 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
     }
 
     [Theory]
+#if (!NoApiVersioning)
     [InlineData("2026-03-26")]
+#endif
     [InlineData("2026-12-01")]
     public async Task Complete_with_stale_If_Match_preserves_resource_authorization(string version)
     {
@@ -116,22 +126,28 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
         using var owner = factory.CreateClientWithActor("owner", "todos:create", "todos:read");
         var cancellationToken = TestContext.Current.CancellationToken;
         using var createdResponse = await owner.PostJsonIdempotentAsync(
-            $"api/Todos?api-version={version}",
+            Url("api/Todos", version),
             new { title = "Owner-only completion", dueDate = DateTime.UtcNow.AddDays(7) },
             cancellationToken);
         createdResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createdResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         using var other = factory.CreateClientWithActor("other", "todos:complete");
         using var request = new HttpRequestMessage(
-            HttpMethod.Post, $"api/Todos/{created.Id}/complete?api-version={version}");
+            HttpMethod.Post, Url($"api/Todos/{created.Id}/complete", version));
         request.Headers.TryAddWithoutValidation("If-Match", "\"stale-etag\"").Should().BeTrue();
 
         using var response = await other.SendAsync(request, cancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         using var readResponse = await owner.GetAsync(
-            $"api/Todos/{created.Id}?api-version={version}", cancellationToken);
+            Url($"api/Todos/{created.Id}", version), cancellationToken);
         var persisted = await readResponse.Content.ReadAsAsyncWithAssertion<TodoResponse>();
         persisted.Status.Should().Be("Active");
         readResponse.Headers.ETag.Should().Be(createdResponse.Headers.ETag);
     }
+
+#if (!NoApiVersioning)
+    private static string Url(string path, string version) => $"{path}?api-version={version}";
+#else
+    private static string Url(string path, string version) => path;
+#endif
 }

@@ -3,25 +3,44 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <!--#if (!NoApiVersioning)-->
     <PackageReference Include="Asp.Versioning.OpenApi" />
+    <!--#endif-->
     <PackageReference Include="Azure.Identity" />
+    <!--#if (!NoAzureMonitor)-->
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
+    <!--#endif-->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Trellis.Asp" />
+    <!--#if (!NoApiVersioning)-->
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
+    <!--#endif-->
     <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
     <PackageReference Include="Trellis.ServiceDefaults" />
+    <!--#if (!NoOtlp)-->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <!--#endif-->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
+    <PackageReference Include="Trellis.ServiceLevelIndicators.Asp" />
+    <!--#if (!NoApiVersioning)-->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Acl\src\AntiCorruptionLayer.csproj" />
     <ProjectReference Include="..\..\Application\src\Application.csproj" />
+    <InternalsVisibleTo Include="Api.Tests" />
   </ItemGroup>
 
+  <!--/-:msbuild-conditional:noEmit -->
+  <Target Name="RejectAzureSqlite" BeforeTargets="CollectPackageReferences;PrepareForBuild"
+          Condition="'TEMPLATE_DEPLOYMENT_MODE' == 'azure' And 'TEMPLATE_DATABASE_PROVIDER' == 'sqlite'">
+    <Error Text="Azure deployment requires --database postgres or --database sqlserver. SQLite is not supported on Azure." />
+  </Target>
+  <!--/+:msbuild-conditional:noEmit -->
 </Project>

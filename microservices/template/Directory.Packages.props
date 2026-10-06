@@ -15,13 +15,21 @@
 
   <!-- Runtime -->
   <ItemGroup>
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Asp.Versioning.Http" Version="10.2.3" />
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.2.3" />
+    <!--#endif -->
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+    <!--#if (!NoAzureMonitor) -->
     <PackageVersion Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
+    <!--#endif -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <!--#if (UsePostgres) -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!--#else -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <!--#endif -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
@@ -42,10 +50,20 @@
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.6.0" />
+    <!--#if (UsePostgres) -->
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.0" />
+    <!--#else -->
     <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.6.0" />
+    <!--#endif -->
     <PackageVersion Include="Aspire.Azure.Messaging.ServiceBus" Version="13.6.0" />
+    <!--#if (UsePostgres) -->
+    <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.0" />
+    <!--#else -->
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.6.0" />
+    <!--#endif -->
+    <!--#if (!NoOtlp) -->
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <!--#endif -->
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
@@ -56,7 +74,9 @@
   <ItemGroup>
     <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
+    <!--#endif -->
     <PackageVersion Include="Trellis.Asp.Idempotency.Cosmos" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Authorization" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Core" Version="$(TrellisVersion)" />
@@ -75,7 +95,9 @@
   <ItemGroup>
     <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
+    <!--#if (!NoApiVersioning) -->
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" Version="$(TrellisSliVersion)" />
+    <!--#endif -->
   </ItemGroup>
 
   <!-- Trellis.Microservices (xavierjohn/Trellis.Microservices on nuget.org) -->
