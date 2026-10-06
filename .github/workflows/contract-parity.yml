@@ -75,3 +75,22 @@ jobs:
           dotnet tool restore
           dotnet restore
           dotnet tool run agentdocs check --strict --strict-references --content-only
+
+  required-contract:
+    name: contract (${{ matrix.template }})
+    needs: contract
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [ asp, microservices ]
+    steps:
+      - name: Require all parity profiles to succeed
+        env:
+          CONTRACT_RESULT: ${{ needs.contract.result }}
+        run: |
+          if [ "$CONTRACT_RESULT" != "success" ]; then
+            echo "::error::Capability-parity matrix finished with '$CONTRACT_RESULT'; all profiles must succeed."
+            exit 1
+          fi

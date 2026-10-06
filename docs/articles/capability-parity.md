@@ -71,6 +71,10 @@ The source runner does not execute the manifest's declarative `http-status`, `bu
 AgentDocs gates cover those surfaces. CI generates default, versioned PostgreSQL, Azure SQL Server,
 and Azure PostgreSQL profiles, while the packaged regression gate builds and runs each profile.
 
+Stable required checks `contract (asp)` and `contract (microservices)` summarize the whole profile
+matrix. Both succeed only when every profile job succeeds; failed, canceled, or skipped profile jobs
+fail these gates. Branch protection depends on these stable names, not individual profile names.
+
 Conditional-write parity requires HTTP header parsing, typed command preconditions, and required
 ETag checks on overwrite handlers. Both canonical agent guides must distinguish requiring `If-Match`
 from honoring it: guarded transitions may admit header-free callers, but must check supplied headers
