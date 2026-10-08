@@ -3,7 +3,7 @@ package: Trellis.ServiceDefaults
 namespaces: [Trellis.ServiceDefaults]
 types: [TrellisServiceCollectionExtensions, TrellisServiceBuilder]
 version: v3
-last_verified: 2026-09-12
+last_verified: 2026-10-06
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when wiring a composition root with AddTrellis(...) so Trellis modules apply in the canonical order, and what it deliberately does not register."
@@ -54,7 +54,7 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 
 ## AOT compatibility
 
-`Trellis.ServiceDefaults` is now **AOT- and trim-compatible** (`<IsAotCompatible>true</IsAotCompatible>`, `<IsTrimmable>true</IsTrimmable>`, `<EnableAotAnalyzer>true</EnableAotAnalyzer>`, `<EnableTrimAnalyzer>true</EnableTrimAnalyzer>`). The compatibility surface is split across two overload shapes per assembly-scanning slot:
+`Trellis.ServiceDefaults` is **AOT- and trim-compatible** (`<IsAotCompatible>true</IsAotCompatible>`, `<IsTrimmable>true</IsTrimmable>`, `<EnableAotAnalyzer>true</EnableAotAnalyzer>`, `<EnableTrimAnalyzer>true</EnableTrimAnalyzer>`). The compatibility surface is split across two overload shapes per assembly-scanning slot:
 
 | Slot | AOT-safe overload | Scanning overload (`[RequiresUnreferencedCode]` + `[RequiresDynamicCode]`) |
 | --- | --- | --- |
@@ -66,6 +66,11 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 | Domain events (tracked-aggregate) | `o.UseTrackedAggregateDomainEvents()` (publisher + behavior only) plus `o.UseTrackedAggregateDomainEvents<TEvent, THandler>()` per handler | `o.UseTrackedAggregateDomainEvents(asm)` |
 
 The AOT-safe overloads use only open-generic DI registrations and explicit closed-type method calls — no reflection over assemblies. The scanning overloads remain available for fast iteration in non-AOT consumers and surface the IL2026 / IL3050 warnings at the consumer's call site so the choice between AOT and convenience is explicit, never silent.
+
+**Native AOT with struct `Result<T>`.** Use
+Mediator's [literal closed-generator pipeline](trellis-api-mediator.md#native-aot-registration)
+and direct typed resource registrations. Native DI cannot close open behaviors over
+value-type responses. Do not call `UseMediator` or slots that imply it in this configuration.
 
 Direct per-package registrations (`services.AddTrellisFluentValidation()` from `Trellis.Mediator.FluentValidation`, `services.AddResourceAuthorization<TMessage, TResource, TResponse>()`, `services.AddDomainEventHandler<TEvent, THandler>()`) remain valid as an escape hatch — call them outside the builder when you need to register a type the builder does not yet model.
 
@@ -101,7 +106,7 @@ public sealed class TrellisServiceBuilder
 | `public TrellisServiceBuilder UseSharedResourceAuthorization<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] TMessage, TResource, TId, TResponse>() where TMessage : IAuthorizeResource<TResource>, IIdentifyResource<TResource, TId>, IMessage where TResource : class where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** Registers the scoped resource-authorization behavior, authorized-resource accessor, and shared-loader adapter via `AddSharedResourceAuthorization<TMessage,TResource,TId,TResponse>()`. The shared-loader implementation and actor provider remain application-owned; existing per-message loaders are preserved. Implies `UseMediator()` without requiring a separate `UseResourceAuthorization()` call. Idempotent across direct, low-level, scanned, and builder registration. Applied in the existing typed resource-authorization stage before validation and the unit of work, regardless of fluent call order. Dual-mode messages are rejected when the builder applies registrations. |
 | `public TrellisServiceBuilder UseResourceAuthorization<TMessage, TResource, TResponse>() where TMessage : IAuthorizeResource<TResource>, IMessage where TResource : class where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** Registers the closed-generic `ResourceAuthorizationBehavior<TMessage, TResource, TResponse>` for the named command and registers `IAuthorizedResource<TMessage, TResource>` (`AuthorizedResourceHolder<TMessage, TResource>`) so handlers can avoid a duplicate load — see [Recipe 31](trellis-api-cookbook.md#recipe-31--avoid-duplicate-load-with-iauthorizedresourcetcommand-tresource). Idempotent across direct + builder composition: a consumer that calls both `services.AddResourceAuthorization<TMessage, TResource, TResponse>()` directly and `options.UseResourceAuthorization<TMessage, TResource, TResponse>()` ends up with exactly one behavior descriptor and a registered accessor. The `where TResource : class` constraint matches the underlying behavior — value-type resources are rejected at compile time. Implies `UseMediator()`. |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseResourceAuthorization(params Assembly[] assemblies)` | `TrellisServiceBuilder` | Scans assemblies for `IAuthorizeResource<TResource>` commands and registers `ResourceAuthorizationBehavior<TMessage, TResource, TResponse>` for each (non-AOT). Implies `UseMediator()`. |
-| `public TrellisServiceBuilder UseResourceAuthorization(Action<Trellis.Mediator.ResourceAuthorizationOptions> configure)` | `TrellisServiceBuilder` | Configures the per-resource failure-exposure policy via `Trellis.Mediator.ResourceAuthorizationOptions` (see `HideExistence<TResource>()`, the projection-loader overload `HideExistence<TAuthorizationResource, TPublicResource>()`, and `Propagate<TResource>()`). Repeated calls compose configure delegates rather than overwriting. Enables the resource-authorization pipeline and implies `UseMediator()`. Throws `ArgumentNullException` when `configure` is null. Pair with one of the typed / scan / explicit registration overloads to actually wire the behaviors — this overload only configures the exposure policy. See [Recipe 32](trellis-api-cookbook.md#recipe-32--hide-existence-with-authfailureexposurepolicyhideasnotfound). |
+| `public TrellisServiceBuilder UseResourceAuthorization(Action<Trellis.Mediator.ResourceAuthorizationOptions> configure)` | `TrellisServiceBuilder` | Configures `ResourceAuthorizationOptions`: `HideExistence<TResource>()` or `HideExistence<TAuthorizationResource,TPublicResource>()` gives missing, removed, and withheld resources the same public NotFound; both forms accept optional fixed `code`/`detail`. `Propagate<TResource>()` opts out. Repeated callbacks compose in registration order. Implies `UseMediator()`, but needs a typed / scan / explicit registration to wire resource behaviors. Throws `ArgumentNullException` for null `configure`. See [Recipe 32](trellis-api-cookbook.md#recipe-32--hide-existence-with-authfailureexposurepolicyhideasnotfound). |
 | `public TrellisServiceBuilder UseRelatedResourceAuthorization<TMessage, TLeaf, TLeafId, TOwner, TOwnerId, TResponse>(Func<TLeaf, TOwnerId?> extractOwnerId) where TMessage : IAuthorizeResourceVia<TOwner>, IIdentifyResource<TLeaf, TLeafId>, IMessage where TLeaf : class where TOwner : class where TOwnerId : notnull where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** The via-command counterpart to `UseResourceAuthorization<TMessage, TResource, TResponse>()`. Registers the closed-generic `ResourceAuthorizationViaBehavior<TMessage, TLeaf, TOwner, TResponse>` for a command that authorizes against an owner reached by a single hop from its leaf, and registers `IAuthorizedResource<TMessage, TLeaf>` so handlers inject the **leaf** (the mutation target), not the owner. Returning `null` from `extractOwnerId` short-circuits to `Error.Forbidden`. Loaders are consumer-owned: register `SharedResourceLoaderById<TLeaf, TLeafId>`, `SharedResourceLoaderById<TOwner, TOwnerId>`, and an `IResourceLoader<TMessage, TLeaf>`; a missing loader throws at request time rather than masking as a 403. Idempotent and order-independent relative to `UseEntityFrameworkUnitOfWork<TContext>()`. Implies `UseMediator()`. Throws `ArgumentNullException` when `extractOwnerId` is null. |
 | `public TrellisServiceBuilder UseRelatedResourceAuthorization<TMessage, TLeaf, TOwner, TResponse>(ResolvedAuthorizationPath path) where TMessage : IAuthorizeResourceVia<TOwner>, IMessage where TLeaf : class where TResponse : IResult, IFailureFactory<TResponse>` | `TrellisServiceBuilder` | **AOT-safe.** Same as above but takes a hand-built `ResolvedAuthorizationPath` for multi-hop chains, plural-terminal fan-out, or composite shapes the single-hop overload cannot express. The path's `MessageType` / `LeafType` / `OwnerType` must agree with the generic arguments; the behavior's constructor validates this and fails fast. Implies `UseMediator()`. Throws `ArgumentNullException` when `path` is null. |
 | `public TrellisServiceBuilder UseClaimsActorProvider(Action<ClaimsActorOptions>? configure = null)` | `TrellisServiceBuilder` | Registers `ClaimsActorProvider` as `IActorProvider`. Mutually exclusive with the other actor-provider selectors; a second actor-provider selector throws `InvalidOperationException`. |
@@ -147,6 +152,15 @@ Domain-event dispatch uses `IUnitOfWorkScope.IsOwner` to distinguish a real oute
 13. Transactional inbox dispatch registration (when `UseInbox<TContext>()` is selected).
 
 That order preserves the important pipeline invariant: `TransactionalCommandBehavior<,>` is the innermost behavior, closest to the handler, so commit failures remain visible to outer logging/tracing/exception behaviors. The lower-level registration helpers are also order-independent: if a transaction behavior is present before `AddTrellisBehaviors()` or domain-event dispatch runs, it is rehomed to the innermost slot.
+
+Mediator's order is Exception -> Tracing -> Logging -> AuthorizationContext -> static
+authorization -> direct/via resource authorization -> Validation -> selected event
+dispatch -> TransactionalCommand -> handler. `UseMediator` and the resource slots supply
+the integral `AuthorizationContextBehavior` automatically: there is no separate actor
+handler toggle. Known closed/open context descriptors normalize to one applicable frame.
+Options before or after a two-assembly application/persistence scan compose normally;
+repeat callbacks run in registration order and scans do not duplicate execution.
+See [actor-aware bases and migration](trellis-api-mediator.md#actor-aware-handler-bases).
 
 ### Repeated configuration callbacks
 

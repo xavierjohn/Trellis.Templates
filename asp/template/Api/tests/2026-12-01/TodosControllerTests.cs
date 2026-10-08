@@ -7,6 +7,7 @@ namespace Api.Tests;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Trellis.Testing;
 using Trellis.Testing.AspNetCore;
@@ -514,9 +515,13 @@ public class TodosControllerTests
         firstPage.Next.Href.Should().NotContain("api-version");
 #endif
 
-        var secondPage = await client.GetFromJsonAsync<PagedTodoResponse>(
-            firstPage.Next.Href,
-            TestContext.Current.CancellationToken);
+        var secondResponse = await client.GetAsync(firstPage.Next.Href, TestContext.Current.CancellationToken);
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondJson = await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var secondDocument = JsonDocument.Parse(secondJson);
+        secondDocument.RootElement.GetProperty("items")[0].GetProperty("isOverdue").GetBoolean().Should().BeTrue(
+            "following the pagination link must retain the current response shape");
+        var secondPage = await secondResponse.Content.ReadFromJsonAsync<PagedTodoResponse>(TestContext.Current.CancellationToken);
         secondPage.Should().NotBeNull();
         secondPage!.Items.Should().HaveCount(1);
         secondPage.Items[0].Id.Should().NotBe(firstPage.Items[0].Id);

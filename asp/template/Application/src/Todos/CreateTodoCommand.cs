@@ -36,11 +36,11 @@ public sealed record CreateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     /// The tag is optional (<see cref="Maybe{T}"/>).
     /// </summary>
     public static Result<CreateTodoCommand> TryCreate(Title? title, DueDate? dueDate, Maybe<Tag> tag) =>
-        title.ToResult(Error.InvalidInput.ForField(
+        Result.EnsureNotNull(title, static () => Error.InvalidInput.ForField(
             code: "required",
             field: "title",
             detail: "Title is required."))
-            .Combine(dueDate.ToResult(Error.InvalidInput.ForField(
+            .Combine(Result.EnsureNotNull(dueDate, static () => Error.InvalidInput.ForField(
                 code: "required",
                 field: "dueDate",
                 detail: "Due date is required.")))

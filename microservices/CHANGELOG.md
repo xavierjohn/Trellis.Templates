@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to the Trellis.Microservices.Templates NuGet template pack are recorded here.
 
@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers are produced by Nerdbank.GitVersioning from `version.json` plus the git commit height.
 
 ## Unreleased
+
+### Changed
+- Upgrade Trellis to `3.0.0-alpha.554` and Trellis.Microservices to `0.1.0-alpha.76`, with version-aligned AgentDocs guidance.
+- Upgrade Aspire packages and the AppHost SDK to `13.6.1`, CodeCoverage to `18.12.0`, and TrxReport to `2.5.1`.
+- Replace removed nullable `ToResult` calls with lazy `Result.EnsureNotNull` guards while retaining the existing required-field validation codes.
 
 ### Added
 - Bootstrap of `xavierjohn/Trellis.Microservices.Template`.

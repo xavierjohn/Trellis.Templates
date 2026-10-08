@@ -36,15 +36,15 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     // Always-valid: a missing title/description (null when the JSON omits them) fails closed as validation
     // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        id.ToResult(Error.InvalidInput.ForField(
+        Result.EnsureNotNull(id, static () => Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Project id is required."))
-            .Combine(title.ToResult(Error.InvalidInput.ForField(
+            .Combine(Result.EnsureNotNull(title, static () => Error.InvalidInput.ForField(
                 code: "required",
                 field: "title",
                 detail: "Title is required.")))
-            .Combine(description.ToResult(Error.InvalidInput.ForField(
+            .Combine(Result.EnsureNotNull(description, static () => Error.InvalidInput.ForField(
                 code: "required",
                 field: "description",
                 detail: "Description is required.")))

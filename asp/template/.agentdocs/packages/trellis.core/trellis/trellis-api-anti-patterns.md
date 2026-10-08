@@ -668,9 +668,9 @@ XML is a separate matter and is deliberately not listed as a safe example, thoug
 
 > Severity: Warning, rather than the Info used for TRLS063/TRLS064. Those rules report a legal shape that a codebase may reasonably be full of; this one reports a wire-format defect whose symptom — a failure body that parses fine but arrives under the wrong media type — is invisible in the response the developer eyeballs. Trellis's own responses are already immune (`AsActionResult<T>()` returns a plain `ActionResult`, and `ScalarValueValidationFilter` owns every invalid `ModelState`), so what this rule protects is the `ObjectResult`s your application builds itself.
 
-## TRLS066 — `Result.Ensure(x is not null, error)` instead of `ToResult`
+## TRLS066 — `Result.Ensure(x is not null, error)` instead of `EnsureNotNull`
 
-`Result.Ensure(x is not null, error)` checks for null but throws the value away, so every later use of `x` needs a `!`. `x.ToResult(error)` does the same check on a nullable reference or `Nullable<T>` and returns a `Result<T>` carrying the **non-null** value. It is the same idiom whether the guard is a single field or one of several.
+`Result.Ensure(x is not null, error)` checks for null but throws the value away, so every later use of `x` needs a `!`. `Result.EnsureNotNull(x, error)` does the same check on a nullable reference or `Nullable<T>` and returns a `Result<T>` carrying the **non-null** value. It is the same idiom whether the guard is a single field or one of several.
 
 ```csharp
 // WRONG — Result<Unit> guards, then '!' to recover what the guard already proved
@@ -678,13 +678,17 @@ Result.Ensure(title is not null, Error.InvalidInput.ForField(code: "required", f
     .Combine(Result.Ensure(dueDate is not null, Error.InvalidInput.ForField(code: "required", field: "dueDate", detail: "Due date is required.")))
     .Map((_, _) => new CreateTodoCommand(title!, dueDate!.Value, tag));        // TRLS066 on both guards
 
-// FIX — the Result carries the value; no '!' and no discarded Unit
-title.ToResult(Error.InvalidInput.ForField(code: "required", field: "title", detail: "Title is required."))
-    .Combine(dueDate.ToResult(Error.InvalidInput.ForField(code: "required", field: "dueDate", detail: "Due date is required.")))
+// FIX — typed values and lazy custom errors; no '!' or success-path violations
+Result.EnsureNotNull(title, static () => Error.InvalidInput.ForField(code: "required", field: "title", detail: "Title is required."))
+    .Combine(Result.EnsureNotNull(dueDate, static () => Error.InvalidInput.ForField(code: "required", field: "dueDate", detail: "Due date is required.")))
     .Map((title, dueDate) => new CreateTodoCommand(title, dueDate, tag));
 ```
 
-`Combine` over `Result<T>` values yields a `Result<(T1, T2)>`, and `Map` accepts a lambda taking the tuple elements as separate parameters, so the chain stays one expression and **still reports every missing field at once**. The code fix performs only the first rewrite (guard to `ToResult`) and leaves the later lambda untouched, so a `title!` there still compiles; take the tuple elements as lambda parameters to drop it.
+`Combine` over `Result<T>` values yields a `Result<(T1, T2)>`, and `Map` accepts a lambda taking the tuple elements as separate parameters, so the chain stays one expression and **still reports every missing field at once**. The factories preserve the custom `"required"` codes and construct violations only for missing inputs.
+
+Prefer the field/detail form, such as `Result.EnsureNotNull(title, "title", "Title is required.")`, for standard `value.not-null` violations unless you need to preserve a custom code.
+
+**Automatic code fix versus preferred manual rewrite.** The code fix changes only the guard to `EnsureNotNull`: it preserves the original error argument and leaves the later lambda untouched. An eager error therefore remains eager, and a `title!` in the lambda still compiles. For the preferred manual rewrite above, construct fresh errors inside factories and take the tuple elements as lambda parameters. Merely returning an already-created error from a factory does not avoid its allocation or validation metric.
 
 The null test must be the whole condition. These are left alone because the replacement would change the meaning:
 
@@ -694,7 +698,22 @@ Result.Ensure(title is { Length: > 0 }, error);                // property patte
 Result.Ensure(value is string { }, error);                    // also tests the runtime type
 ```
 
-> Severity: Info, because both shapes are correct. The two differ in payload type — `Result.Ensure` returns `Result<Unit>`, `ToResult` returns `Result<T>` — so the code fix is offered only where the payload is provably discarded: an operand of a Trellis `Combine` chain whose Trellis `Map`/`Bind` consumer has a lambda that ignores that slot. A standalone `Result.Ensure(...)` keeps the diagnostic and gets no automatic rewrite; change the declared type by hand.
+> Severity: Info, because both shapes are correct. The two differ in payload type — `Result.Ensure` returns `Result<Unit>`, `Result.EnsureNotNull` returns `Result<T>` — so the code fix is offered only where the payload is provably discarded: an operand of a Trellis `Combine` chain whose Trellis `Map`/`Bind` consumer has a lambda that ignores that slot. A standalone `Result.Ensure(...)` keeps the diagnostic and gets no automatic rewrite; change the declared type by hand.
+
+**Required-field shorthand.** For new code or a manual rewrite, use
+the field/detail form with the same typed tuple control flow. It avoids allocating
+standard required errors on success and uses `ValidationCodes.ValueNotNull` rather
+than the custom `"required"` code above:
+
+```csharp
+Result.EnsureNotNull(title, "title", "Title is required.")
+    .Combine(Result.EnsureNotNull(dueDate, "dueDate", "Due date is required."))
+    .Map((title, dueDate) => new CreateTodoCommand(title, dueDate, tag));
+```
+
+`EnsureNotNullAsync` extends `Task<T?>` and `ValueTask<T?>`; continue those chains with
+`CombineAsync` / `MapAsync`. Do not apply a null-only guard to one of the
+compound/type-testing conditions above.
 
 ## (No analyzer) — `Result.FailAfterCommit` composed with aggregating operators
 Not an analyzer-flagged rule (no diagnostic ID), but a recurring shape that the FailAfterCommit XML doc cautions against. `Result.FailAfterCommit<TValue>(error)` is a **leaf** worker-handler operation: it converts a single aggregate's transient external rejection into a persisted `permanently_failed` state and returns. Threading that result through `Combine` / `TraverseAll` / `SequenceAll` / `WhenAllAsync` OR-accumulates the `PersistOnFailure` flag onto the aggregated failure — `TransactionalCommandBehavior` then commits the staged permanent-failure mutation alongside whatever the other legs produced, which is almost never what the handler author intended.

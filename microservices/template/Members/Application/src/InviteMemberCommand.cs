@@ -26,11 +26,11 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     // Always-valid: a missing email/role (null when the JSON omits them) fails closed as validation
     // (422) here, rather than surfacing later as a NullReferenceException (500) in the handler.
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        email.ToResult(Error.InvalidInput.ForField(
+        Result.EnsureNotNull(email, static () => Error.InvalidInput.ForField(
             code: "required",
             field: "email",
             detail: "Email is required."))
-            .Combine(role.ToResult(Error.InvalidInput.ForField(
+            .Combine(Result.EnsureNotNull(role, static () => Error.InvalidInput.ForField(
                 code: "required",
                 field: "role",
                 detail: "Role is required.")))

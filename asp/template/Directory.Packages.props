@@ -1,6 +1,6 @@
-<Project>
+﻿<Project>
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.542</TrellisVersion>
+    <TrellisVersion>3.0.0-alpha.554</TrellisVersion>
     <TrellisSliVersion>10.0.0-preview.34</TrellisSliVersion>
   </PropertyGroup>
   <!-- Runtime -->
@@ -67,8 +67,8 @@
   <ItemGroup>
     <!-- Trellis.Testing requires the FluentAssertions 7.x binary API. -->
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.1" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
   </ItemGroup>

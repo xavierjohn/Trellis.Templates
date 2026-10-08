@@ -30,8 +30,6 @@ Todo due dates are UTC instants. API requests must supply `Z` or an explicit off
 
 **Reference docs are authoritative.** If anything in this file conflicts with one of the `trellis-*.md` reference files, the reference file wins — AgentDocs installs those version-aligned files from the restored, approved packages. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
-**Known erratum — Trellis 3.0.0-alpha.542, cookbook Recipe 23:** its claim that guarded transitions can omit precondition checking is incorrect. Follow this guide's supplied `If-Match` rule below: the header may be optional, but `OptionalETag` must enforce it when present. This narrow HTTP-policy correction overrides that recipe's contrary wording, not the authoritative API signatures. Keep managed package references unchanged until a corrected framework package is published and synced.
-
 | When working on... | Read first |
 |---|---|
 | **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.agentdocs/packages/trellis.core/trellis/trellis-start-here.md` |
@@ -568,7 +566,7 @@ public async Task<TodoItem> GetById(Guid id, CancellationToken cancellationToken
 
 - **Rule:** 🔴 MUST require `If-Match` on endpoints that can silently overwrite a concurrent write — `PUT`, `PATCH`, `DELETE`, body-carrying mutating `POST` endpoints, and non-commutative additive set operations. Parse `ETagHelper.ParseIfMatch(Request)`, carry `EntityTagValue[]? IfMatchETags` on the command, and apply `.RequireETagAsync(command.IfMatchETags)` after the `NotFound` projection and before mutation.
 - **Rule:** 🔴 MUST honor a supplied `If-Match` on **body-less state-transition `POST`** endpoints (e.g., `.../approve`, `.../submit`, `.../cancel`, `.../return`). Use the same parsing/command flow with `.OptionalETagAsync(command.IfMatchETags)` before mutation: no header proceeds, a mismatch returns `412` without changing state or metadata, and the domain guard still rejects invalid transitions with `422`. Do not introduce `428` unless the endpoint contract requires the header.
-- **Rationale:** A domain guard validates the current state, not the version the client observed. Header requirement is an endpoint policy; honoring a supplied HTTP precondition is not optional (RFC 9110 §§13.1.1 and 13.2.1). Preserve permission/resource authorization before checking preconditions. See Recipe 23's decision table subject to the known erratum above.
+- **Rationale:** A domain guard validates the current state, not the version the client observed. Header requirement is an endpoint policy; honoring a supplied HTTP precondition is not optional (RFC 9110 §§13.1.1 and 13.2.1). Preserve permission/resource authorization before checking preconditions. See Recipe 23's decision table.
 - **Correct (body-carrying PUT — `RequireETag`):**
 ```csharp
 // Application/src/Todos/UpdateTodoCommand.cs  (record + handler colocated)
@@ -631,7 +629,7 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     }
 
     public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId, EntityTagValue[]? ifMatchETags = null) =>
-        todoId.ToResult(Error.InvalidInput.ForField(
+        Result.EnsureNotNull(todoId, static () => Error.InvalidInput.ForField(
             code: "required",
             field: "id",
             detail: "Todo id is required."))
@@ -678,6 +676,7 @@ public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationTok
 - **Rule:** When `apiVersioning` is enabled, 🔴 MUST place each API version's controllers in its own `Api/src/{yyyy-MM-dd}/Controllers/` folder with a matching `{ServiceName}.Api.v{yyyy_MM_dd}.Controllers` namespace. Do NOT add `[ApiVersion("...")]` attributes — `VersionByNamespaceConvention` derives the version from the namespace segment.
 - **Rationale:** Trellis template controllers are deliberately thin (route binding + `_sender.Send(...)` + response mapping), so duplicating a controller per version is cheaper than maintaining a single shared controller with version-aware projection seams (`HttpContext.RequestedApiVersion` branches, per-version DTO selection, `[MapToApiVersion]` per action). One folder = one version is easier to reason about and impossible to silently break across versions (a v2 edit cannot affect v1 by accident).
 - **When to add a new version:** Copy the latest version's `Api/src/{date}/Controllers/` and `Api/src/{date}/Models/` folders to a new `{date}` folder, change the namespace from `v{yyyy_MM_dd}` to the new value everywhere in the copy, then evolve the v2 copy independently — add fields to its `TodoResponse`, change endpoint shapes, etc. Older versions stay frozen.
+- **Pagination links:** Identically routed versioned list actions share one name in `[HttpGet(Name = "Todos_GetOverdue")]` and `HttpContext.PageUrl("Todos_GetOverdue", ...)`. `PageUrl` uses the active endpoint's version; do not embed a version suffix in pagination route names. Follow the emitted URL in tests and assert the responding version's JSON shape. This does not relax the uniquely addressable destination requirement for `CreatedAtRoute(...).WithVersionedRoute()`.
 - **Correct:**
 ```csharp
 // Api/src/2026-03-26/Controllers/TodosController.cs — v1
@@ -771,7 +770,7 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 | Scenario | Use | Not |
 |---|---|---|
 | Command construction (required fields **and** cross-field rules) | Private constructor + static `TryCreate(...)` returning `Result<T>` — for **every** command | Public ctor / `new XyzCommand(...)` at the call site; mutable command + later validation |
-| Required nullable fields | `value.ToResult(error)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
+| Required nullable fields | `Result.EnsureNotNull(value, fieldName, detail)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | Nullable `value.ToResult(error)` (removed); `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
 | Validation that cannot happen in `TryCreate` | `IValidate.Validate()` returning `IResult` | Late handler-only validation |
 | Permission-based authorization | `IAuthorize` | Handler-side permission `if` statements |
 | Resource-based authorization | `IAuthorizeResource<TResource>` + loader | Handler-side ownership checks |
@@ -780,6 +779,8 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 | Optional `If-Match` handling | `.OptionalETag(expectedETags)` | Manual ETag comparison |
 | Required `If-Match` on body-overwriting mutations (PUT/PATCH/DELETE, body-carrying POST, non-commutative additive ops) | `.RequireETag(expectedETags)` — see critical rule "Require `If-Match` on body-overwriting mutations" and cookbook Recipe 23 | `.OptionalETag(...)` or omitting the check (lost-update race, silent 200) |
 | Body-less state-transition POST (e.g., `.../approve`, `.../cancel`, `.../submit`) | `.OptionalETagAsync(command.IfMatchETags)` before the domain guard: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
+
+Use the field/detail null-guard form for new required fields unless a custom code is needed. The sample command factories use lazy custom-error factories to preserve their existing `"required"` response codes. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
 
 ### Handler and controller decisions
 

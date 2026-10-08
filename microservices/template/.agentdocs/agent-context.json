@@ -31,7 +31,7 @@
     "EntryPoints": [
       {
         "Path": "ProjectTrackerTemplate.slnx",
-        "RestoreSpecSha256": "8c9e3ebe37a0abbd0c437ebc7408d58dae11dd3f389f788555c4f2d26611e8bf"
+        "RestoreSpecSha256": "27692aec87262f007913eb78d383cf7bda508c3f81e738fb978a961c23cbfda4"
       }
     ],
     "Projects": [
@@ -57,33 +57,33 @@
           },
           {
             "Id": "Aspire.Hosting",
-            "Version": "13.6.0",
-            "ContentHash": "o6N282WsIcyT3\u002BCH5WGwG/4oTVrE2ZfPS6FkjAPFqPWoidymd0Oak5dWfImvPbpfaZfhmGoBdAOfSJBu5YIvdQ=="
+            "Version": "13.6.1",
+            "ContentHash": "gIcP7\u002BrPSBPWLlEpFGCWGKdjoXvyn0rZRCbjxUHTMnw8Y\u002Ba6Esp915o8MOROpYI\u002B\u002BMQN3Fo55Yu0XuBJ6MqEIw=="
           },
           {
             "Id": "Aspire.Hosting.AppHost",
-            "Version": "13.6.0",
-            "ContentHash": "teoQZnz1BDg2zBbxxRKk6/xcTFGRUqltK6ceEeq3De25ZM1GbVbob098HAewlNI3zyHfbLPCxvFnQ/ozc48LFA=="
+            "Version": "13.6.1",
+            "ContentHash": "1qfHjEFIwPErKUdvlwySgSbUgZtuvKTq1x8WRhl7hAOYvr/WouiSeA5DhVST0Ig6ZFPiTOEG2AJqJjmS6ZEMzw=="
           },
           {
             "Id": "Aspire.Hosting.Azure",
-            "Version": "13.6.0",
-            "ContentHash": "V9TQnI0crwG\u002BuaAS/ZJz\u002BUUEDJQDTSe9ZwLDn19oyM37y16efgyPdiKthYZ\u002B\u002BqdAXKKt2aNZanRULdrviQcb9Q=="
+            "Version": "13.6.1",
+            "ContentHash": "MOH3XkZO07jfdOCPzivTKUw1\u002B3bQruIdI3fr\u002Bt2lPccjrNkg5ZizuSHrj6EbWTtmyQ7LKQf3mM3JRW/aPby8Jg=="
           },
           {
             "Id": "Aspire.Hosting.Azure.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "M9I2eh4tFmPTrrifqyhh2KHsZ0DorYSME2yDjQD\u002BHC5mf8HD\u002B2XjZFZb1fTEefrwACJD0fq/fODlfBfsM8\u002BsFw=="
+            "Version": "13.6.1",
+            "ContentHash": "uQU2Fkle16Lb5geUeaZEWCBVuzu880/HuFHSSzoysbBYjGEHaaBS\u002B\u002BB4TCmAEucHNnz2bTJsXNH9H2h2LcmQkQ=="
           },
           {
             "Id": "Aspire.Hosting.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "7t9e1k3nJAR6EibdcoxcNvYpxQYK6Ts8Okl7GHdVyL3/vBApE/G\u002B9j9xqXXTOGCIstrqdnzvkZXzdSjQjL/j9A=="
+            "Version": "13.6.1",
+            "ContentHash": "GrjBRfy9PkInZqL8Ja9qGmlOofV1boLQiD0sUXc4iSeaTc2Ehkn7AMv/dSA2gh3arTIbhW4W4ECRmLxjDjp4IA=="
           },
           {
             "Id": "Aspire.Hosting.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "ZrbonLeDnSKeCv/IjVTisA3vuhBV9qRdrC9U0QQuvl4l4460vtKzfyy8RmeEn995gTghG1UvgfP6m5iSKlLDUQ=="
+            "Version": "13.6.1",
+            "ContentHash": "ls2PW0HYRwymiXPQY\u002B4uZEsACKtZXKUKpuPIuoOLcX/rZrc31YknpprezSdArH3K7XNcVTizSzsqGa9tEtFjJQ=="
           },
           {
             "Id": "Azure.Core",
@@ -597,33 +597,33 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "YamlDotNet",
@@ -874,33 +874,33 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -929,8 +929,8 @@
           },
           {
             "Id": "Trellis.Yarp",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "IV0oGjQ1EnG7xr7t6\u002Byl38uqfVWUXs1C/6qCMWBdBlo460lTtn4Jm1BrXDh0NgZeqqzW99OJckzDjp6FerQXPQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "lUZSLYDMK2OzQWPTUulmgJNa5lI0VUcdSVEGgdW6HpApSHwka55c4d30K1OqTOTW8jdeo1tKiz/8m/7JMBcTqA=="
           },
           {
             "Id": "Yarp.ReverseProxy",
@@ -1266,8 +1266,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -1276,18 +1276,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -1303,6 +1303,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry",
@@ -1431,33 +1436,33 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -1486,13 +1491,13 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "Trellis.Yarp",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "IV0oGjQ1EnG7xr7t6\u002Byl38uqfVWUXs1C/6qCMWBdBlo460lTtn4Jm1BrXDh0NgZeqqzW99OJckzDjp6FerQXPQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "lUZSLYDMK2OzQWPTUulmgJNa5lI0VUcdSVEGgdW6HpApSHwka55c4d30K1OqTOTW8jdeo1tKiz/8m/7JMBcTqA=="
           },
           {
             "Id": "Yarp.ReverseProxy",
@@ -1558,18 +1563,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -1903,48 +1908,48 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -1970,18 +1975,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -2330,8 +2335,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -2340,18 +2345,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -2362,6 +2367,11 @@
             "Id": "Microsoft.Win32.Registry",
             "Version": "5.0.0",
             "ContentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "Npgsql",
@@ -2470,48 +2480,48 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -2525,8 +2535,8 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -2612,18 +2622,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -3017,93 +3027,93 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Asp.ApiVersioning",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3KtdrZi4/ns8AAgdVRMCPT217xga564c/kwce8vjZRxgr93qAYApyyie1uLnXmlqnPU6fpfmuu0P5SZGMM6sTw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "NDM0dnQGUGUideyDN2IXnvB9S97FvzKfFGRJKD6IJCXm33sISHGN5OXQXI4Xj792bxf2/kVFlfsNqmujCaf6tQ=="
           },
           {
             "Id": "Trellis.Asp.Idempotency.Cosmos",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "HhNWYnirFSJS/l7p\u002BRfVdyuHLDXJcOkkgy9Hz4rPRP3YC4kz9TL4e5uU65H2OrgPunRht7Wc0TSNgwpxxaxt7w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "E\u002BJL5jKlWaPXLdMPHRDf55mpQMm9UA2vROz/QbDRqMYIbxaZRD8Lny2JdJPCN/Qr2FwW2Mv/xhKlPL0nqpEPSg=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "36xi6Yty9QHUMyivARES2fKWspKMjn1Yx0JI\u002Bajz9PPk4vvMFbpQJw878IQ2X6OzmKPJzFTIiJ54HLp4L00osA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "wBhtPXu8dH\u002BTpnYy3MmkGVwgazRSxVQkzAM27SqYvjoWfpqIAbD/tf3hlWDt5dDg5zuAsUo3d8iJ1chhVz4ucw=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Mediator.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "\u002BawJ06uKH7xc0iJBc6MX9VdjOgqYVvkKOgGdavyamcPN7OzijlGL/ImC2pLM/a/ZBL60C9zhkiZiBkNw0q4fkA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "OlHABZ7gZ0OtozzIGuwD6atdA4wc4\u002B2b\u002B/CBdRW/fTUyvjKKShL9LxlLvyGHXRVnLY8EzMCTu4AKcO6EkDjpow=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.Microservices.AspNetCore",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "DHGZHHe9Ph25sTp52c1tBQG\u002BuC1sXBnDdn6BPQHpcrLURrkNOIylfgjAZbMZeIAzhb1jyCH4t5dbZzljpvloNg=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "X6EYV8XqX4spzQHy4g5b6f46s\u002BlujXzZcZrtNokvu5pQAY0TUbVgtI1zQ9byhj3NO1Cz1QZG2clLi94hkkBlVw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -3117,8 +3127,8 @@
           },
           {
             "Id": "Trellis.ServiceDefaults",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "CQCFvyO5E9wLDlcfZmTq\u002BuF4foBCSJCqa6Sn4QKkO/iJ\u002BqghIOXbG/eJX\u002Bv8fKJEXYXCIS5G65FSXMkdUWVS5g=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "zvaamJdVVIT0k7971veX7BDN3DwkZQ6qfbgI3ELghHhII6QQco2L0KJ/SBSa3HTJP\u002BUPvaoQnmAvoyIaJ9mg8A=="
           },
           {
             "Id": "Trellis.ServiceLevelIndicators",
@@ -3174,18 +3184,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -3664,8 +3674,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -3674,18 +3684,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -3696,6 +3706,11 @@
             "Id": "Microsoft.Win32.Registry",
             "Version": "5.0.0",
             "ContentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "Newtonsoft.Json",
@@ -3869,93 +3884,93 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Asp.ApiVersioning",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3KtdrZi4/ns8AAgdVRMCPT217xga564c/kwce8vjZRxgr93qAYApyyie1uLnXmlqnPU6fpfmuu0P5SZGMM6sTw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "NDM0dnQGUGUideyDN2IXnvB9S97FvzKfFGRJKD6IJCXm33sISHGN5OXQXI4Xj792bxf2/kVFlfsNqmujCaf6tQ=="
           },
           {
             "Id": "Trellis.Asp.Idempotency.Cosmos",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "HhNWYnirFSJS/l7p\u002BRfVdyuHLDXJcOkkgy9Hz4rPRP3YC4kz9TL4e5uU65H2OrgPunRht7Wc0TSNgwpxxaxt7w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "E\u002BJL5jKlWaPXLdMPHRDf55mpQMm9UA2vROz/QbDRqMYIbxaZRD8Lny2JdJPCN/Qr2FwW2Mv/xhKlPL0nqpEPSg=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "36xi6Yty9QHUMyivARES2fKWspKMjn1Yx0JI\u002Bajz9PPk4vvMFbpQJw878IQ2X6OzmKPJzFTIiJ54HLp4L00osA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "wBhtPXu8dH\u002BTpnYy3MmkGVwgazRSxVQkzAM27SqYvjoWfpqIAbD/tf3hlWDt5dDg5zuAsUo3d8iJ1chhVz4ucw=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Mediator.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "\u002BawJ06uKH7xc0iJBc6MX9VdjOgqYVvkKOgGdavyamcPN7OzijlGL/ImC2pLM/a/ZBL60C9zhkiZiBkNw0q4fkA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "OlHABZ7gZ0OtozzIGuwD6atdA4wc4\u002B2b\u002B/CBdRW/fTUyvjKKShL9LxlLvyGHXRVnLY8EzMCTu4AKcO6EkDjpow=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.Microservices.AspNetCore",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "DHGZHHe9Ph25sTp52c1tBQG\u002BuC1sXBnDdn6BPQHpcrLURrkNOIylfgjAZbMZeIAzhb1jyCH4t5dbZzljpvloNg=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "X6EYV8XqX4spzQHy4g5b6f46s\u002BlujXzZcZrtNokvu5pQAY0TUbVgtI1zQ9byhj3NO1Cz1QZG2clLi94hkkBlVw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -3969,8 +3984,8 @@
           },
           {
             "Id": "Trellis.ServiceDefaults",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "CQCFvyO5E9wLDlcfZmTq\u002BuF4foBCSJCqa6Sn4QKkO/iJ\u002BqghIOXbG/eJX\u002Bv8fKJEXYXCIS5G65FSXMkdUWVS5g=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "zvaamJdVVIT0k7971veX7BDN3DwkZQ6qfbgI3ELghHhII6QQco2L0KJ/SBSa3HTJP\u002BUPvaoQnmAvoyIaJ9mg8A=="
           },
           {
             "Id": "Trellis.ServiceLevelIndicators",
@@ -3989,13 +4004,13 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "Trellis.Testing.AspNetCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "WbcCVjqSyurAvvHhdl/WqsqGP0KjjqsBkQmh\u002Bft9iL1xdue4PItv2Drnqy\u002BtsR/5Z2PVbu1j/JVKfkTc3pEbaA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "iOoA90nPGMJ\u002BYEVhc3W7J1SNhgcsxoPxi356hZ1F4ACW/Dp65eZ8x6YT2eqArkbF2\u002BU7TXbVm2IchJSE3GbqrA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -4131,38 +4146,38 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           }
         ]
       },
@@ -4268,8 +4283,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -4278,18 +4293,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -4305,6 +4320,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry.Api",
@@ -4343,43 +4363,43 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -4510,38 +4530,38 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           }
         ]
       },
@@ -4647,8 +4667,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -4657,18 +4677,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -4684,6 +4704,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry.Api",
@@ -4722,43 +4747,43 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -4819,18 +4844,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -5164,53 +5189,53 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -5236,18 +5261,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -5536,8 +5561,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -5546,18 +5571,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -5568,6 +5593,11 @@
             "Id": "Microsoft.Win32.Registry",
             "Version": "5.0.0",
             "ContentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "Npgsql",
@@ -5676,53 +5706,53 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -5736,8 +5766,8 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -5823,18 +5853,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -6213,88 +6243,88 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Asp.ApiVersioning",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3KtdrZi4/ns8AAgdVRMCPT217xga564c/kwce8vjZRxgr93qAYApyyie1uLnXmlqnPU6fpfmuu0P5SZGMM6sTw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "NDM0dnQGUGUideyDN2IXnvB9S97FvzKfFGRJKD6IJCXm33sISHGN5OXQXI4Xj792bxf2/kVFlfsNqmujCaf6tQ=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "36xi6Yty9QHUMyivARES2fKWspKMjn1Yx0JI\u002Bajz9PPk4vvMFbpQJw878IQ2X6OzmKPJzFTIiJ54HLp4L00osA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "wBhtPXu8dH\u002BTpnYy3MmkGVwgazRSxVQkzAM27SqYvjoWfpqIAbD/tf3hlWDt5dDg5zuAsUo3d8iJ1chhVz4ucw=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Mediator.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "\u002BawJ06uKH7xc0iJBc6MX9VdjOgqYVvkKOgGdavyamcPN7OzijlGL/ImC2pLM/a/ZBL60C9zhkiZiBkNw0q4fkA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "OlHABZ7gZ0OtozzIGuwD6atdA4wc4\u002B2b\u002B/CBdRW/fTUyvjKKShL9LxlLvyGHXRVnLY8EzMCTu4AKcO6EkDjpow=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.Microservices.AspNetCore",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "DHGZHHe9Ph25sTp52c1tBQG\u002BuC1sXBnDdn6BPQHpcrLURrkNOIylfgjAZbMZeIAzhb1jyCH4t5dbZzljpvloNg=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "X6EYV8XqX4spzQHy4g5b6f46s\u002BlujXzZcZrtNokvu5pQAY0TUbVgtI1zQ9byhj3NO1Cz1QZG2clLi94hkkBlVw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -6308,8 +6338,8 @@
           },
           {
             "Id": "Trellis.ServiceDefaults",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "CQCFvyO5E9wLDlcfZmTq\u002BuF4foBCSJCqa6Sn4QKkO/iJ\u002BqghIOXbG/eJX\u002Bv8fKJEXYXCIS5G65FSXMkdUWVS5g=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "zvaamJdVVIT0k7971veX7BDN3DwkZQ6qfbgI3ELghHhII6QQco2L0KJ/SBSa3HTJP\u002BUPvaoQnmAvoyIaJ9mg8A=="
           },
           {
             "Id": "Trellis.ServiceLevelIndicators",
@@ -6365,18 +6395,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -6845,8 +6875,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -6855,18 +6885,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -6877,6 +6907,11 @@
             "Id": "Microsoft.Win32.Registry",
             "Version": "5.0.0",
             "ContentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "Npgsql",
@@ -7045,88 +7080,88 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Asp.ApiVersioning",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3KtdrZi4/ns8AAgdVRMCPT217xga564c/kwce8vjZRxgr93qAYApyyie1uLnXmlqnPU6fpfmuu0P5SZGMM6sTw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "NDM0dnQGUGUideyDN2IXnvB9S97FvzKfFGRJKD6IJCXm33sISHGN5OXQXI4Xj792bxf2/kVFlfsNqmujCaf6tQ=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "36xi6Yty9QHUMyivARES2fKWspKMjn1Yx0JI\u002Bajz9PPk4vvMFbpQJw878IQ2X6OzmKPJzFTIiJ54HLp4L00osA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "wBhtPXu8dH\u002BTpnYy3MmkGVwgazRSxVQkzAM27SqYvjoWfpqIAbD/tf3hlWDt5dDg5zuAsUo3d8iJ1chhVz4ucw=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Mediator.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "\u002BawJ06uKH7xc0iJBc6MX9VdjOgqYVvkKOgGdavyamcPN7OzijlGL/ImC2pLM/a/ZBL60C9zhkiZiBkNw0q4fkA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "OlHABZ7gZ0OtozzIGuwD6atdA4wc4\u002B2b\u002B/CBdRW/fTUyvjKKShL9LxlLvyGHXRVnLY8EzMCTu4AKcO6EkDjpow=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.Microservices.AspNetCore",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "DHGZHHe9Ph25sTp52c1tBQG\u002BuC1sXBnDdn6BPQHpcrLURrkNOIylfgjAZbMZeIAzhb1jyCH4t5dbZzljpvloNg=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "X6EYV8XqX4spzQHy4g5b6f46s\u002BlujXzZcZrtNokvu5pQAY0TUbVgtI1zQ9byhj3NO1Cz1QZG2clLi94hkkBlVw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -7140,8 +7175,8 @@
           },
           {
             "Id": "Trellis.ServiceDefaults",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "CQCFvyO5E9wLDlcfZmTq\u002BuF4foBCSJCqa6Sn4QKkO/iJ\u002BqghIOXbG/eJX\u002Bv8fKJEXYXCIS5G65FSXMkdUWVS5g=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "zvaamJdVVIT0k7971veX7BDN3DwkZQ6qfbgI3ELghHhII6QQco2L0KJ/SBSa3HTJP\u002BUPvaoQnmAvoyIaJ9mg8A=="
           },
           {
             "Id": "Trellis.ServiceLevelIndicators",
@@ -7160,13 +7195,13 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "Trellis.Testing.AspNetCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "WbcCVjqSyurAvvHhdl/WqsqGP0KjjqsBkQmh\u002Bft9iL1xdue4PItv2Drnqy\u002BtsR/5Z2PVbu1j/JVKfkTc3pEbaA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "iOoA90nPGMJ\u002BYEVhc3W7J1SNhgcsxoPxi356hZ1F4ACW/Dp65eZ8x6YT2eqArkbF2\u002BU7TXbVm2IchJSE3GbqrA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -7302,43 +7337,43 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           }
         ]
       },
@@ -7444,8 +7479,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -7454,18 +7489,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -7481,6 +7516,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry.Api",
@@ -7519,48 +7559,48 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -7691,38 +7731,38 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           }
         ]
       },
@@ -7828,8 +7868,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -7838,18 +7878,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -7865,6 +7905,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry.Api",
@@ -7903,43 +7948,43 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -8175,8 +8220,8 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -8217,18 +8262,18 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           }
         ]
       },
@@ -8264,8 +8309,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -8274,18 +8319,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -8301,6 +8346,11 @@
             "Id": "Microsoft.Win32.SystemEvents",
             "Version": "6.0.0",
             "ContentHash": "hqTM5628jSsQiv\u002BHGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/\u002B/xn/yZ9ulv8HuqK71ONy2tg67A=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "OpenTelemetry.Api",
@@ -8339,28 +8389,28 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -8446,18 +8496,18 @@
           },
           {
             "Id": "Aspire.Azure.Messaging.ServiceBus",
-            "Version": "13.6.0",
-            "ContentHash": "5xPmtGyzfR3nPJqrXIUdK4EAs4fuQ/BCAB5uOAQMeU2MWD0xbh4Nay\u002BFVGTqyHOMeuDuQ\u002BZCIZaXw7MGe2PZcg=="
+            "Version": "13.6.1",
+            "ContentHash": "dVaDCixneZ2SUQNx/zyT9jafy/YbzMkfrIsmyyQ2wdg/4Nel8G4fUwoPlOQKo8QEG69ipdrZUDf9NQlEz\u002BQT6Q=="
           },
           {
             "Id": "Aspire.Microsoft.EntityFrameworkCore.SqlServer",
-            "Version": "13.6.0",
-            "ContentHash": "2q/WIQh1hRREQMf5tE0eHGfVokqy/BLYKDuIJNJQk3DUp/H9/bugZslPu2SZqfko32TSup6nvMvgrGGVqoomXg=="
+            "Version": "13.6.1",
+            "ContentHash": "uuxdSzVp8JHZm\u002B2SDCNf6\u002BiqIMe5\u002Bd5OVsSueJZxztg4/Ii6oCGpwTN0l7zk88IiiNOsBRSCTwVGTBiOST9sqg=="
           },
           {
             "Id": "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL",
-            "Version": "13.6.0",
-            "ContentHash": "hkhHiRa9nbqWt7Bpmq6LVaE3L46ZjwNN\u002BKk5DwjfVTw\u002BtohaURYd6eWQFX0hqyMyJcmrWwWg0n1L5u7LnUB1Mw=="
+            "Version": "13.6.1",
+            "ContentHash": "4J8ZPPlo88\u002Bwt3frbASAPH6OBGMZ1/f9ywnEsSsS8QvMECAU6RWgmxrR/Qjg70L0Dax5Ontt9IWyq8TYvGj2kg=="
           },
           {
             "Id": "Azure.Core",
@@ -8936,8 +8986,8 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.CodeCoverage",
-            "Version": "18.11.2",
-            "ContentHash": "bT6awBEUR\u002BfjPpeLAN\u002B\u002B4qx5q0sgA9SeJt6QfijnFFPxNSr68BYsYFMQH8L8kY6vMJd3fuvFAFBht4JtWQcWtQ=="
+            "Version": "18.12.0",
+            "ContentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.Telemetry",
@@ -8946,18 +8996,18 @@
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport",
-            "Version": "2.4.1",
-            "ContentHash": "KGAvJKRqhod45ecH4L1cCKIjGrzziUcLo3L4hRlfOg/Ww2Q7MnA30qHY2rnKzGyLVWf91tc2VleGe8c33FmPaQ=="
+            "Version": "2.5.1",
+            "ContentHash": "NHqpG2UAVsXoNnNZtyIjxgsfPe9N/E6eTHjHCs7uaSbdOCOsbX5I7N0d1BHyjM7vv3Q5R2nlvngKSHWT\u002BZCRXQ=="
           },
           {
             "Id": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
-            "Version": "2.4.1",
-            "ContentHash": "tDxLLic2IfeChbyo8oeGZj/eBdFpPe3Dp80hUoIOefSCqqMHbsob\u002BlX1TfFWV75PJCPouxj2zz0zzPHZxiM4nQ=="
+            "Version": "2.5.1",
+            "ContentHash": "DYTZAguaHz0wNJdHDTTGYOXtnlDoLoIbTMDKSApNNcytm55DJcnwpwELfQGLk5DB5QlgaEjNhnGo1Pu5QvL5VA=="
           },
           {
             "Id": "Microsoft.Testing.Platform",
-            "Version": "2.4.1",
-            "ContentHash": "3nW9NyhN1BnHRF994DCOOUQCqVA9pDT\u002BgPpbuhI/xUntZnGnXO4ySovKxFlFuoT/48pnI74LK/DeKVlve1L3VQ=="
+            "Version": "2.5.1",
+            "ContentHash": "FAMaFFWnULW\u002BhDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY\u002Bw7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
           },
           {
             "Id": "Microsoft.Testing.Platform.MSBuild",
@@ -8968,6 +9018,11 @@
             "Id": "Microsoft.Win32.Registry",
             "Version": "5.0.0",
             "ContentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
+          },
+          {
+            "Id": "Mono.Cecil",
+            "Version": "0.11.6",
+            "ContentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
           },
           {
             "Id": "Newtonsoft.Json",
@@ -9141,93 +9196,93 @@
           },
           {
             "Id": "Trellis.Analyzers",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "tM9NsG7Pz/w728VD0z01a52DpRMm5oGa3NLddPjPv7Hg1u/ofmp/7NpU2cjQth\u002B76dr1yD5\u002BtHGHK7suo\u002BVcjQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "3n4oKWy8zayHmI6I0YS2LhmatI5somHwq3C/8uhZVGnXzNC9Z/s2AZkwIUfJ\u002BpgrEApkwGVRcBXH4OuGpoCOMw=="
           },
           {
             "Id": "Trellis.Asp",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "ScAO2d2oyaBRwm9D\u002BhW8fBtxe4yuy/nSMwa0JbxkotM2M45gt2ytmteUf4KbmUg439G8cK7oYFM97HBQY4Q/HQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1th9lPyXtMb0e3FV30vTgC3/Vk\u002Bf6154K4wpfBoWARAXeO0fe9iatfsahyKKJBs7v23XEdPMglael\u002BW6TdYVLQ=="
           },
           {
             "Id": "Trellis.Asp.ApiVersioning",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3KtdrZi4/ns8AAgdVRMCPT217xga564c/kwce8vjZRxgr93qAYApyyie1uLnXmlqnPU6fpfmuu0P5SZGMM6sTw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "NDM0dnQGUGUideyDN2IXnvB9S97FvzKfFGRJKD6IJCXm33sISHGN5OXQXI4Xj792bxf2/kVFlfsNqmujCaf6tQ=="
           },
           {
             "Id": "Trellis.Asp.Idempotency.Cosmos",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "HhNWYnirFSJS/l7p\u002BRfVdyuHLDXJcOkkgy9Hz4rPRP3YC4kz9TL4e5uU65H2OrgPunRht7Wc0TSNgwpxxaxt7w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "E\u002BJL5jKlWaPXLdMPHRDf55mpQMm9UA2vROz/QbDRqMYIbxaZRD8Lny2JdJPCN/Qr2FwW2Mv/xhKlPL0nqpEPSg=="
           },
           {
             "Id": "Trellis.Authorization",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "jKNw/EQsl/ylhXfZcTP1KpUIRWf04xM\u002BckJbrpvml/1bnlXPaAhS6FjBEXTBUrCTT/dT0RJgYj\u002BPXtK0s5\u002B8rw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "AwXNdlOs0r/uP1UeMciQHJB/gqP27PxC\u002B5VYKMAL33c1DNmmJo8ZnskjfEKCIiMHHSJKwThJVLkMsWAoOOyQOA=="
           },
           {
             "Id": "Trellis.Core",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "YcOzzgmvj61bRnG2hdGm0UpnUtHG4Y3428yGbFmvvm4Ew08PpURmrXAi0njvlnu12cDctMSSWc9LLdvCSXXUmg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "FIcOWD8LqTWRtl/PgTGGHQU8tWnelxCICxXPxD8W7/l/AEhveajIEd7bPCo3KAtbrT8sgR7d4los7UaODAXPGg=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "td2RHdgWqyS2g9pIdzIEw4\u002BhiRTColqGY/\u002BmTkw0WJhaPUuJfhbHMRLlZYYDPwpDbEmVVkdkda/T3U3lw4TDrQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "znbps9XvHgRHuzFfuzmU7/0Ltj1kZWTohfJgsOFPApc/305Sg2pRjUYKfyg9U2wXHMvkotCgsHEIwUwn36lJ7g=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Inbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "Apo06ZxJSp0CAl5b\u002B1sOiNPqn2kzCBF\u002BX1qYJEhQLqWzpFSyvfAxt18SIugajfL9XG6K7SyM60uh8abaWDWkbg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "1JKkMg06zkisdrpLHrQVAwYxb8tpaFkYwuf\u002BQoFnleOxrLGOm5f4fFMqzm3wAjOQ\u002BNvIbt/aCZDO\u002Bf\u002BWhP5/yA=="
           },
           {
             "Id": "Trellis.EntityFrameworkCore.Outbox",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "MoytFS\u002BXlnXS6kmVNmKDB9/mU2PnEZ2QUoTnDwKAvFZ7P6wzmGLpJvS3QobIjy\u002B84sK/INicUvCQy1yfVHtyFw=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "JtS\u002BYh2zPxnzU5pnnGrvCwyL7wl0iUD4KItZCd0vKmylXrIFB6h4EFrI2RTaF6EHRnBUemC6Vtd3MOYatc4nRA=="
           },
           {
             "Id": "Trellis.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "36xi6Yty9QHUMyivARES2fKWspKMjn1Yx0JI\u002Bajz9PPk4vvMFbpQJw878IQ2X6OzmKPJzFTIiJ54HLp4L00osA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "wBhtPXu8dH\u002BTpnYy3MmkGVwgazRSxVQkzAM27SqYvjoWfpqIAbD/tf3hlWDt5dDg5zuAsUo3d8iJ1chhVz4ucw=="
           },
           {
             "Id": "Trellis.Http.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "v6puH9\u002B21Tq6S31vfy3yT0pyyPZtGV8g1ZVp53xJKP2nI5n2bMK1sghVH72Zqxijp6zEwPPJCSRVpoLpy2qd6Q=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "xPrXJtzZ5XnI\u002BBES/DTAS5aCGysz\u002B\u002BBgUuunXEq3ggf/3e4gGHkjcW2fhvvAqX1jg24ouaaieOllXjsBmgf3Hw=="
           },
           {
             "Id": "Trellis.Mediator",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "3GUz/Ki7kS67A3R2BqnFWz2AfHnVqLs8pHL9Jn4kxefBT0G4V0r0IumFBGu3dtR7OH\u002BDNPG\u002B1Md4lv8dU0\u002BZBg=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "vg6ZryMDrxqcXnfCpb3RXOVzX8ZREeqEfV0c3NeNtr9HY3ClHAP3yblScgryfRh9WNpg1t5D6tFRYnvDFDIFHw=="
           },
           {
             "Id": "Trellis.Mediator.FluentValidation",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "\u002BawJ06uKH7xc0iJBc6MX9VdjOgqYVvkKOgGdavyamcPN7OzijlGL/ImC2pLM/a/ZBL60C9zhkiZiBkNw0q4fkA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "OlHABZ7gZ0OtozzIGuwD6atdA4wc4\u002B2b\u002B/CBdRW/fTUyvjKKShL9LxlLvyGHXRVnLY8EzMCTu4AKcO6EkDjpow=="
           },
           {
             "Id": "Trellis.Messaging.AzureServiceBus",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "DS/CwiH7Bw73szvv9j3Si\u002BhPhyqXVuxG\u002BbI24J0m18obcnZw4aMOvgiS\u002BjwxlOzq4wJBQZKUXPkTPzra6\u002B95WA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "dN98x1ZG8MqAJtLBwfQhnbzU6Vl\u002BL6ydxr2QsGJhp/7jKSwWxInPuTRmSul2H7Sq5/P0JV6u\u002BwwrCq88KNlR2Q=="
           },
           {
             "Id": "Trellis.Microservices.Abstractions",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "A0ChCg59/WQvPIkNt9e7kSftK1MthYlg/igKz2xyqVkMXLFGrYGN2fcrhgyXA91aX\u002BDBG4MXbT4/NFiRoA\u002BTzQ=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "a83uIakgE\u002B3c/3YoMsZoGSPFQx2VfsKufkoJJgstpuUCKwBzZkK9EoMqtpKQcMTLRUPb0Op/aK3LfXge0lvlwA=="
           },
           {
             "Id": "Trellis.Microservices.AspNetCore",
-            "Version": "0.1.0-alpha.75",
-            "ContentHash": "DHGZHHe9Ph25sTp52c1tBQG\u002BuC1sXBnDdn6BPQHpcrLURrkNOIylfgjAZbMZeIAzhb1jyCH4t5dbZzljpvloNg=="
+            "Version": "0.1.0-alpha.76",
+            "ContentHash": "X6EYV8XqX4spzQHy4g5b6f46s\u002BlujXzZcZrtNokvu5pQAY0TUbVgtI1zQ9byhj3NO1Cz1QZG2clLi94hkkBlVw=="
           },
           {
             "Id": "Trellis.Persistence.Abstractions",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "16TQLvOkStH47rI2hjGX0wnz9G\u002Bwfjm\u002BVoyLM/5eIy5xKe1heZ7rABzakCNCP\u002BwQ4oeZslrXAV1I5XTc/YRjxQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "C0KmjiyImFfPhAAo\u002BAEFkBFLMbctf2qIgyk26CPG/1F8kNfCtZhqdwJweBkH/T4aHQ1ygUiNYjUj55DowUrHCw=="
           },
           {
             "Id": "Trellis.Primitives",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "SuzjDPR4CJHnqhN46HD2WD1q9QpD1Jm6tI\u002BlJktrqJJSC5lnrc9ZM386r6iXVKKPV7veBjrTkRq2CTyhBqp6qQ=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "4qGn8oxP37slrEgP7UaOxoCSnrIjBRho8aKJjOZSrPfijbxvfd0wsG72CochcPuoIp95/p8GcCEesgyTg3ZKfw=="
           },
           {
             "Id": "Trellis.ResourceNaming.Abstractions",
@@ -9241,8 +9296,8 @@
           },
           {
             "Id": "Trellis.ServiceDefaults",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "CQCFvyO5E9wLDlcfZmTq\u002BuF4foBCSJCqa6Sn4QKkO/iJ\u002BqghIOXbG/eJX\u002Bv8fKJEXYXCIS5G65FSXMkdUWVS5g=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "zvaamJdVVIT0k7971veX7BDN3DwkZQ6qfbgI3ELghHhII6QQco2L0KJ/SBSa3HTJP\u002BUPvaoQnmAvoyIaJ9mg8A=="
           },
           {
             "Id": "Trellis.ServiceLevelIndicators",
@@ -9261,13 +9316,13 @@
           },
           {
             "Id": "Trellis.Testing",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "r04tTaqcBb2q732vYrduoUnuNmNDW9FwtkuS1QLehEWXMxNQrTjN5tSKPU8qLOAOU3MYpta3IOcj1wEaoMOh4w=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "EC2l1CIRl\u002BVFQhTviTtVgLQyobPW6flA\u002B1U/h7g86G\u002B5vLVD24o2wDgNtDhzSe14bar5fBKKGNbNrPHCZ79sQA=="
           },
           {
             "Id": "Trellis.Testing.AspNetCore",
-            "Version": "3.0.0-alpha.542",
-            "ContentHash": "WbcCVjqSyurAvvHhdl/WqsqGP0KjjqsBkQmh\u002Bft9iL1xdue4PItv2Drnqy\u002BtsR/5Z2PVbu1j/JVKfkTc3pEbaA=="
+            "Version": "3.0.0-alpha.554",
+            "ContentHash": "iOoA90nPGMJ\u002BYEVhc3W7J1SNhgcsxoPxi356hZ1F4ACW/Dp65eZ8x6YT2eqArkbF2\u002BU7TXbVm2IchJSE3GbqrA=="
           },
           {
             "Id": "xunit.analyzers",
@@ -9333,7 +9388,7 @@
   "ToolOwnedFiles": [
     {
       "Path": "README.md",
-      "CanonicalSha256": "4c9ef819b56f45848fd48db4fe758ee2f4fb3a71afdaee79c663ad589a3a24ab",
+      "CanonicalSha256": "11810d6d4a9efefd1f5938a6df558781b09ce73ab9d7e8427bd4f58f9da951f8",
       "Sources": [],
       "TransformVersion": "generated-index-v1",
       "ReferenceDependencies": []
@@ -9342,13 +9397,13 @@
   "References": [
     {
       "Path": "packages/trellis.core/trellis/trellis-api-analyzers.md",
-      "CanonicalSha256": "a7eb77eb6547236540491fa40f33f88789f7061ebb79924dff1fbfac3d2d1e29",
+      "CanonicalSha256": "22c600d8285dbfcee191bda6949a1cf3fc141c3bdbf4d6431e81908d9d2db7bd",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-analyzers.md",
-          "Sha256": "817ea05540c5d63acb844fabd6536c0939fcc4a32c2d01c1f53983f781896ecf"
+          "Sha256": "656d921a57ac40b8469c5c9f5eb60ea89cdfe5e4d31d0dcc6907f96e2cb82024"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9356,13 +9411,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-anti-patterns.md",
-      "CanonicalSha256": "3d9ae04a8f6a89b0c1256d7f6c09d7cb8fcb25c29b564452a8810c16473cbc2e",
+      "CanonicalSha256": "7b6bb5e079ae6527387ddfc799dfdb416e12e2efc08e4b715c9d1d3364d221b2",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-anti-patterns.md",
-          "Sha256": "2932779196d10adcba3c94519e35fefd2fc2184919ef6709d2c03bcd90b469a1"
+          "Sha256": "4cd45c0d7f7008b929dd8f29e67f20e62c685ae8e3abd2e0a919fc17c2c102af"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9370,13 +9425,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-asp-apiversioning.md",
-      "CanonicalSha256": "d54b83fdef598d2a5646b823bff0838597f67a86f3e8810fc42d7c10a364b460",
+      "CanonicalSha256": "d904d9fcb29037e246eff3513ae46b82bbc1b0d180773336b2f187d1aad33cfd",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-asp-apiversioning.md",
-          "Sha256": "a31567c7e19da666a9ea765bb14603e9d9bbc54a38e1c9632bb91fcb1895876b"
+          "Sha256": "2138418a34fa261701d1c567c619e2aa8b22f1e929b1bfaf8529eb6676b109f4"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9388,7 +9443,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-asp-idempotency-cosmos.md",
           "Sha256": "740d1ee4d7efea03c40706efaa6afd17bc2f7521d07513cb91050b789b4d3391"
         }
@@ -9398,13 +9453,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-asp.md",
-      "CanonicalSha256": "478c2736736230525b7438df31ce5e5ad7fbf4fa54d4aaab8cf20bbb36516525",
+      "CanonicalSha256": "1e9ab75bc9703c3b18342edd0241543194426a28ff5e413187da16385edfe6bf",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-asp.md",
-          "Sha256": "78cbc1880a53f5ddb9202742ca3d227d380185a21d86feb28dd412541c9dd5de"
+          "Sha256": "937a84983108ebde24ebf030097cd928accb1dd102b206835ceda3fc0e3ae3ed"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9412,13 +9467,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-authorization.md",
-      "CanonicalSha256": "08d3b8809ce429ea5ae255b76f1b03510c2ee910374ce9fc13cd9bfd58944e08",
+      "CanonicalSha256": "3e2603773a63b31e58980b874468a4259a030044e579a3a141479160c1d7b050",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-authorization.md",
-          "Sha256": "f706c5075a27ecadbfff548eda1d5aa4282ea5b2932402025a727bde561c6523"
+          "Sha256": "c11c1812b6f58bc2d720dbdfc0729682af838f884d9e9e4993876c96745730a2"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9426,13 +9481,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-cookbook.md",
-      "CanonicalSha256": "207537c12026dcdd7ac3727d3fdc39834b00f5740e5caf44f3b3787a0172ce91",
+      "CanonicalSha256": "49803e63c79f64272374389f82cf9cea0886d20d25f98ca8ae607ab59ab6299b",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-cookbook.md",
-          "Sha256": "fa0db0563409d39d91457c4a7d5f7e435dfcffa813f152685f9b3fb455f57bf2"
+          "Sha256": "ea5514e65753827aea36d7d40ed61c620c2d82802d5380f2ef0ad8ad5000859c"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9440,13 +9495,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-core.md",
-      "CanonicalSha256": "13a1e25d26fda3da6126ae52fa315499ce947b4a07fc254ebf5ab2a693613151",
+      "CanonicalSha256": "85ca54663e58727a1eff406a2e6dab0b620fd012351102006ece4b9c1f3c491b",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-core.md",
-          "Sha256": "3c160d453d75789de9ff750b341e9b83d4b6658a0259b2d16990cc59ddcd17c6"
+          "Sha256": "9c047898d98648a095521eb60018ac3c5305e7ae13ed02aba3bc977863cc9e55"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9458,7 +9513,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-efcore-inbox.md",
           "Sha256": "5e0891a5632c61caa38e31b86187a0126f7671e4fbc75bf34f7dcea2341b8eb4"
         }
@@ -9472,7 +9527,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-efcore-outbox.md",
           "Sha256": "784593c80b15f694529b50282257d883a33ff1d4da01cb0a14beb779121b68ee"
         }
@@ -9482,13 +9537,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-efcore.md",
-      "CanonicalSha256": "5f31a07d1588897caef61cd110f058c4a97c44fd74bf2bc9abc6de46cd67ff32",
+      "CanonicalSha256": "fbf2ac420afa4ed3148ca54e9c2e06f4d11f96dcf8e5b33618c73f5d00e63b95",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-efcore.md",
-          "Sha256": "2079292c29dcdb57e250eb368081eb405860ff00f2c79efe070926ebd318696c"
+          "Sha256": "2fc35b9812c727e2c17704a24817cefa81632d1205c6b33d7a6473ade9a262f6"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9500,7 +9555,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-fluentvalidation.md",
           "Sha256": "1eca7603494482e388aed5ce47cdf15003ff01c4be9464da7cee6dfa136f03cb"
         }
@@ -9510,13 +9565,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-http-abstractions.md",
-      "CanonicalSha256": "7a8f3d36c7fcebe366687cccb94ca2b85521676358b053c4b6414fbfe7b84097",
+      "CanonicalSha256": "da05e0c916361342c2060d250e439669fb56ca1e3d4ac8f6f0d39d6a73d01e55",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-http-abstractions.md",
-          "Sha256": "3de930a7596d97ea0c24ce1c2c322a476f3eff82094d10b34761ff31b12644c1"
+          "Sha256": "841e4dbfa04fe1b2be40d225e37257d51818a305341b3ee95aa147c0f36b227d"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9528,7 +9583,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-http.md",
           "Sha256": "35afc3cf045994030feef8827135baddcb5e3670d11b526eea711eec58d5df40"
         }
@@ -9542,7 +9597,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-mediator-fluentvalidation.md",
           "Sha256": "081eedfd3ea3e5775aef8e3fce9a9f1f6237debb6d84c2f44c1316aa74b2e0d8"
         }
@@ -9552,13 +9607,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-mediator.md",
-      "CanonicalSha256": "2156cf33c6a7702c31674da1b9fcfc3e3ac349b22139883c0b4b85c81439ef17",
+      "CanonicalSha256": "e08826c39435e033fd81d6858b77ad7c7c568013573d1edd82a979ccb199ba23",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-mediator.md",
-          "Sha256": "667f4b963f30a122ab1e8b14a2cf77d2839b19f2d90c60b6be3d30ea3575c3ab"
+          "Sha256": "45cf2fecc6fc2012aeb6d87cddfabab1a3032a002e453428282eddfd32bb62ac"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9570,9 +9625,23 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-messaging-azureservicebus.md",
           "Sha256": "198f3bdd10432736d5a666c4b011bb8a611b97aa71f29d7e590191c06071306e"
+        }
+      ],
+      "TransformVersion": "canonical-text-v1",
+      "ReferenceDependencies": []
+    },
+    {
+      "Path": "packages/trellis.core/trellis/trellis-api-migration.md",
+      "CanonicalSha256": "d77ec0675abfd9cfae418ce6a599c1a86ed9536fb39933a37b2392ee8a3e36e2",
+      "Sources": [
+        {
+          "Package": "Trellis.Core",
+          "PackageVersion": "3.0.0-alpha.554",
+          "PackagePath": "trellis/trellis-api-migration.md",
+          "Sha256": "9385e98e43269266ef43ef4efab9af2e58780ede7b50221665ae8ca863dfedbf"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9584,7 +9653,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-persistence-abstractions.md",
           "Sha256": "d11e91dc25f542f5a0e93c1bd059bd878361e31c8d7d77f1db6165b0ce8ef0b9"
         }
@@ -9598,7 +9667,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-primitives.md",
           "Sha256": "a67effdfdde83c8e46f04243a12d4c392ebb5c3b7dd908ddd48a2ba0ae05dd1d"
         }
@@ -9608,13 +9677,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-servicedefaults.md",
-      "CanonicalSha256": "20b9e60b3824a33d40c3a8e2336ea3332ebc1eafa2c676a0d597eb9ca4bbfb3f",
+      "CanonicalSha256": "74c31a7af8ca690c94c0da9dc9184d30f28aa7adc0bd0ba61296bedd67fe49a1",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-servicedefaults.md",
-          "Sha256": "90f8f60c1ce4192e153b9804b1b39c6f1d4c0baf1153dc68b660c7995b7ec390"
+          "Sha256": "316551126f6ee432b57620a4fab16039405225e648fd4671c63965aac9df1fd4"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9626,7 +9695,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-statemachine.md",
           "Sha256": "3b34f3c55ec9327bf3f6a7d25223bb793aca6f05f42be1d210ffd228c329ded1"
         }
@@ -9636,13 +9705,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-testing-aspnetcore.md",
-      "CanonicalSha256": "430cd22c47ddd11a58d9652076e7ffef79731081d1412ede14bf68f36ca68a59",
+      "CanonicalSha256": "6ec5df123851302623b446a90664c6c1678c4829821f4c03b99e48953277add6",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-testing-aspnetcore.md",
-          "Sha256": "23a9bd1e95a9e4e3d9cb86d6f7a8cd49e22819e6f846f2cee61a2d18967aa062"
+          "Sha256": "4d967046027ad722113f6ab1c134aae8b91f9ec5a7a9746f84fa39571638a647"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9654,7 +9723,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-testing-idempotency.md",
           "Sha256": "abfce2c90abd4d2df3ad085a11184ca69ad4ec317b13f9199eb591f675a6b5a0"
         }
@@ -9664,13 +9733,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-api-testing-reference.md",
-      "CanonicalSha256": "55479e4fdcfd99e94483d1ef4b359290504b10d8cc1823be44bfa89f7de889af",
+      "CanonicalSha256": "1b83a0f01919399ad5e341ff7ad562f864d91abf9340aa34a29b39593faa850d",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-testing-reference.md",
-          "Sha256": "41aa7dcb5dcb05e23fbb694c5bc7bc0a5c806da857d5e3cbdf05c25cdc59a8c8"
+          "Sha256": "71a3a8d60b24d2e56844b21dea39977c594fc99bea342391a0d4e647ad21b4b8"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9682,7 +9751,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-api-testing-worker.md",
           "Sha256": "84ec789bc70b91ae23c4e3e986aac8a3904c1eac95b4eb222265efeefc149006"
         }
@@ -9692,13 +9761,13 @@
     },
     {
       "Path": "packages/trellis.core/trellis/trellis-start-here.md",
-      "CanonicalSha256": "21da830d199d5069e1dcd6dc55720a1bd7975bc2884d94409372f3f76a4f2b37",
+      "CanonicalSha256": "348ee580d658798540105d1117249ec8c7ee4bd5e215b0960577e2b56116b024",
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-start-here.md",
-          "Sha256": "bed644e2985f14b0c11d735b4be828f3942077de8beb24d111b96ae9cd48f595"
+          "Sha256": "526732eb58e746021abcdc54a784bdcfdac8bb08005ee908ca07b6a6fff5cf14"
         }
       ],
       "TransformVersion": "canonical-text-v1",
@@ -9710,7 +9779,7 @@
       "Sources": [
         {
           "Package": "Trellis.Core",
-          "PackageVersion": "3.0.0-alpha.542",
+          "PackageVersion": "3.0.0-alpha.554",
           "PackagePath": "trellis/trellis-value-object-taxonomy.md",
           "Sha256": "3482a3f2441b5851f58b8bda445c7c40440dd025eb5c9295c869340ff824a666"
         }
@@ -9724,7 +9793,7 @@
       "Sources": [
         {
           "Package": "Trellis.Microservices.Abstractions",
-          "PackageVersion": "0.1.0-alpha.75",
+          "PackageVersion": "0.1.0-alpha.76",
           "PackagePath": "trellis-api-microservices-abstractions.md",
           "Sha256": "6882c9f5becabe572fded880ee9a458abab50f2b2d87e4944a4fbe7d895ceff6"
         }
@@ -9736,7 +9805,7 @@
           "TargetPackage": "Trellis.Microservices.AspNetCore",
           "TargetDocumentPath": "trellis-api-internal-jwt.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "717a166a1c2b1005287edfeda651c661e794d9d661ea293879518e100f47375e"
         },
         {
@@ -9744,7 +9813,7 @@
           "TargetPackage": "Trellis.Yarp",
           "TargetDocumentPath": "trellis-api-yarp.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "450d53b26ee25d3ae6176bc599ae60e6bf80c1f47d7e9d5048b2e1e46f41ce79"
         }
       ]
@@ -9755,7 +9824,7 @@
       "Sources": [
         {
           "Package": "Trellis.Microservices.Abstractions",
-          "PackageVersion": "0.1.0-alpha.75",
+          "PackageVersion": "0.1.0-alpha.76",
           "PackagePath": "trellis-api-microservices-cookbook.md",
           "Sha256": "3a1c2795010ad03ab37fb35946e2b9cc619d1b1874dd95308ab82160ff3c024a"
         }
@@ -9767,7 +9836,7 @@
           "TargetPackage": "Trellis.Microservices.AspNetCore",
           "TargetDocumentPath": "trellis-api-internal-jwt.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "717a166a1c2b1005287edfeda651c661e794d9d661ea293879518e100f47375e"
         },
         {
@@ -9775,7 +9844,7 @@
           "TargetPackage": "Trellis.Yarp",
           "TargetDocumentPath": "trellis-api-yarp.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "450d53b26ee25d3ae6176bc599ae60e6bf80c1f47d7e9d5048b2e1e46f41ce79"
         },
         {
@@ -9783,40 +9852,40 @@
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-asp.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "78cbc1880a53f5ddb9202742ca3d227d380185a21d86feb28dd412541c9dd5de"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "937a84983108ebde24ebf030097cd928accb1dd102b206835ceda3fc0e3ae3ed"
         },
         {
           "ReferencePath": "upstream/trellis-api-authorization.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-authorization.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "f706c5075a27ecadbfff548eda1d5aa4282ea5b2932402025a727bde561c6523"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "c11c1812b6f58bc2d720dbdfc0729682af838f884d9e9e4993876c96745730a2"
         },
         {
           "ReferencePath": "upstream/trellis-api-cookbook.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-cookbook.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "fa0db0563409d39d91457c4a7d5f7e435dfcffa813f152685f9b3fb455f57bf2"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "ea5514e65753827aea36d7d40ed61c620c2d82802d5380f2ef0ad8ad5000859c"
         },
         {
           "ReferencePath": "upstream/trellis-api-core.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-core.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "3c160d453d75789de9ff750b341e9b83d4b6658a0259b2d16990cc59ddcd17c6"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "9c047898d98648a095521eb60018ac3c5305e7ae13ed02aba3bc977863cc9e55"
         },
         {
           "ReferencePath": "upstream/trellis-api-servicedefaults.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-servicedefaults.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "90f8f60c1ce4192e153b9804b1b39c6f1d4c0baf1153dc68b660c7995b7ec390"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "316551126f6ee432b57620a4fab16039405225e648fd4671c63965aac9df1fd4"
         }
       ]
     },
@@ -9826,7 +9895,7 @@
       "Sources": [
         {
           "Package": "Trellis.Microservices.AspNetCore",
-          "PackageVersion": "0.1.0-alpha.75",
+          "PackageVersion": "0.1.0-alpha.76",
           "PackagePath": "trellis-api-internal-jwt.md",
           "Sha256": "717a166a1c2b1005287edfeda651c661e794d9d661ea293879518e100f47375e"
         }
@@ -9838,7 +9907,7 @@
           "TargetPackage": "Trellis.Microservices.Abstractions",
           "TargetDocumentPath": "trellis-api-microservices-abstractions.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "6882c9f5becabe572fded880ee9a458abab50f2b2d87e4944a4fbe7d895ceff6"
         },
         {
@@ -9846,7 +9915,7 @@
           "TargetPackage": "Trellis.Microservices.Abstractions",
           "TargetDocumentPath": "trellis-api-microservices-cookbook.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "3a1c2795010ad03ab37fb35946e2b9cc619d1b1874dd95308ab82160ff3c024a"
         },
         {
@@ -9854,7 +9923,7 @@
           "TargetPackage": "Trellis.Yarp",
           "TargetDocumentPath": "trellis-api-yarp.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "450d53b26ee25d3ae6176bc599ae60e6bf80c1f47d7e9d5048b2e1e46f41ce79"
         },
         {
@@ -9862,16 +9931,16 @@
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-asp.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "78cbc1880a53f5ddb9202742ca3d227d380185a21d86feb28dd412541c9dd5de"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "937a84983108ebde24ebf030097cd928accb1dd102b206835ceda3fc0e3ae3ed"
         },
         {
           "ReferencePath": "upstream/trellis-api-authorization.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-authorization.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "f706c5075a27ecadbfff548eda1d5aa4282ea5b2932402025a727bde561c6523"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "c11c1812b6f58bc2d720dbdfc0729682af838f884d9e9e4993876c96745730a2"
         }
       ]
     },
@@ -9937,7 +10006,7 @@
       "Sources": [
         {
           "Package": "Trellis.Yarp",
-          "PackageVersion": "0.1.0-alpha.75",
+          "PackageVersion": "0.1.0-alpha.76",
           "PackagePath": "trellis-api-yarp.md",
           "Sha256": "450d53b26ee25d3ae6176bc599ae60e6bf80c1f47d7e9d5048b2e1e46f41ce79"
         }
@@ -9949,7 +10018,7 @@
           "TargetPackage": "Trellis.Microservices.AspNetCore",
           "TargetDocumentPath": "trellis-api-internal-jwt.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "717a166a1c2b1005287edfeda651c661e794d9d661ea293879518e100f47375e"
         },
         {
@@ -9957,7 +10026,7 @@
           "TargetPackage": "Trellis.Microservices.Abstractions",
           "TargetDocumentPath": "trellis-api-microservices-abstractions.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "6882c9f5becabe572fded880ee9a458abab50f2b2d87e4944a4fbe7d895ceff6"
         },
         {
@@ -9965,7 +10034,7 @@
           "TargetPackage": "Trellis.Microservices.Abstractions",
           "TargetDocumentPath": "trellis-api-microservices-cookbook.md",
           "Outcome": "resolved",
-          "TargetVersion": "0.1.0-alpha.75",
+          "TargetVersion": "0.1.0-alpha.76",
           "TargetSha256": "3a1c2795010ad03ab37fb35946e2b9cc619d1b1874dd95308ab82160ff3c024a"
         },
         {
@@ -9973,16 +10042,16 @@
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-asp.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "78cbc1880a53f5ddb9202742ca3d227d380185a21d86feb28dd412541c9dd5de"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "937a84983108ebde24ebf030097cd928accb1dd102b206835ceda3fc0e3ae3ed"
         },
         {
           "ReferencePath": "upstream/trellis-api-authorization.md",
           "TargetPackage": "Trellis.Core",
           "TargetDocumentPath": "trellis/trellis-api-authorization.md",
           "Outcome": "resolved",
-          "TargetVersion": "3.0.0-alpha.542",
-          "TargetSha256": "f706c5075a27ecadbfff548eda1d5aa4282ea5b2932402025a727bde561c6523"
+          "TargetVersion": "3.0.0-alpha.554",
+          "TargetSha256": "c11c1812b6f58bc2d720dbdfc0729682af838f884d9e9e4993876c96745730a2"
         }
       ]
     }
