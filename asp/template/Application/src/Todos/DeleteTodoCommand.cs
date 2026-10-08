@@ -39,10 +39,7 @@ public sealed record DeleteTodoCommand : ICommand<Result<Trellis.Unit>>, IAuthor
     /// Creates an always-valid command. A null id fails closed as validation (422).
     /// </summary>
     public static Result<DeleteTodoCommand> TryCreate(TodoId? todoId, EntityTagValue[]? ifMatchETags = null) =>
-        Result.EnsureNotNull(todoId, static () => Error.InvalidInput.ForField(
-            code: "required",
-            field: "id",
-            detail: "Todo id is required."))
+        Result.EnsureNotNull(todoId, "id", "Todo id is required.")
             .Map(validId => new DeleteTodoCommand(validId, ifMatchETags));
 
     /// <inheritdoc />

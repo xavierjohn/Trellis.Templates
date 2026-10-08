@@ -8,14 +8,14 @@
        TrellisVersion              -> xavierjohn/Trellis (framework)
        TrellisMicroservicesVersion -> xavierjohn/Trellis.Microservices -->
   <PropertyGroup>
-    <TrellisVersion>3.0.0-alpha.554</TrellisVersion>
+    <TrellisVersion>3.0.0-alpha.557</TrellisVersion>
     <TrellisMicroservicesVersion>0.1.0-alpha.76</TrellisMicroservicesVersion>
     <TrellisSliVersion>10.0.0-preview.34</TrellisSliVersion>
   </PropertyGroup>
 
   <!-- Runtime -->
   <ItemGroup>
-    <!--#if (!NoApiVersioning) -->
+    <!--#if (UseApiVersioning) -->
     <PackageVersion Include="Asp.Versioning.Http" Version="10.2.3" />
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.2.3" />
     <!--#endif -->
@@ -74,7 +74,7 @@
   <ItemGroup>
     <PackageVersion Include="Trellis.Analyzers" Version="$(TrellisVersion)" />
     <PackageVersion Include="Trellis.Asp" Version="$(TrellisVersion)" />
-    <!--#if (!NoApiVersioning) -->
+    <!--#if (UseApiVersioning) -->
     <PackageVersion Include="Trellis.Asp.ApiVersioning" Version="$(TrellisVersion)" />
     <!--#endif -->
     <PackageVersion Include="Trellis.Asp.Idempotency.Cosmos" Version="$(TrellisVersion)" />
@@ -95,7 +95,7 @@
   <ItemGroup>
     <PackageVersion Include="Trellis.ServiceLevelIndicators" Version="$(TrellisSliVersion)" />
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp" Version="$(TrellisSliVersion)" />
-    <!--#if (!NoApiVersioning) -->
+    <!--#if (UseApiVersioning) -->
     <PackageVersion Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" Version="$(TrellisSliVersion)" />
     <!--#endif -->
   </ItemGroup>

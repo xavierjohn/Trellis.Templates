@@ -30,7 +30,7 @@
 ### The gateway re-mints these claims as a real internal JWT before forwarding.
 
 @gateway = http://localhost:5001
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 @version = 2026-03-26
 #endif
 

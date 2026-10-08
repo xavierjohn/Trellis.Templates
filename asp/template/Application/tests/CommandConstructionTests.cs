@@ -19,9 +19,9 @@ public class CommandConstructionTests
         var tag = Tag.Create("work");
         var expected = new List<FieldViolation>();
         if (missingTitle)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), "required", Detail: "Title is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), ValidationCodes.ValueNotNull, Detail: "Title is required."));
         if (missingDueDate)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("dueDate"), "required", Detail: "Due date is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("dueDate"), ValidationCodes.ValueNotNull, Detail: "Due date is required."));
 
         var result = CreateTodoCommand.TryCreate(title, dueDate, Maybe.From(tag));
 
@@ -56,11 +56,11 @@ public class CommandConstructionTests
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 3, 26, 12, 0, 0, TimeSpan.Zero));
         var expected = new List<FieldViolation>();
         if (missingId)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("id"), "required", Detail: "Todo id is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("id"), ValidationCodes.ValueNotNull, Detail: "Todo id is required."));
         if (missingTitle)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), "required", Detail: "Title is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), ValidationCodes.ValueNotNull, Detail: "Title is required."));
         if (missingDueDate)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("dueDate"), "required", Detail: "Due date is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("dueDate"), ValidationCodes.ValueNotNull, Detail: "Due date is required."));
 
         var result = UpdateTodoCommand.TryCreate(id, title, dueDate, Maybe.From(tag), etags, timeProvider);
 
@@ -87,7 +87,7 @@ public class CommandConstructionTests
         var result = UpdateTodoCommand.TryCreate(TodoId.NewUniqueV7(), null, pastDueDate, Maybe<Tag>.None, timeProvider: timeProvider);
 
         result.Should().BeFailureOfType<Error.InvalidInput>().Which.Fields.Items.Should().Equal(
-            new FieldViolation(InputPointer.ForProperty("title"), "required", Detail: "Title is required."));
+            new FieldViolation(InputPointer.ForProperty("title"), ValidationCodes.ValueNotNull, Detail: "Title is required."));
     }
 
     [Theory]
@@ -102,7 +102,7 @@ public class CommandConstructionTests
         if (missingId)
         {
             result.Should().BeFailureOfType<Error.InvalidInput>().Which.Fields.Items.Should().Equal(
-                new FieldViolation(InputPointer.ForProperty("id"), "required", Detail: "Todo id is required."));
+                new FieldViolation(InputPointer.ForProperty("id"), ValidationCodes.ValueNotNull, Detail: "Todo id is required."));
             return;
         }
 
@@ -138,7 +138,7 @@ public class CommandConstructionTests
         if (missingId)
         {
             result.Should().BeFailureOfType<Error.InvalidInput>().Which.Fields.Items.Should().Equal(
-                new FieldViolation(InputPointer.ForProperty("id"), "required", Detail: "Todo id is required."));
+                new FieldViolation(InputPointer.ForProperty("id"), ValidationCodes.ValueNotNull, Detail: "Todo id is required."));
             return;
         }
 

@@ -22,11 +22,11 @@ public class UpdateProjectCommandTests
         EntityTagValue[] etags = [EntityTagValue.Strong("v1")];
         var expected = new List<FieldViolation>();
         if (missingId)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("id"), "required", Detail: "Project id is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("id"), ValidationCodes.ValueNotNull, Detail: "Project id is required."));
         if (missingTitle)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), "required", Detail: "Title is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("title"), ValidationCodes.ValueNotNull, Detail: "Title is required."));
         if (missingDescription)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("description"), "required", Detail: "Description is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("description"), ValidationCodes.ValueNotNull, Detail: "Description is required."));
 
         var result = UpdateProjectCommand.TryCreate(id, title, description, etags);
 

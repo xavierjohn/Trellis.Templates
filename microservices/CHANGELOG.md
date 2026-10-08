@@ -8,9 +8,11 @@ Version numbers are produced by Nerdbank.GitVersioning from `version.json` plus 
 ## Unreleased
 
 ### Changed
-- Upgrade Trellis to `3.0.0-alpha.554` and Trellis.Microservices to `0.1.0-alpha.76`, with version-aligned AgentDocs guidance.
+- Upgrade Trellis to `3.0.0-alpha.557` and Trellis.Microservices to `0.1.0-alpha.76`, with version-aligned AgentDocs guidance.
+- Use the common `Trellis.Asp` pagination builder in both profiles and explicitly enable its version-aware policy only in versioned hosts.
+- Separate the `ProjectTracker.slnx` filename from the namespace placeholder so custom namespaces preserve AgentDocs entrypoints and HTTP solution items.
 - Upgrade Aspire packages and the AppHost SDK to `13.6.1`, CodeCoverage to `18.12.0`, and TrxReport to `2.5.1`.
-- Replace removed nullable `ToResult` calls with lazy `Result.EnsureNotNull` guards while retaining the existing required-field validation codes.
+- Replace removed nullable `ToResult` calls with concise, lazy `Result.EnsureNotNull(value, fieldName, detail)` guards and standard `value.not-null` codes, retaining field pointers, details, and accumulated validation errors.
 
 ### Added
 - Bootstrap of `xavierjohn/Trellis.Microservices.Template`.

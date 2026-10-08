@@ -1,7 +1,7 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/AppHost/">
     <Project Path="AppHost/src/AppHost.csproj" />
-    <File Path="AppHost/src/ProjectTrackerTemplate.http" />
+    <File Path="AppHost/src/ProjectTracker.http" />
   </Folder>
   <Folder Name="/Gateway/">
     <Project Path="Gateway/src/Gateway.csproj" />

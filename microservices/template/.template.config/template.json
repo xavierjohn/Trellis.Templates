@@ -17,7 +17,6 @@
   "name": "Trellis Microservices (Project Tracker)",
   "shortName": "trellis-microservices",
   "description": "Multi-tenant microservices topology using Trellis: YARP gateway minting internal-network JWTs + Projects (operational, 403 cross-tenant) + Members (HR-sensitive, HideExistence -> 404). Aspire-orchestrated. Demonstrates tenant_id ABAC isolation, resource-based authorization, the typed accessor (IAuthorizedResource), and the deny-overrides-allow JWT contract.",
-  "sourceName": "ProjectTrackerTemplate",
   "preferNameDirectory": true,
   "defaultName": "MyTracker",
   "tags": {
@@ -25,6 +24,13 @@
     "type": "solution"
   },
   "symbols": {
+    "filenameName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "ProjectTracker",
+      "fileRename": "ProjectTracker"
+    },
     "nameNamespace": {
       "type": "derived",
       "valueSource": "name",
@@ -125,7 +131,7 @@
       ],
       "description": "Deployment scaffold. Aspire, Service Bus, and Cosmos production idempotency remain."
     },
-    "NoApiVersioning": { "type": "computed", "value": "!apiVersioning" },
+    "UseApiVersioning": { "type": "computed", "value": "apiVersioning" },
     "UsePostgres": { "type": "computed", "value": "database == \"postgres\"" },
     "UseEntra": { "type": "computed", "value": "auth == \"entra\"" },
     "NoOtlp": { "type": "computed", "value": "telemetryExporters == \"azure-monitor\"" },
@@ -190,7 +196,7 @@
     }
   ],
   "primaryOutputs": [
-    { "path": "ProjectTrackerTemplate.slnx" }
+    { "path": "ProjectTracker.slnx" }
   ],
   "postActions": [
     {

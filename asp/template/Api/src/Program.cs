@@ -1,4 +1,4 @@
-﻿#if (!NoApiVersioning)
+﻿#if (UseApiVersioning)
 using Asp.Versioning;
 #endif
 using Scalar.AspNetCore;
@@ -35,7 +35,7 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     app.MapOpenApi().WithDocumentPerVersion();
     app.MapScalarApiReference(
         options =>
@@ -79,7 +79,7 @@ if (!app.Environment.IsDevelopment())
 // directly because `IsApiVersionNeutral()` requires an associated `WithApiVersionSet(...)`,
 // which doesn't apply to non-versioned endpoints like health checks.
 app.MapHealthChecks("/health")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     .WithMetadata(new ApiVersionNeutralAttribute())
 #endif
     ;

@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)]
     [ValidateSet('asp', 'microservices')]
@@ -43,6 +43,8 @@ foreach ($symbol in $defaults.Keys) {
     Assert-True ($definition.type -eq 'parameter') "'$symbol' must be a public parameter."
     Assert-True ($definition.defaultValue -eq $defaults[$symbol]) "Wrong default for '$symbol' in $Template."
 }
+Assert-True ($configuration.symbols.UseApiVersioning.type -eq 'computed' -and
+    $configuration.symbols.UseApiVersioning.value -eq 'apiVersioning') 'API versioning conditions must use the positive UseApiVersioning symbol.'
 Assert-True (Test-Path $hostConfigurationPath) 'Shared CLI aliases must be explicitly configured.'
 $hostConfiguration = Get-Content $hostConfigurationPath -Raw | ConvertFrom-Json
 foreach ($symbol in $aliases.Keys) {
@@ -103,6 +105,13 @@ function New-Profile([string] $Name, [string[]] $Options) {
     $arguments = @('new', $configuration.shortName, '--debug:custom-hive', $hive, '-n', $Name, '-o', $output, '--skip-restore') + $Options
     Invoke-Dotnet $arguments
     Assert-True (Test-Path (Join-Path $output "$Name.slnx")) 'Solution naming must continue to follow -n.'
+    $context = Get-Content (Join-Path $output '.agentdocs\agent-context.json') -Raw | ConvertFrom-Json
+    $entryPoints = @($context.Graph.EntryPoints)
+    Assert-True ($entryPoints.Count -eq 1 -and $entryPoints[0].Path -eq "$Name.slnx") 'AgentDocs must reference the actual solution filename, not the C# namespace.'
+    [xml] $solution = Get-Content (Join-Path $output "$Name.slnx") -Raw
+    foreach ($item in $solution.SelectNodes('//File')) {
+        Assert-True (Test-Path (Join-Path $output $item.Path)) "Solution item '$($item.Path)' must reference an emitted file."
+    }
     if ($Template -eq 'asp') {
         $devcontainer = Join-Path $output '.devcontainer'
         Assert-True (Test-Path (Join-Path $devcontainer 'Dockerfile')) 'The dev-container Dockerfile must be adjacent to devcontainer.json, not in a repeated nested directory.'
@@ -111,6 +120,38 @@ function New-Profile([string] $Name, [string[]] $Options) {
         Assert-True (@(Get-ChildItem $devcontainer -Recurse -Filter Dockerfile).Count -eq 1) 'The dev-container Dockerfile must be packed exactly once.'
     }
     return $output
+}
+
+function Assert-PaginationProfile([string] $Profile, [bool] $Versioned) {
+    $paginationFile = if ($Template -eq 'asp') { 'TodosController.cs' } else { 'ProjectEndpoints.cs' }
+    $paginationSources = @(Get-ChildItem $Profile -Recurse -Filter $paginationFile |
+        Where-Object { $_.FullName -match '[\\/]src[\\/]' })
+    $expectedCount = if ($Template -eq 'asp' -and $Versioned) { 2 } else { 1 }
+    Assert-True ($paginationSources.Count -eq $expectedCount) 'Every selected paginated endpoint must be emitted.'
+    foreach ($file in $paginationSources) {
+        $source = Get-Content $file.FullName -Raw
+        Assert-True ($source -match 'nextUrlBuilder:\s+(?:HttpContext|http)\.PageUrl\(') 'Versioned and unversioned pagination must use the common PageUrl builder.'
+        Assert-True ($source -notmatch 'Url\.Link\(|GetUriByName\(') 'Pagination must not fall back to hand-written link generation.'
+    }
+    $registrations = if ($Template -eq 'asp') { @('Api\src\DependencyInjection.cs') } else {
+        @('Members\Api\src\Program.cs', 'Projects\Api\src\Program.cs')
+    }
+    foreach ($path in $registrations) {
+        $source = Get-Content (Join-Path $Profile $path) -Raw
+        Assert-True (($source -match '\.UseAsp\(asp => asp\.UseVersionedPageUrls\(\)\)') -eq $Versioned) 'Only versioned hosts must configure the version-aware pagination policy.'
+        if (!$Versioned) {
+            Assert-True ($source -notmatch 'UseVersionedPageUrls') 'Unversioned hosts must omit the optional pagination policy entirely.'
+        }
+    }
+}
+
+function Assert-NamespaceProfile([string] $Profile, [string] $Namespace) {
+    $propertyPath = if ($Template -eq 'asp') { 'Directory.Build.props' } else { 'Projects\Domain\src\Projects.Domain.csproj' }
+    [xml] $properties = Get-Content (Join-Path $Profile $propertyPath) -Raw
+    $rootNamespace = if ($Template -eq 'asp') { $Namespace + '.$(MSBuildProjectName.Replace(" ", "_"))' } else { "$Namespace.Projects.Domain" }
+    $assemblyName = if ($Template -eq 'asp') { $Namespace + '.$(MSBuildProjectName)' } else { "$Namespace.Projects.Domain" }
+    Assert-True ($rootNamespace -in @($properties.Project.PropertyGroup.RootNamespace)) 'The root namespace must use the selected namespace without a leftover template suffix.'
+    Assert-True ($assemblyName -in @($properties.Project.PropertyGroup.AssemblyName)) 'The assembly prefix must use the selected namespace independently of the solution filename.'
 }
 
 function Assert-DeploymentPreflightFailure([string] $Script, [hashtable] $Arguments, [string] $Expected) {
@@ -137,7 +178,10 @@ function Assert-PublishedKeyMounts([string] $Profile) {
     }
 }
 
-$default = New-Profile 'DefaultService' @()
+$defaultName = if ($Template -eq 'microservices') { 'ProjectTracker' } else { 'DefaultService' }
+$default = New-Profile $defaultName @()
+Assert-NamespaceProfile $default $defaultName
+Assert-PaginationProfile $default $false
 $profile = Get-Content (Join-Path $default '.trellis-template.json') -Raw | ConvertFrom-Json
 Assert-True ($profile.template -eq $Template -and [bool]::Parse($profile.apiVersioning) -eq $false) 'The emitted profile must record the selected defaults.'
 $productionSources = Get-ChildItem $default -Recurse -Filter '*.cs' |
@@ -153,6 +197,8 @@ if ($Template -eq 'asp') {
 }
 
 $custom = New-Profile 'CustomService' @('--author-name', 'Example & Partners <Engineering>', '--root-namespace', 'Example.Billing', '--api-versioning', '--database', 'postgres', '--auth', 'entra', '--telemetry-exporters', 'both', '--deployment', 'container')
+Assert-NamespaceProfile $custom 'Example.Billing'
+Assert-PaginationProfile $custom $true
 [xml] $properties = Get-Content (Join-Path $custom 'Directory.Build.props') -Raw
 Assert-True ('Example & Partners <Engineering>' -in @($properties.Project.PropertyGroup.Authors)) 'Author replacement must preserve XML-special characters in the generated build properties.'
 $customSources = Get-ChildItem $custom -Recurse -Filter '*.cs' |
@@ -177,8 +223,10 @@ Assert-True (!(Test-Path (Join-Path $default 'Api\src\obj')) -and
 Assert-True (!(($customSources -join "`n") -match '#pragma warning disable IDE0047')) 'Source-only preprocessor suppression must not leak into generated projects.'
 
 $azure = New-Profile 'AzureService' @('--deployment', 'azure', '--database', 'sqlserver', '--telemetry-exporters', 'azure-monitor')
+Assert-PaginationProfile $azure $false
 Assert-True (Test-Path (Join-Path $azure 'infra')) 'Azure infrastructure must be emitted when selected.'
 $azurePostgres = New-Profile 'AzurePostgresService' @('--deployment', 'azure', '--database', 'postgres', '--auth', 'entra', '--telemetry-exporters', 'both')
+Assert-PaginationProfile $azurePostgres $false
 if ($Template -eq 'asp') {
     Assert-DeploymentPreflightFailure (Join-Path $azure 'deploy\deploy.ps1') @{} 'HTTPS -AuthenticationAuthority'
     Assert-DeploymentPreflightFailure (Join-Path $azurePostgres 'deploy\deploy.ps1') @{} 'Entra GUIDs'
@@ -201,6 +249,7 @@ if ($Template -eq 'asp') {
         '-o', (Join-Path $Workspace 'InvalidAzureAutoRestore'), '--deployment', 'azure', '--database', 'sqlite') -ExpectFailure
 }
 $namespace = New-Profile '9-Billing' @()
+Assert-NamespaceProfile $namespace '_9_Billing'
 Push-Location $namespace
 try {
     Invoke-Dotnet @('build', '9-Billing.slnx', '-c', 'Release', '--verbosity', 'quiet')
@@ -217,6 +266,11 @@ foreach ($profile in @($default, $custom, $azure, $azurePostgres)) {
         $solution = $solutions[0].Name
         Invoke-Dotnet @('build', $solution, '-c', 'Release', '--verbosity', 'quiet')
         Invoke-Dotnet @('test', '--solution', $solution, '-c', 'Release', '--no-build', '--', '--filter-not-trait', 'Category=Integration')
+        & git init --quiet
+        Assert-True ($LASTEXITCODE -eq 0) 'Generated guidance must be checked in its own Git root.'
+        Invoke-Dotnet @('tool', 'restore')
+        Invoke-Dotnet @('tool', 'run', 'agentdocs', 'sync', '--strict', '--strict-references')
+        Invoke-Dotnet @('tool', 'run', 'agentdocs', 'check', '--strict', '--strict-references')
         Invoke-Dotnet @('run', '--project', (Join-Path $repository 'shared\contract-tests\runner.csproj'), '-c', 'Release', '--',
             (Join-Path $repository 'shared\capability-parity-manifest.yaml'), $Template, $profile)
         if (Test-Path 'deploy\names\names.csproj') {

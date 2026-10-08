@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Asp.Versioning;
 #endif
 #if (!NoAzureMonitor)
@@ -119,7 +119,7 @@ public static class Extensions
                 if (!string.IsNullOrEmpty(tenantId))
                     context.SetCustomerResourceId($"tenant://{tenantId}");
             })
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .AddApiVersion()
 #endif
             ;
@@ -174,7 +174,7 @@ public static class Extensions
             // Tag the health endpoints API-version-neutral so they answer without ?api-version and
             // surface as "Neutral" (not "Unspecified") in the SLI / OpenTelemetry version dimension.
             app.MapHealthChecks("/health")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
 #else
                 ;
@@ -184,7 +184,7 @@ public static class Extensions
             {
                 Predicate = r => r.Tags.Contains("live"),
             })
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
 #else
                 ;

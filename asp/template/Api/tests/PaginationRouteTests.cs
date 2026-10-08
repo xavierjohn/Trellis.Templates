@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 public class PaginationRouteTests
 {
     [Theory]
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     [InlineData(typeof(TodoSample.Api.v2026_03_26.Controllers.TodosController))]
     [InlineData(typeof(TodoSample.Api.v2026_12_01.Controllers.TodosController))]
 #else

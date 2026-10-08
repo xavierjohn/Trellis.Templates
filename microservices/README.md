@@ -14,13 +14,17 @@
 
 ```bash
 dotnet new install Trellis.Microservices.Templates
-dotnet new trellis-microservices -n MyOrg.Tracker
-cd MyOrg.Tracker
+dotnet new trellis-microservices -n ProjectTracker
+cd ProjectTracker
 dotnet run --project AppHost/src
 ```
 
 You get an Aspire-orchestrated **Project Tracker** topology. Open `AppHost/src/*.http` for the
 authorization and cross-service eventing scenarios. Docker or Podman must be running.
+
+The example solution is `ProjectTracker.slnx`. `-n` controls filenames; `--root-namespace`
+can independently override the C# namespace and assembly prefix without changing solution references.
+Hyphenated filenames keep the literal name while the default C# namespace is sanitized separately.
 
 Creation restores packages automatically. A restore failure makes `dotnet new` return a non-zero
 exit code; generated files remain on disk. Use `--skip-restore` for deferred/offline creation, then run

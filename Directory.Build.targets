@@ -1,0 +1,5 @@
+﻿<Project>
+  <PropertyGroup Label="Template source">
+    <DefineConstants>$(DefineConstants);UseApiVersioning</DefineConstants>
+  </PropertyGroup>
+</Project>

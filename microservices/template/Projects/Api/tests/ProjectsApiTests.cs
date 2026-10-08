@@ -13,7 +13,7 @@ namespace Projects.Api.Tests;
 // through the real pipeline against in-memory SQLite.
 public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<ProjectsApiFactory>
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private const string Version = "2026-03-26";
     private const string VersionQuery = "?api-version=" + Version;
     private const string VersionFilter = "&api-version=" + Version;
@@ -162,7 +162,7 @@ public class ProjectsApiTests(ProjectsApiFactory factory) : IClassFixture<Projec
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         firstPage.Next.Href.Should().Contain($"api-version={Version}", "PageUrl must inject the api-version so the next-page link resolves");
 #else
         firstPage.Next.Href.Should().NotContain("api-version");

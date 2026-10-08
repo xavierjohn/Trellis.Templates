@@ -1,4 +1,4 @@
-﻿#if (!NoApiVersioning)
+﻿#if (UseApiVersioning)
 namespace Api.Tests._2026_12_01;
 #else
 namespace Api.Tests;
@@ -16,7 +16,7 @@ using Trellis.Testing.AspNetCore;
 public class TodosControllerTests
 {
     private readonly TestWebApplicationFactoryFixture _factory;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private const string VersionParam = "api-version=2026-12-01";
     private const string VersionQuery = "?" + VersionParam;
     private const string VersionFilter = "&" + VersionParam;
@@ -79,7 +79,7 @@ public class TodosControllerTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         // The Location header must round-trip the requested api-version so the follow-up GET
         // dereferences correctly. CreatedAtVersionedRoute (Trellis.Asp.ApiVersioning) injects
         // this automatically — without it the URL would 404 under query-string versioning.
@@ -509,7 +509,7 @@ public class TodosControllerTests
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         firstPage.Next.Href.Should().Contain(VersionParam, "PageUrl must inject the api-version so the next-page link resolves under query-string versioning");
 #else
         firstPage.Next.Href.Should().NotContain("api-version");

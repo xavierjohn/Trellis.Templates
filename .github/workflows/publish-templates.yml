@@ -1,4 +1,4 @@
-# Manual publish of a template package to nuget.org.
+﻿# Manual publish of a template package to nuget.org.
 #
 # Pick a template and run. Defaults to a dry run (packs but does not push). Set dry_run = false to
 # publish for real. Publishing uses NuGet Trusted Publishing (OIDC) — no stored API key. It requires:
@@ -57,7 +57,7 @@ jobs:
             echo "short=trellis-asp" >> "$GITHUB_OUTPUT"
             echo "test=true" >> "$GITHUB_OUTPUT"
           else
-            echo "slnx=ProjectTrackerTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "slnx=ProjectTracker.slnx" >> "$GITHUB_OUTPUT"
             echo "short=trellis-microservices" >> "$GITHUB_OUTPUT"
             echo "test=false" >> "$GITHUB_OUTPUT"
           fi

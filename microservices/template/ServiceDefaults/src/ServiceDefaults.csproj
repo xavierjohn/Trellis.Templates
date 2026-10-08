@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Asp.Versioning.Http" />
     <!--#endif-->
     <!--#if (!NoAzureMonitor)-->
@@ -33,7 +33,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
     <PackageReference Include="Trellis.ServiceLevelIndicators" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!--#endif-->
     <PackageReference Include="Trellis.ResourceNaming.Azure" />

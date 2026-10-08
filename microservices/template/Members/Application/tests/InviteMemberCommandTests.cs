@@ -17,9 +17,9 @@ public class InviteMemberCommandTests
         var role = missingRole ? null : Role.Owner;
         var expected = new List<FieldViolation>();
         if (missingEmail)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("email"), "required", Detail: "Email is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("email"), ValidationCodes.ValueNotNull, Detail: "Email is required."));
         if (missingRole)
-            expected.Add(new FieldViolation(InputPointer.ForProperty("role"), "required", Detail: "Role is required."));
+            expected.Add(new FieldViolation(InputPointer.ForProperty("role"), ValidationCodes.ValueNotNull, Detail: "Role is required."));
 
         var result = InviteMemberCommand.TryCreate(email, role);
 

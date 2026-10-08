@@ -1,7 +1,7 @@
 ﻿#pragma warning disable IDE0047
 namespace ProjectTrackerTemplate.Projects.Api;
 
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Builder;
 #endif
@@ -10,22 +10,19 @@ using ProjectTrackerTemplate.Projects.Application;
 using ProjectTrackerTemplate.Projects.Domain;
 using Trellis;
 using Trellis.Asp;
-#if (!NoApiVersioning)
-using Trellis.Asp.ApiVersioning;
-#endif
 using Trellis.ServiceLevelIndicators;
 
 // Versioned route group for the Projects API, extracted from Program.cs so it scales and so the
 // API version is a first-class concept. Clients select the version with ?api-version=2026-03-26.
 public static class ProjectEndpoints
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private static readonly ApiVersion V20260326 = new(new DateOnly(2026, 3, 26));
 #endif
 
     public static IEndpointRouteBuilder MapProjectEndpoints(this IEndpointRouteBuilder app)
     {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         ApiVersionSet versionSet = app.NewApiVersionSet("Projects")
             .HasApiVersion(V20260326)
             .ReportApiVersions()
@@ -36,11 +33,11 @@ public static class ProjectEndpoints
         // the supported version, and SLI emission (the operation name is derived per-route by the
         // middleware, e.g. "GET /api/projects/{id}"). Endpoints below add nothing of their own.
         var projects = app.MapGroup("/api/projects")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .WithApiVersionSet(versionSet)
 #endif
             .WithTags("Projects")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .MapToApiVersion(V20260326)
 #endif
             .RequireAuthorization()
@@ -48,20 +45,14 @@ public static class ProjectEndpoints
 
         // GET /api/projects: keyset-paginated list of the caller's tenant projects. Returns a
         // PagedResponse envelope plus an RFC 8288 Link header (rel="next") when more pages exist;
-        // HttpContext.PageUrl builds the next-page URL and injects the active api-version. The route is
+        // HttpContext.PageUrl builds the URL; the optional host policy preserves the active api-version. The route is
         // NAMED so PageUrl can resolve it (self-referential pagination). A malformed cursor is a 422.
         projects.MapGet("/", (string? cursor, int? limit, HttpContext http, IMediator mediator, CancellationToken ct) =>
                 mediator.Send(new ListProjectsQuery(cursor, limit ?? 0), ct)
                     .ToHttpResponseAsync(
-#if (!NoApiVersioning)
                         nextUrlBuilder: http.PageUrl(
                             "Projects_List",
                             (c, applied) => new RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
-#else
-                        nextUrlBuilder: (c, applied) => http.RequestServices.GetRequiredService<LinkGenerator>()
-                            .GetUriByName(http, "Projects_List", new { cursor = c.Token, limit = applied })
-                            ?? throw new InvalidOperationException("Could not generate the projects pagination link."),
-#endif
                         body: ProjectResponse.From))
             .WithName("Projects_List");
 

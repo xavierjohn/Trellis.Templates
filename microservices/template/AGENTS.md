@@ -195,14 +195,8 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     }
 
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        Result.EnsureNotNull(email, static () => Error.InvalidInput.ForField(
-            code: "required",
-            field: "email",
-            detail: "Email is required."))
-            .Combine(Result.EnsureNotNull(role, static () => Error.InvalidInput.ForField(
-                code: "required",
-                field: "role",
-                detail: "Role is required.")))
+        Result.EnsureNotNull(email, nameof(email), "Email is required.")
+            .Combine(Result.EnsureNotNull(role, nameof(role), "Role is required."))
             .Map((validEmail, validRole) => new InviteMemberCommand(validEmail, validRole));
 }
 
@@ -443,18 +437,9 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     }
 
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        Result.EnsureNotNull(id, static () => Error.InvalidInput.ForField(
-            code: "required",
-            field: "id",
-            detail: "Project id is required."))
-            .Combine(Result.EnsureNotNull(title, static () => Error.InvalidInput.ForField(
-                code: "required",
-                field: "title",
-                detail: "Title is required.")))
-            .Combine(Result.EnsureNotNull(description, static () => Error.InvalidInput.ForField(
-                code: "required",
-                field: "description",
-                detail: "Description is required.")))
+        Result.EnsureNotNull(id, nameof(id), "Project id is required.")
+            .Combine(Result.EnsureNotNull(title, nameof(title), "Title is required."))
+            .Combine(Result.EnsureNotNull(description, nameof(description), "Description is required."))
             .Map((validId, validTitle, validDescription) => new UpdateProjectCommand(validId, validTitle, validDescription, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
@@ -490,6 +475,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 
 - **Rule:** When `apiVersioning` is enabled, 🔴 MUST bind each endpoint group to an `ApiVersionSet` (`NewApiVersionSet(...).HasApiVersion(...).Build()`) and `MapToApiVersion(...)` on the group, and on any `CreatedAtRoute`/`WithLocation` chain include the version by calling `.WithVersionedRoute()`. Omitting it produces `Location` headers that drop `api-version` and 404 on dereference (analyzer `TRLS023`).
 - **Rationale:** Query-string API versioning means a generated `Location` without the version points at a route that cannot be resolved; `WithVersionedRoute()` injects the active version automatically.
+- **Pagination links:** Both profiles use `HttpContext.PageUrl(...)` from `Trellis.Asp`. Versioned hosts MUST configure `.UseAsp(asp => asp.UseVersionedPageUrls())` with `using Trellis.Asp.ApiVersioning;`; `AddApiVersioning()` alone does not enable the pagination policy. Unversioned hosts keep `.UseAsp()` without optional versioning dependencies. Follow the generated next-page URL in tests.
 - **Correct:** `.CreatedAtRoute("Members_GetById", m => m.Id).WithVersionedRoute()` — see `Members/Api/src/MemberEndpoints.cs`.
 - **Incorrect:** `.CreatedAtRoute("Members_GetById", m => m.Id)` with no `.WithVersionedRoute()` under query-string versioning.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-asp-apiversioning.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-analyzers.md` (TRLS023).
@@ -529,7 +515,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Required `If-Match` on body-overwriting mutation | `.RequireETag(command.IfMatchETags)` | Omitting it (lost-update race) |
 | Body-less state-transition POST | `.OptionalETag(command.IfMatchETags)` before mutation: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
 
-Use the field/detail null-guard form for new required fields unless a custom code is needed. The sample command factories use lazy custom-error factories to preserve their existing `"required"` response codes. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
+Use the field/detail null-guard form for required fields unless a custom code is needed. The sample command factories emit standard `ValidationCodes.ValueNotNull` (`"value.not-null"`) codes and create errors only for missing inputs. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
 
 ### Handler and endpoint decisions
 

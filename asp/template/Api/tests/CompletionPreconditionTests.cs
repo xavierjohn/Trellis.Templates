@@ -3,7 +3,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using TodoSample.Api.v2026_03_26.Models;
 #else
 using TodoSample.Api.v2026_12_01.Models;
@@ -15,7 +15,7 @@ using Trellis.Testing.AspNetCore;
 public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factory, ITestOutputHelper output)
 {
     [Theory]
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     [InlineData("2026-03-26", null, HttpStatusCode.OK)]
     [InlineData("2026-03-26", "current", HttpStatusCode.OK)]
     [InlineData("2026-03-26", "wildcard", HttpStatusCode.OK)]
@@ -98,7 +98,7 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
     }
 
     [Theory]
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     [InlineData("2026-03-26")]
 #endif
     [InlineData("2026-12-01")]
@@ -116,7 +116,7 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
     }
 
     [Theory]
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     [InlineData("2026-03-26")]
 #endif
     [InlineData("2026-12-01")]
@@ -145,7 +145,7 @@ public class CompletionPreconditionTests(TestWebApplicationFactoryFixture factor
         readResponse.Headers.ETag.Should().Be(createdResponse.Headers.ETag);
     }
 
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private static string Url(string path, string version) => $"{path}?api-version={version}";
 #else
     private static string Url(string path, string version) => path;

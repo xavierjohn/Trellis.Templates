@@ -55,6 +55,7 @@ Api -> Application -> Domain
 - EF Core-ready infrastructure setup
 - OpenTelemetry support for local observability
 - API starter files, HTTP samples, and local app settings
+- Common named-route pagination links for both profiles, with the version-aware host policy enabled by `--api-versioning`
 - Dev Container support for Codespaces and VS Code
 - Agent-neutral `AGENTS.md` instructions and version-aligned `.agentdocs` references for Trellis-friendly code generation
 
@@ -76,6 +77,9 @@ Azure requires an explicit server provider; SQLite/Azure fails restore/build and
 PostgreSQL and SQL Server profiles include `compose.database.yaml` for local development. Generated
 `README.md` describes connection configuration, production identity, Cosmos, and deployment bootstrap.
 See the [shared option defaults](../README.md#generation-options).
+
+Solution filenames and their references preserve the literal `-n` value, including hyphens.
+The default C# namespace is sanitized separately, and `--root-namespace` does not rename the solution.
 
 The Entra profile expects v2 access tokens with the API application's client-ID GUID as `aud`,
 not the calling client's ID or an `api://...` audience. Configure the API registration's

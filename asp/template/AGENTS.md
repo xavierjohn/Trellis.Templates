@@ -629,10 +629,7 @@ public sealed record CompleteTodoCommand : ICommand<Result<TodoItem>>, IAuthoriz
     }
 
     public static Result<CompleteTodoCommand> TryCreate(TodoId? todoId, EntityTagValue[]? ifMatchETags = null) =>
-        Result.EnsureNotNull(todoId, static () => Error.InvalidInput.ForField(
-            code: "required",
-            field: "id",
-            detail: "Todo id is required."))
+        Result.EnsureNotNull(todoId, "id", "Todo id is required.")
             .Map(validId => new CompleteTodoCommand(validId, ifMatchETags));
 }
 
@@ -676,7 +673,7 @@ public ValueTask<ActionResult<TodoResponse>> Complete(TodoId id, CancellationTok
 - **Rule:** When `apiVersioning` is enabled, 🔴 MUST place each API version's controllers in its own `Api/src/{yyyy-MM-dd}/Controllers/` folder with a matching `{ServiceName}.Api.v{yyyy_MM_dd}.Controllers` namespace. Do NOT add `[ApiVersion("...")]` attributes — `VersionByNamespaceConvention` derives the version from the namespace segment.
 - **Rationale:** Trellis template controllers are deliberately thin (route binding + `_sender.Send(...)` + response mapping), so duplicating a controller per version is cheaper than maintaining a single shared controller with version-aware projection seams (`HttpContext.RequestedApiVersion` branches, per-version DTO selection, `[MapToApiVersion]` per action). One folder = one version is easier to reason about and impossible to silently break across versions (a v2 edit cannot affect v1 by accident).
 - **When to add a new version:** Copy the latest version's `Api/src/{date}/Controllers/` and `Api/src/{date}/Models/` folders to a new `{date}` folder, change the namespace from `v{yyyy_MM_dd}` to the new value everywhere in the copy, then evolve the v2 copy independently — add fields to its `TodoResponse`, change endpoint shapes, etc. Older versions stay frozen.
-- **Pagination links:** Identically routed versioned list actions share one name in `[HttpGet(Name = "Todos_GetOverdue")]` and `HttpContext.PageUrl("Todos_GetOverdue", ...)`. `PageUrl` uses the active endpoint's version; do not embed a version suffix in pagination route names. Follow the emitted URL in tests and assert the responding version's JSON shape. This does not relax the uniquely addressable destination requirement for `CreatedAtRoute(...).WithVersionedRoute()`.
+- **Pagination links:** Both profiles use `HttpContext.PageUrl(...)` from `Trellis.Asp`. Versioned hosts MUST configure `.UseAsp(asp => asp.UseVersionedPageUrls())` with `using Trellis.Asp.ApiVersioning;`; `AddApiVersioning()` alone does not enable the pagination policy. Unversioned hosts keep `.UseAsp()`. Identically routed versioned list actions share one name in `[HttpGet(Name = "Todos_GetOverdue")]`; do not embed a version suffix in pagination route names. Follow the emitted URL in tests and assert the responding version's JSON shape. This does not relax the uniquely addressable destination requirement for `CreatedAtRoute(...).WithVersionedRoute()`.
 - **Correct:**
 ```csharp
 // Api/src/2026-03-26/Controllers/TodosController.cs — v1
@@ -780,7 +777,7 @@ customer.AlternatePhoneNumber.HasNoValue.Should().BeTrue();
 | Required `If-Match` on body-overwriting mutations (PUT/PATCH/DELETE, body-carrying POST, non-commutative additive ops) | `.RequireETag(expectedETags)` — see critical rule "Require `If-Match` on body-overwriting mutations" and cookbook Recipe 23 | `.OptionalETag(...)` or omitting the check (lost-update race, silent 200) |
 | Body-less state-transition POST (e.g., `.../approve`, `.../cancel`, `.../submit`) | `.OptionalETagAsync(command.IfMatchETags)` before the domain guard: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
 
-Use the field/detail null-guard form for new required fields unless a custom code is needed. The sample command factories use lazy custom-error factories to preserve their existing `"required"` response codes. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
+Use the field/detail null-guard form for required fields unless a custom code is needed. The sample command factories emit standard `ValidationCodes.ValueNotNull` (`"value.not-null"`) codes and create errors only for missing inputs. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
 
 ### Handler and controller decisions
 

@@ -1,4 +1,4 @@
-# ProjectTrackerTemplate
+﻿# ProjectTrackerTemplate
 
 > Generated from [`xavierjohn/Trellis.Templates`](https://github.com/xavierjohn/Trellis.Templates).
 
@@ -29,7 +29,7 @@ That boots the Aspire dashboard at <http://localhost:15151> and brings up three 
 | **Projects** | dynamic | Operational cluster. Cross-tenant access returns **403**. |
 | **Members** | dynamic | HR-sensitive cluster. Cross-tenant access returns **404** (HideExistence). |
 
-Open **`AppHost/src/ProjectTrackerTemplate.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
+Open **`AppHost/src/ProjectTracker.http`** in VS Code / Rider / Visual Studio for click-to-send scenarios that exercise every authorization outcome and the cross-service eventing flow (invite a member, then watch them appear in `GET /api/team`).
 
 > **HTTP vs HTTPS.** Local Aspire permits unsecured Development transport. Outside Development,
 > configure the same explicit HTTPS `Gateway:Issuer` on all hosts and use HTTPS ingress.
@@ -160,7 +160,7 @@ remaining components are single `src/` projects:
 SharedKernel/     src + tests   — shared kernel (TenantId) + published language (MemberInvited contract)
 Gateway/          src + tests   — YARP + JWT minting + JWKS endpoints and real bearer/signing tests
 ServiceDefaults/  src           — shared OpenTelemetry, health, service discovery
-AppHost/          src           — Aspire orchestration (selected database + Service Bus emulator) + ProjectTrackerTemplate.http
+AppHost/          src           — Aspire orchestration (selected database + Service Bus emulator) + ProjectTracker.http
 ```
 
 ## Testing
@@ -179,7 +179,7 @@ that exercise the real Trellis publisher and consumer in eventing tests), and th
 JWT is swapped for a test auth scheme. Run everything with:
 
 ```
-dotnet test --solution ProjectTrackerTemplate.slnx -c Release
+dotnet test --solution ProjectTracker.slnx -c Release
 ```
 
 Set **`USE_REAL_SERVICES=true`** (the default lives in `.runsettings`) to run the *same* Api integration

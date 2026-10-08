@@ -1,6 +1,6 @@
 ﻿namespace TodoSample.Api;
 
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Conventions;
 #endif
@@ -21,6 +21,9 @@ using Scalar.AspNetCore;
 using Trellis;
 using Trellis.ServiceLevelIndicators;
 using Trellis.Asp;
+#if (UseApiVersioning)
+using Trellis.Asp.ApiVersioning;
+#endif
 using Trellis.Mediator;
 using Trellis.ResourceNaming.Azure;
 using Trellis.ServiceDefaults;
@@ -39,7 +42,12 @@ internal static class DependencyInjection
         services.AddConfiguredAuthentication(environment, configuration);
         services.AddTrellis(options =>
         {
-            options.UseAsp()
+            options
+#if (UseApiVersioning)
+                .UseAsp(asp => asp.UseVersionedPageUrls())
+#else
+                .UseAsp()
+#endif
                 .UseScalarValueValidation()
                 .UseProblemDetails()
                 .UseIdempotency()
@@ -71,7 +79,7 @@ internal static class DependencyInjection
         });
         services.AddResourceCollectionName<TodoItem>("todos");
         services.AddConfiguredIdempotencyStore(environment, configuration);
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         services.AddApiVersioning(options =>
                 options.ApiVersionReader = new QueryStringApiVersionReader())
                 .AddMvc(options => options.Conventions.Add(new VersionByNamespaceConvention()))
@@ -172,7 +180,7 @@ internal static class DependencyInjection
             options.LocationId = locationId;
         })
         .AddMvc()
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         .AddApiVersion()
 #endif
         ;

@@ -1,4 +1,4 @@
-# Contributing
+﻿# Contributing
 
 This repository holds two `dotnet new` templates and the contract that keeps them at parity. Here's how to
 work in it.
@@ -44,7 +44,7 @@ Building the template content isn't enough — verify the **round-trip** (the sa
 
 ```bash
 cd microservices
-dotnet build template/ProjectTrackerTemplate.slnx -c Release
+dotnet build template/ProjectTracker.slnx -c Release
 # pack, install, scaffold, and build the result — see the template's build.cmd
 ```
 

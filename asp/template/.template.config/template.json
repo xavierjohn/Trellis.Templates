@@ -6,7 +6,6 @@
   "name": "Trellis ASP.NET Service",
   "shortName": "trellis-asp",
   "description": "A multi-project ASP.NET service template using the Trellis framework with Railway-Oriented Programming and Domain-Driven Design.",
-  "sourceName": "TrellisAspTemplate",
   "preferNameDirectory": true,
   "defaultName": "MyService",
   "tags": {
@@ -14,6 +13,13 @@
     "type": "solution"
   },
   "symbols": {
+    "filenameName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "TrellisAspTemplate",
+      "fileRename": "TrellisAspTemplate"
+    },
     "nameNamespace": {
       "type": "derived",
       "valueSource": "name",
@@ -108,7 +114,7 @@
       "defaultValue": "false",
       "description": "Skip the post-creation NuGet restore."
     },
-    "NoApiVersioning": { "type": "computed", "value": "!apiVersioning" },
+    "UseApiVersioning": { "type": "computed", "value": "apiVersioning" },
     "UsePostgres": { "type": "computed", "value": "database == \"postgres\"" },
     "UseSqlServer": { "type": "computed", "value": "database == \"sqlserver\"" },
     "UseEntra": { "type": "computed", "value": "auth == \"entra\"" },

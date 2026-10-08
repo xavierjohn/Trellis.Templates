@@ -1,4 +1,4 @@
-# Capability parity
+﻿# Capability parity
 
 Two templates that are supposed to offer "the same" capabilities will drift apart the moment one is improved
 and the other is forgotten. A developer who picked the lagging template silently loses a guardrail and never
@@ -59,12 +59,18 @@ isolated Git-root copy of each template with `agentdocs check --strict --strict-
 so stale guidance, broken instruction pointers, and unresolved cross-package links fail the gate.
 The template round trip syncs the selected profile's restore graph and then checks it strictly.
 Unversioned output legitimately drops versioning-package guidance from the raw source graph.
+Generated AgentDocs entrypoints and solution-item references must follow the selected solution name,
+including when the C# namespace is overridden or derived from a name that needs sanitizing.
 
 The contract also requires the shipped Trellis composition and ProblemDetails APIs, conditional
 OTLP/Azure Monitor exporters, and durable idempotency outside Development. Cosmos infrastructure
 must use `/scope`, per-item TTL (`defaultTtl: -1`), keyless authentication and container-scoped native
 data-plane access. CI compiles each template's Bicep modules in addition to the source contract.
 Runtime composition and loopback-export tests belong to the generated projects.
+
+Both API profiles use the common `Trellis.Asp` `HttpContext.PageUrl` pagination builder.
+Versioned hosts must explicitly enable `.UseAsp(asp => asp.UseVersionedPageUrls())`;
+unversioned output must omit that policy and optional versioning dependencies.
 
 The source runner does not execute the manifest's declarative `http-status`, `builds`, or
 `docs-in-sync` checks; it reports them as skipped. Separate build, generated API regressions, and
