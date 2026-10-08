@@ -1,4 +1,4 @@
-﻿# Manual publish of a template package to this account's GitHub Packages NuGet feed (alpha channel).
+﻿# Manual publish of one or both template packages to this account's GitHub Packages NuGet feed (alpha channel).
 #
 # Uses the built-in GITHUB_TOKEN (no stored secret). The version is the Nerdbank.GitVersioning stamp
 # (a prerelease, unique per commit). This is the internal/alpha channel; for the public, stable
@@ -9,10 +9,11 @@ on:
   workflow_dispatch:
     inputs:
       template:
-        description: 'Template to publish'
+        description: 'Templates to publish'
         required: true
         type: choice
-        options: [ asp, microservices ]
+        default: both
+        options: [ both, asp, microservices ]
 
 permissions:
   contents: read
@@ -20,11 +21,15 @@ permissions:
 
 jobs:
   publish:
-    name: github-packages ${{ inputs.template }}
+    name: github-packages ${{ matrix.template }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: ${{ fromJSON(inputs.template == 'both' && '["asp", "microservices"]' || format('["{0}"]', inputs.template)) }}
     defaults:
       run:
-        working-directory: ${{ inputs.template }}
+        working-directory: ${{ matrix.template }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,7 +44,7 @@ jobs:
       - name: Resolve template
         id: t
         run: |
-          if [ "${{ inputs.template }}" = "asp" ]; then
+          if [ "${{ matrix.template }}" = "asp" ]; then
             echo "slnx=TrellisAspTemplate.slnx" >> "$GITHUB_OUTPUT"
             echo "test=true" >> "$GITHUB_OUTPUT"
           else
@@ -52,12 +57,12 @@ jobs:
 
       - name: Test (gate)
         if: ${{ steps.t.outputs.test == 'true' }}
-        working-directory: ${{ inputs.template }}/template
+        working-directory: ${{ matrix.template }}/template
         run: dotnet test --solution ${{ steps.t.outputs.slnx }} --no-build -c Release -- --filter-not-trait "Category=Integration"
 
       - name: Verify managed AgentDocs (gate)
         run: |
-          SOURCE="${{ runner.temp }}/agentdocs-${{ inputs.template }}"
+          SOURCE="${{ runner.temp }}/agentdocs-${{ matrix.template }}"
           mkdir -p "$SOURCE"
           cp -a template/. "$SOURCE/"
           cd "$SOURCE"
@@ -73,7 +78,7 @@ jobs:
         shell: pwsh
         run: |
           $package = (Get-ChildItem nupkg -Filter '*.nupkg' | Select-Object -First 1).FullName
-          & ../shared/template-tests/Test-TemplateOptions.ps1 -Template '${{ inputs.template }}' -Package $package `
+          & ../shared/template-tests/Test-TemplateOptions.ps1 -Template '${{ matrix.template }}' -Package $package `
             -Workspace (Join-Path '${{ runner.temp }}' 'publish-options')
 
       - name: Publish verified package to GitHub Packages

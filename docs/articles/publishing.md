@@ -1,4 +1,4 @@
-# Publishing
+﻿# Publishing
 
 The templates are published as NuGet packages from this repository through two channels, plus a build gate
 that protects both.
@@ -8,9 +8,12 @@ that protects both.
 | Channel | Feed | Workflow | Auth | Use for |
 | --- | --- | --- | --- | --- |
 | **Stable** | nuget.org | `Publish template` | Trusted Publishing (OIDC) | Public releases |
-| **Alpha** | GitHub Packages | `Publish to GitHub Packages` | built-in `GITHUB_TOKEN` | Internal / pre-release builds |
+| **Alpha** | GitHub Packages | `Publish templates to GitHub Packages` | built-in `GITHUB_TOKEN` | Internal / pre-release builds |
 
-Both are **manual** (`workflow_dispatch`): you pick a template and run. Package versions are stamped from git
+Both are **manual** (`workflow_dispatch`): choose `both` (the default), `asp`, or `microservices`.
+Selecting `both` validates and publishes the two packages in parallel jobs within one workflow run.
+Each job retains its own validation gates and publish result; a failed job does not cancel the other,
+so publication is not all-or-nothing. Package versions are stamped from git
 history by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), so each commit produces
 a unique prerelease version.
 
@@ -33,11 +36,12 @@ One-time setup:
    `xavierjohn`, repository `Trellis.Templates`, workflow file `publish-templates.yml`.
 2. Add a `NUGET_USER` secret holding your nuget.org profile name.
 
-Then run **Actions → Publish template**, choose the template, and set `dry_run = false`. The default dry run
-packs and reports the version without pushing — a safe way to confirm what would publish.
+Then run **Actions → Publish template**, choose `both` or a single template, and set `dry_run = false`.
+The default dry run packs and reports each selected package's version without pushing — a safe way
+to confirm what would publish.
 
 ## Alpha builds — GitHub Packages
 
 The alpha channel publishes to this account's GitHub Packages NuGet feed using the workflow's built-in
-`GITHUB_TOKEN` — **no extra secret**. Run **Actions → Publish to GitHub Packages**, choose a template, and it
-pushes a prerelease build to `https://nuget.pkg.github.com/xavierjohn`.
+`GITHUB_TOKEN` — **no extra secret**. Run **Actions → Publish templates to GitHub Packages**, choose `both`
+or a single template, and it pushes the selected prerelease packages to `https://nuget.pkg.github.com/xavierjohn`.
