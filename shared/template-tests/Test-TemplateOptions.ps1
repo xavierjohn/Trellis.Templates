@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)]
     [ValidateSet('asp', 'microservices')]
@@ -43,6 +43,23 @@ foreach ($symbol in $defaults.Keys) {
     Assert-True ($definition.type -eq 'parameter') "'$symbol' must be a public parameter."
     Assert-True ($definition.defaultValue -eq $defaults[$symbol]) "Wrong default for '$symbol' in $Template."
 }
+Assert-True ($configuration.symbols.UseApiVersioning.type -eq 'computed' -and
+    $configuration.symbols.UseApiVersioning.value -eq 'apiVersioning') 'API versioning conditions must use the positive UseApiVersioning symbol.'
+$exporterSymbols = @{
+    UseOtlp = 'telemetryExporters == "otlp" || telemetryExporters == "both"'
+    UseAzureMonitor = 'telemetryExporters == "azure-monitor" || telemetryExporters == "both"'
+}
+foreach ($symbol in $exporterSymbols.Keys) {
+    $definition = $configuration.symbols.$symbol
+    Assert-True ($definition.type -eq 'computed' -and $definition.value -eq $exporterSymbols[$symbol]) "Exporter conditions must use the positive '$symbol' symbol."
+}
+Assert-True ($null -eq $configuration.symbols.NoOtlp -and
+    $null -eq $configuration.symbols.NoAzureMonitor) 'Negative exporter symbols must not remain in template configuration.'
+[xml] $sourceTargets = Get-Content (Join-Path $repository 'Directory.Build.targets') -Raw
+$sourceConstants = $sourceTargets.Project.PropertyGroup.DefineConstants.Split(';')
+foreach ($symbol in $exporterSymbols.Keys) {
+    Assert-True ($symbol -in $sourceConstants) "Source builds must retain coverage of the '$symbol' exporter."
+}
 Assert-True (Test-Path $hostConfigurationPath) 'Shared CLI aliases must be explicitly configured.'
 $hostConfiguration = Get-Content $hostConfigurationPath -Raw | ConvertFrom-Json
 foreach ($symbol in $aliases.Keys) {
@@ -64,6 +81,7 @@ try {
     foreach ($path in $paths) {
         Assert-True ($path -notmatch '\\|//|^/|(^|/)\.\.?(/|$)') "Package entry '$path' must be a canonical relative archive path."
     }
+    Assert-True ('content/Directory.Build.targets' -notin $paths) 'Source-only compiler constants must not be packed into generated apps.'
     $expectedDockerfiles = if ($Template -eq 'asp') {
         @('content/Dockerfile', 'content/.devcontainer/Dockerfile')
     } else {
@@ -103,6 +121,13 @@ function New-Profile([string] $Name, [string[]] $Options) {
     $arguments = @('new', $configuration.shortName, '--debug:custom-hive', $hive, '-n', $Name, '-o', $output, '--skip-restore') + $Options
     Invoke-Dotnet $arguments
     Assert-True (Test-Path (Join-Path $output "$Name.slnx")) 'Solution naming must continue to follow -n.'
+    $context = Get-Content (Join-Path $output '.agentdocs\agent-context.json') -Raw | ConvertFrom-Json
+    $entryPoints = @($context.Graph.EntryPoints)
+    Assert-True ($entryPoints.Count -eq 1 -and $entryPoints[0].Path -eq "$Name.slnx") 'AgentDocs must reference the actual solution filename, not the C# namespace.'
+    [xml] $solution = Get-Content (Join-Path $output "$Name.slnx") -Raw
+    foreach ($item in $solution.SelectNodes('//File')) {
+        Assert-True (Test-Path (Join-Path $output $item.Path)) "Solution item '$($item.Path)' must reference an emitted file."
+    }
     if ($Template -eq 'asp') {
         $devcontainer = Join-Path $output '.devcontainer'
         Assert-True (Test-Path (Join-Path $devcontainer 'Dockerfile')) 'The dev-container Dockerfile must be adjacent to devcontainer.json, not in a repeated nested directory.'
@@ -111,6 +136,71 @@ function New-Profile([string] $Name, [string[]] $Options) {
         Assert-True (@(Get-ChildItem $devcontainer -Recurse -Filter Dockerfile).Count -eq 1) 'The dev-container Dockerfile must be packed exactly once.'
     }
     return $output
+}
+
+function Assert-PaginationProfile([string] $Profile, [bool] $Versioned) {
+    $paginationFile = if ($Template -eq 'asp') { 'TodosController.cs' } else { 'ProjectEndpoints.cs' }
+    $paginationSources = @(Get-ChildItem $Profile -Recurse -Filter $paginationFile |
+        Where-Object { $_.FullName -match '[\\/]src[\\/]' })
+    $expectedCount = if ($Template -eq 'asp' -and $Versioned) { 2 } else { 1 }
+    Assert-True ($paginationSources.Count -eq $expectedCount) 'Every selected paginated endpoint must be emitted.'
+    foreach ($file in $paginationSources) {
+        $source = Get-Content $file.FullName -Raw
+        Assert-True ($source -match 'nextUrlBuilder:\s+(?:HttpContext|http)\.PageUrl\(') 'Versioned and unversioned pagination must use the common PageUrl builder.'
+        Assert-True ($source -notmatch 'Url\.Link\(|GetUriByName\(') 'Pagination must not fall back to hand-written link generation.'
+    }
+    $registrations = if ($Template -eq 'asp') { @('Api\src\DependencyInjection.cs') } else {
+        @('Members\Api\src\Program.cs', 'Projects\Api\src\Program.cs')
+    }
+    foreach ($path in $registrations) {
+        $source = Get-Content (Join-Path $Profile $path) -Raw
+        Assert-True (($source -match '\.UseAsp\(asp => asp\.UseVersionedPageUrls\(\)\)') -eq $Versioned) 'Only versioned hosts must configure the version-aware pagination policy.'
+        if (!$Versioned) {
+            Assert-True ($source -notmatch 'UseVersionedPageUrls') 'Unversioned hosts must omit the optional pagination policy entirely.'
+        }
+    }
+}
+
+function Assert-ExporterProfile([string] $Profile, [bool] $Otlp, [bool] $AzureMonitor) {
+    $registrationPath = if ($Template -eq 'asp') { 'Api\src\DependencyInjection.cs' } else {
+        'ServiceDefaults\src\Extensions.cs'
+    }
+    $source = Get-Content (Join-Path $Profile $registrationPath) -Raw
+    Assert-True (($source -match '\.UseOtlpExporter\(') -eq $Otlp) 'Only selected profiles must register the OTLP exporter.'
+    Assert-True (($source -match '\.UseAzureMonitor\(') -eq $AzureMonitor) 'Only selected profiles must register the Azure Monitor exporter.'
+    Assert-True ($source -notmatch '#if\s*\(') 'Generation must resolve exporter conditions rather than emit compiler flags.'
+
+    $projectPath = if ($Template -eq 'asp') { 'Api\src\Api.csproj' } else {
+        'ServiceDefaults\src\ServiceDefaults.csproj'
+    }
+    [xml] $project = Get-Content (Join-Path $Profile $projectPath) -Raw
+    [xml] $packages = Get-Content (Join-Path $Profile 'Directory.Packages.props') -Raw
+    $references = @($project.Project.ItemGroup.PackageReference | ForEach-Object Include)
+    $versions = @($packages.Project.ItemGroup.PackageVersion | ForEach-Object Include)
+    foreach ($package in @{
+        'OpenTelemetry.Exporter.OpenTelemetryProtocol' = $Otlp
+        'Azure.Monitor.OpenTelemetry.AspNetCore' = $AzureMonitor
+    }.GetEnumerator()) {
+        Assert-True (($package.Key -in $references) -eq $package.Value) "Only selected profiles must reference '$($package.Key)'."
+        Assert-True (($package.Key -in $versions) -eq $package.Value) "Only selected profiles must pin '$($package.Key)'."
+    }
+    $composePath = Join-Path $Profile 'compose.yaml'
+    if (Test-Path $composePath) {
+        $compose = Get-Content $composePath -Raw
+        Assert-True (($compose -match 'OTEL_EXPORTER_OTLP_ENDPOINT:') -eq $Otlp) 'Container environments must match the selected OTLP exporter.'
+        Assert-True (($compose -match 'APPLICATIONINSIGHTS_CONNECTION_STRING:') -eq $AzureMonitor) 'Container environments must match the selected Azure Monitor exporter.'
+        Assert-True ($compose -notmatch '#if\s*\(') 'Generation must resolve exporter conditions in container composition.'
+    }
+    Assert-True (!(Test-Path (Join-Path $Profile 'Directory.Build.targets'))) 'Source-only compiler constants must not override the generated exporter profile.'
+}
+
+function Assert-NamespaceProfile([string] $Profile, [string] $Namespace) {
+    $propertyPath = if ($Template -eq 'asp') { 'Directory.Build.props' } else { 'Projects\Domain\src\Projects.Domain.csproj' }
+    [xml] $properties = Get-Content (Join-Path $Profile $propertyPath) -Raw
+    $rootNamespace = if ($Template -eq 'asp') { $Namespace + '.$(MSBuildProjectName.Replace(" ", "_"))' } else { "$Namespace.Projects.Domain" }
+    $assemblyName = if ($Template -eq 'asp') { $Namespace + '.$(MSBuildProjectName)' } else { "$Namespace.Projects.Domain" }
+    Assert-True ($rootNamespace -in @($properties.Project.PropertyGroup.RootNamespace)) 'The root namespace must use the selected namespace without a leftover template suffix.'
+    Assert-True ($assemblyName -in @($properties.Project.PropertyGroup.AssemblyName)) 'The assembly prefix must use the selected namespace independently of the solution filename.'
 }
 
 function Assert-DeploymentPreflightFailure([string] $Script, [hashtable] $Arguments, [string] $Expected) {
@@ -137,7 +227,11 @@ function Assert-PublishedKeyMounts([string] $Profile) {
     }
 }
 
-$default = New-Profile 'DefaultService' @()
+$defaultName = if ($Template -eq 'microservices') { 'ProjectTracker' } else { 'DefaultService' }
+$default = New-Profile $defaultName @()
+Assert-NamespaceProfile $default $defaultName
+Assert-PaginationProfile $default $false
+Assert-ExporterProfile $default $true $false
 $profile = Get-Content (Join-Path $default '.trellis-template.json') -Raw | ConvertFrom-Json
 Assert-True ($profile.template -eq $Template -and [bool]::Parse($profile.apiVersioning) -eq $false) 'The emitted profile must record the selected defaults.'
 $productionSources = Get-ChildItem $default -Recurse -Filter '*.cs' |
@@ -153,6 +247,9 @@ if ($Template -eq 'asp') {
 }
 
 $custom = New-Profile 'CustomService' @('--author-name', 'Example & Partners <Engineering>', '--root-namespace', 'Example.Billing', '--api-versioning', '--database', 'postgres', '--auth', 'entra', '--telemetry-exporters', 'both', '--deployment', 'container')
+Assert-NamespaceProfile $custom 'Example.Billing'
+Assert-PaginationProfile $custom $true
+Assert-ExporterProfile $custom $true $true
 [xml] $properties = Get-Content (Join-Path $custom 'Directory.Build.props') -Raw
 Assert-True ('Example & Partners <Engineering>' -in @($properties.Project.PropertyGroup.Authors)) 'Author replacement must preserve XML-special characters in the generated build properties.'
 $customSources = Get-ChildItem $custom -Recurse -Filter '*.cs' |
@@ -176,9 +273,18 @@ Assert-True (!(Test-Path (Join-Path $default 'Api\src\obj')) -and
     !(Test-Path (Join-Path $default 'Gateway\src\obj'))) '--skip-restore must not run a post-creation restore.'
 Assert-True (!(($customSources -join "`n") -match '#pragma warning disable IDE0047')) 'Source-only preprocessor suppression must not leak into generated projects.'
 
+$otlpContainer = New-Profile 'OtlpContainerService' @('--deployment', 'container', '--telemetry-exporters', 'otlp')
+Assert-ExporterProfile $otlpContainer $true $false
+$azureMonitorContainer = New-Profile 'AzureMonitorContainerService' @('--deployment', 'container', '--telemetry-exporters', 'azure-monitor')
+Assert-ExporterProfile $azureMonitorContainer $false $true
+
 $azure = New-Profile 'AzureService' @('--deployment', 'azure', '--database', 'sqlserver', '--telemetry-exporters', 'azure-monitor')
+Assert-PaginationProfile $azure $false
+Assert-ExporterProfile $azure $false $true
 Assert-True (Test-Path (Join-Path $azure 'infra')) 'Azure infrastructure must be emitted when selected.'
 $azurePostgres = New-Profile 'AzurePostgresService' @('--deployment', 'azure', '--database', 'postgres', '--auth', 'entra', '--telemetry-exporters', 'both')
+Assert-PaginationProfile $azurePostgres $false
+Assert-ExporterProfile $azurePostgres $true $true
 if ($Template -eq 'asp') {
     Assert-DeploymentPreflightFailure (Join-Path $azure 'deploy\deploy.ps1') @{} 'HTTPS -AuthenticationAuthority'
     Assert-DeploymentPreflightFailure (Join-Path $azurePostgres 'deploy\deploy.ps1') @{} 'Entra GUIDs'
@@ -201,6 +307,7 @@ if ($Template -eq 'asp') {
         '-o', (Join-Path $Workspace 'InvalidAzureAutoRestore'), '--deployment', 'azure', '--database', 'sqlite') -ExpectFailure
 }
 $namespace = New-Profile '9-Billing' @()
+Assert-NamespaceProfile $namespace '_9_Billing'
 Push-Location $namespace
 try {
     Invoke-Dotnet @('build', '9-Billing.slnx', '-c', 'Release', '--verbosity', 'quiet')
@@ -217,6 +324,11 @@ foreach ($profile in @($default, $custom, $azure, $azurePostgres)) {
         $solution = $solutions[0].Name
         Invoke-Dotnet @('build', $solution, '-c', 'Release', '--verbosity', 'quiet')
         Invoke-Dotnet @('test', '--solution', $solution, '-c', 'Release', '--no-build', '--', '--filter-not-trait', 'Category=Integration')
+        & git init --quiet
+        Assert-True ($LASTEXITCODE -eq 0) 'Generated guidance must be checked in its own Git root.'
+        Invoke-Dotnet @('tool', 'restore')
+        Invoke-Dotnet @('tool', 'run', 'agentdocs', 'sync', '--strict', '--strict-references')
+        Invoke-Dotnet @('tool', 'run', 'agentdocs', 'check', '--strict', '--strict-references')
         Invoke-Dotnet @('run', '--project', (Join-Path $repository 'shared\contract-tests\runner.csproj'), '-c', 'Release', '--',
             (Join-Path $repository 'shared\capability-parity-manifest.yaml'), $Template, $profile)
         if (Test-Path 'deploy\names\names.csproj') {

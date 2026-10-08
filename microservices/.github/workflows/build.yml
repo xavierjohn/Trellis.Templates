@@ -1,4 +1,4 @@
-name: Build Template
+﻿name: Build Template
 
 # Builds the scaffolded template content (under template/) AND verifies the
 # template pack itself can be installed + instantiated + the generated solution
@@ -24,11 +24,11 @@ jobs:
         with:
           global-json-file: global.json
       - name: Restore template content
-        run: dotnet restore template/ProjectTrackerTemplate.slnx
+        run: dotnet restore template/ProjectTracker.slnx
       - name: Build template content
-        run: dotnet build template/ProjectTrackerTemplate.slnx --no-restore --configuration Release
+        run: dotnet build template/ProjectTracker.slnx --no-restore --configuration Release
       - name: Test template content
-        run: dotnet test --solution template/ProjectTrackerTemplate.slnx --no-build --configuration Release
+        run: dotnet test --solution template/ProjectTracker.slnx --no-build --configuration Release
 
   pack-and-instantiate:
     name: Pack template + instantiate + build instantiation

@@ -108,7 +108,7 @@ public class TodosController : ControllerBase
     /// <param name="cursor">Opaque continuation token from the previous page's <c>next</c> link.</param>
     /// <param name="limit">Page size requested by the client; the server clamps to its maximum.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    [HttpGet("overdue", Name = "Todos_GetOverdue_v2026_03_26")]
+    [HttpGet("overdue", Name = "Todos_GetOverdue")]
     [ProducesResponseType(typeof(PagedResponse<TodoResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -119,7 +119,7 @@ public class TodosController : ControllerBase
         _sender.Send(new GetOverdueTodosQuery(cursor, limit), cancellationToken)
             .ToHttpResponseAsync(
                 nextUrlBuilder: HttpContext.PageUrl(
-                    "Todos_GetOverdue_v2026_03_26",
+                    "Todos_GetOverdue",
                     (c, applied) => new Microsoft.AspNetCore.Routing.RouteValueDictionary { ["cursor"] = c.Token, ["limit"] = applied }),
                 body: TodoResponse.From)
             .AsActionResultAsync<PagedResponse<TodoResponse>>();

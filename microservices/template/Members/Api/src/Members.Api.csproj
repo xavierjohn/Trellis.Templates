@@ -26,21 +26,21 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Mediator.Abstractions" />
     <PackageReference Include="Azure.Identity" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Asp.Versioning.OpenApi" />
     <!--#endif-->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="Trellis.Asp" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <!--#endif-->
     <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
     <PackageReference Include="Trellis.ServiceDefaults" />
     <PackageReference Include="Trellis.Authorization" />
     <PackageReference Include="Trellis.Core" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!--#endif-->
     <PackageReference Include="Trellis.Microservices.AspNetCore" />

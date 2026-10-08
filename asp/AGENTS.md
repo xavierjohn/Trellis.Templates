@@ -46,6 +46,7 @@ asp/
 - Do NOT modify `Directory.Build.props`, `global.json`, or `build/test.props` — these are pre-configured for template users. Exception: updating the placeholder service name (e.g., `TodoSample`) in `Directory.Build.props` is allowed when changing the template's sample identity.
 - Add new NuGet packages to `template/Directory.Packages.props` (version) and the relevant `.csproj` (reference without version).
 - The template uses `TodoSample` as a placeholder service name.
+- `TrellisAspTemplate` is the filename token; `filenameName` derives the literal `-n` value with the `identity` form for content replacement and file renaming. Namespace sanitization belongs to `nameNamespace` and `effectiveNamespace`, not implicit `sourceName` replacements.
 
 ## Building & Testing the Template Pack
 

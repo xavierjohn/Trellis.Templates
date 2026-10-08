@@ -1,7 +1,7 @@
 ﻿#pragma warning disable IDE0047
 namespace ProjectTrackerTemplate.Members.Api;
 
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Asp.Versioning;
 using Asp.Versioning.Builder;
 #endif
@@ -10,7 +10,7 @@ using ProjectTrackerTemplate.Members.Application;
 using ProjectTrackerTemplate.Members.Domain;
 using Trellis;
 using Trellis.Asp;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Trellis.Asp.ApiVersioning;
 #endif
 using Trellis.Asp.Idempotency;
@@ -25,13 +25,13 @@ public static class MemberEndpoints
 {
     // Date-based API version, matching the rest of the platform. Clients select it with the
     // query string ?api-version=2026-03-26 (the default Asp.Versioning reader).
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private static readonly ApiVersion V20260326 = new(new DateOnly(2026, 3, 26));
 #endif
 
     public static IEndpointRouteBuilder MapMemberEndpoints(this IEndpointRouteBuilder app)
     {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         ApiVersionSet versionSet = app.NewApiVersionSet("Members")
             .HasApiVersion(V20260326)
             .ReportApiVersions()
@@ -43,11 +43,11 @@ public static class MemberEndpoints
         // middleware, e.g. "GET /api/members/{id}"). The only thing an endpoint adds for itself below
         // is idempotency on the create.
         var members = app.MapGroup("/api/members")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .WithApiVersionSet(versionSet)
 #endif
             .WithTags("Members")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .MapToApiVersion(V20260326)
 #endif
             .RequireAuthorization()
@@ -79,7 +79,7 @@ public static class MemberEndpoints
                         MemberResponse.From,
                         opts => opts
                             .CreatedAtRoute("Members_GetById", m => m.Id)
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
                             .WithVersionedRoute()
 #endif
                             .WithETag(m => EntityTagValue.Strong(m.ETag))

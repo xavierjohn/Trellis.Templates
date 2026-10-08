@@ -4,7 +4,7 @@ namespaces: [Trellis, Trellis.Asp, Trellis.EntityFrameworkCore, Trellis.Mediator
 types: [recipes]
 related_docs: [trellis-start-here.md, trellis-api-core.md, trellis-api-asp.md, trellis-api-efcore.md, trellis-api-mediator.md]
 version: v3
-last_verified: 2026-10-02
+last_verified: 2026-10-07
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when the task lookup in trellis-start-here.md points to a recipe: compile-checked end-to-end patterns that cross Trellis packages."
@@ -35,6 +35,16 @@ agent_description: "Open when the task lookup in trellis-start-here.md points to
 The task lookup, the load-the-smallest-reference-set preflight and the conventions every recipe follows are in
 [trellis-start-here.md](trellis-start-here.md#patterns-index), the required reading for Trellis work. Open a recipe
 body here when that lookup sends you to one; every live recipe has a row there.
+
+Read the selected recipe's problem, constraints and solution together. For a focused
+subtask in a large recipe, follow its section links instead of loading unrelated
+alternatives. Expand to the complete recipe when composing its domain, HTTP and
+persistence surfaces.
+
+Primary solution blocks follow the router's
+[preferred-pattern defaults](trellis-start-here.md#preferred-patterns-not-just-valid-overloads):
+required-field shorthand, lazy custom errors, and typed mappings where available.
+Fallbacks are labelled with the condition that justifies them.
 
 ## Recipe 1 — CRUD aggregate (DDD value objects + entity + repository contract)
 
@@ -74,14 +84,14 @@ public sealed class Order : Aggregate<OrderId>
 
     private Order(OrderId id) : base(id) { }   // EF Core ctor
 
-    // Idiomatic ROP factory: nullable parameters lift to Result<T> via T?.ToResult(error);
+    // Nullable guards carry the values; Combine accumulates missing-field errors.
     // Combine aggregates per-field errors into a single Error.InvalidInput; Map's
     // tuple-deconstructing overload lets the lambda bind the validated non-null values
     // directly as id/total/ownerId.
     public static Result<Order> TryCreate(OrderId? id, Money? total, ActorId? ownerId) =>
-        id.ToResult(Error.InvalidInput.ForField(field: "id", code: ValidationCodes.ValueNotNull, detail: "Order id is required."))
-            .Combine(total.ToResult(Error.InvalidInput.ForField(field: "total", code: ValidationCodes.ValueNotNull, detail: "Total is required.")))
-            .Combine(ownerId.ToResult(Error.InvalidInput.ForField(field: "ownerId", code: ValidationCodes.ValueNotNull, detail: "Owner id is required.")))
+        Result.EnsureNotNull(id, "id", "Order id is required.")
+            .Combine(Result.EnsureNotNull(total, "total", "Total is required."))
+            .Combine(Result.EnsureNotNull(ownerId, "ownerId", "Owner id is required."))
             .Map((id, total, ownerId) => new Order(id) { Total = total, Status = OrderStatus.Draft, OwnerId = ownerId });
 }
 
@@ -269,13 +279,19 @@ At an ASP.NET Core boundary, construct the validated request from raw query valu
 dispatching the application query:
 
 ```csharp
-app.MapGet("/orders", (HttpRequest request, ISender sender, CancellationToken ct) =>
-    request.TryCreatePageRequest()
+app.MapGet("/orders", (HttpContext context, ISender sender, CancellationToken ct) =>
+    context.Request.TryCreatePageRequest()
         .BindAsync(pagination => sender.Send(new ListOrdersQuery(pagination), ct))
         .ToHttpResponseAsync(
-            nextUrlBuilder: (cursor, applied) =>
-                $"/orders?cursor={Uri.EscapeDataString(cursor.Token)}&limit={applied}",
+            nextUrlBuilder: context.PageUrl(
+                "Orders_List",
+                (cursor, applied) => new Microsoft.AspNetCore.Routing.RouteValueDictionary
+                {
+                    ["cursor"] = cursor.Token,
+                    ["limit"] = applied,
+                }),
             body: item => item))
+    .WithName("Orders_List")
     .WithInputOrigin(InputLocation.Query);
 ```
 
@@ -288,6 +304,14 @@ failure is located at the actual query parameter and maps to HTTP 422. `BindAsyn
 dispatch the query on parse failure, so no database query runs. The endpoint's query input-origin
 metadata also promotes a later, transport-neutral `/cursor` decode failure to the `cursor` query
 parameter.
+
+`HttpContext.PageUrl(...)` belongs to
+[`Trellis.Asp`](trellis-api-asp.md#httpcontextpaginationextensions), so the same endpoint
+expression works without a versioning package. In versioned hosts, enable
+[`UseVersionedPageUrls`](trellis-api-asp-apiversioning.md#trellisaspoptionsapiversioningextensions)
+once through `AddTrellisAsp` / `UseAsp` as in Recipe 12. Identically routed namespace-versioned
+list actions may share a name: the enabled policy resolves self-pagination against the active
+endpoint, preserving next/previous versions independently of registration order.
 
 The handler receives the validated, transport-neutral `PageRequest`. A non-HTTP adapter constructs
 the same type with `PageRequest.TryCreate(rawCursor, rawLimit)` before creating
@@ -349,6 +373,30 @@ app.Run();
 
 **What it shows.** `ToHttpResponse` returns `Microsoft.AspNetCore.Http.IResult` and is the **only** supported response verb. The fluent `HttpResponseOptionsBuilder<TDomain>` configures protocol semantics (`WithETag`, `WithLastModified`, `Vary`, `EvaluatePreconditions`) without leaking HTTP into the handler. Failures (`Error.NotFound`, `Error.InvalidInput`, …) round-trip through Problem Details using the `TrellisAspOptions` mapping registered by `AddTrellisAsp`.
 
+**PUT upserts.** The application returns `Result.Ok(WriteOutcome.Created(order))` when it adds
+the resource, or `Result.Ok(WriteOutcome.Updated(order))` when it updates one. No URL is needed
+in the application layer. In this endpoint, `IOrderWriter.UpsertAsync` is an application-owned
+service returning `Task<Result<WriteOutcome<Order>>>`:
+
+```csharp
+app.MapPut("/orders/{id:guid}", async (
+    Guid id, PutOrderRequest request, IOrderWriter writer, CancellationToken ct) =>
+{
+    Result<WriteOutcome<Order>> result = await writer.UpsertAsync(id, request, ct);
+    return result.ToHttpResponse(
+        body: order => new { Id = order.Id.Value },
+        configure: options => options.WithETag(order => order.ETag));
+});
+```
+
+Created returns 201 without a Location when the new resource is at the PUT request URL;
+Updated returns 200. To generate a Location at the endpoint instead, configure `Created`,
+`CreatedAtRoute`, `CreatedAtAction`, or `WithLocation`. Null, empty, or whitespace outcome
+locations use that fallback; a nonblank outcome Location wins. The outcome controls status,
+so `WithLocation` cannot turn Created into 200 or Updated into 201. Updated and Accepted
+do not use these fallbacks. An unresolved configured fallback returns
+`response.location-unresolved` (500 by default); callback exceptions propagate.
+
 **Versioned Location links.** For `CreatedAtRoute` / `CreatedAtAction` (201) or `WithLocation` (normal 2xx), load [target-aware API versioning](trellis-api-asp-apiversioning.md#behavioral-notes) before chaining the existing `.WithVersionedRoute()` / `.WithVersionedRoute(ApiVersion)` APIs. They now inspect the final destination, honor actual action mappings and segment pins, and reject missing/ambiguous targets or unsupported pins. The optional ASP [`WithLocationRouteResolver`](trellis-api-asp.md#locationroutecontext) hook runs after all legacy callbacks on a cloned dictionary; last registration wins. Literal `Created` and `WriteOutcome` URIs are unchanged. Do not transfer Location segment behavior to `PageUrl`: its implicit ambient routing and explicit segment-pin rejection remain.
 
 ---
@@ -386,6 +434,11 @@ public sealed record OrderDto(Guid Id, decimal Amount, string Currency);
 ```
 
 **What it shows.** `.AsActionResult<TBody>()` projects an `IResult` into a typed `ActionResult<TBody>`, so MVC clients still get OpenAPI/Swagger-friendly typed responses while the response itself executes through the same `IResult` pipeline as Minimal API.
+
+The same adapter supports the Created/Updated outcomes in Recipe 4. For
+`Result<WriteOutcome<Order>>`, project the body with `ToHttpResponse(...)` and chain
+`.AsActionResult<OrderDto>()`; route/action location fallbacks run against the Order,
+not the projected DTO. A nonblank outcome Location takes precedence.
 
 ---
 
@@ -468,19 +521,50 @@ services.AddResourceAuthorization(
 
 **What it shows.** Lead with `IAuthorizeResource<TResource>` + `IIdentifyResource<TResource, TId>` for the owner-on-loaded-resource case — that pair covers most domain authorization decisions, and the framework wires up `SharedResourceLoaderById<TResource, TId>` automatically so no per-command loader is needed. Fall back to `IAuthorize` for static permission gates that do not require a resource load. `IAuthorizeResource<TResource>` runs *after* the resource loader produces the loaded resource, then calls `Authorize(actor, resource)`; `IAuthorize` enforces an AND-permission gate via `AuthorizationBehavior<,>` before the handler runs.
 
-**Actor access after authorization.** A handler reached through the correctly registered
-behavior can use `await actorProvider.RequireActorAsync(cancellationToken)` from
-`Trellis.Authorization` **only with stable or explicitly cached provider resolution**.
-The helper performs another lookup; authorization does not freeze the actor's identity or
-permission snapshot. For mutable providers, both behavior and handler must use the same
-scoped caching provider, configured before dispatch. With the claims provider above, opt in
-after registering it via `services.AddCachingActorProvider<ClaimsActorProvider>()`; for a
-database-backed provider, wrap that provider instead. A stable provider contract is also valid.
-The helper returns the actor or throws `InvalidOperationException` if the presence invariant
-is broken; it does not authenticate, check permissions, enforce stability, or add a cache.
-Keep ordinary missing-actor handling in the pipeline (401). Direct endpoints and callers
-without an established actor-presence invariant must still use `GetCurrentActorAsync` and
-handle `None`.
+**Checked actor/resource parameters.** Derive from `ActorCommandHandler` /
+`ActorQueryHandler` for actor-only business logic, or `ActorResourceCommandHandler` /
+`ActorResourceQueryHandler` for direct resource logic, and override protected `Handle`.
+The standard context supplies the **identical Actor instance** checked by this dispatch's
+authorization stages, after every declared gate passes. Resource bases additionally supply
+the exact loaded resource, without provider/accessor constructor dependencies or a second
+load. They do not require `IAuthorize` on a resource-only message.
+
+```csharp
+public sealed record ReadOrderQuery(OrderId OrderId)
+    : IQuery<Result<Order>>, IAuthorizeResource<Order>, IIdentifyResource<Order, OrderId>
+{
+    public OrderId GetResourceId() => OrderId;
+    public IResult Authorize(Actor actor, Order resource) =>
+        Result.Ensure(resource.OwnerId == actor.Id, static () => new Error.Forbidden("orders.owner"));
+}
+
+public sealed class ReadOrderHandler : ActorResourceQueryHandler<ReadOrderQuery, Order, Result<Order>>
+{
+    protected override ValueTask<Result<Order>> Handle(
+        ReadOrderQuery query, Actor actor, Order order, CancellationToken cancellationToken)
+        => new(Result.Ok(order));
+}
+```
+
+Keep the existing shared-loader registration and add the query's resource registration.
+Ordinary accessor-based handlers remain valid; an actor-free business body need not adopt
+these bases. See [all six bases and migration](trellis-api-mediator.md#actor-aware-handler-bases).
+
+**Existing provider lookup.** `await actorProvider.RequireActorAsync(cancellationToken)`
+still performs another lookup, not a dispatch-snapshot read. It requires established actor
+presence and a stable or explicitly cached provider when its result must match authorization.
+For claims-backed hosts, register `AddCachingActorProvider<ClaimsActorProvider>()` after
+`AddClaimsActorProvider`; wrap the same scoped provider used by authorization. The helper
+throws when the presence invariant fails; it does not authenticate, check permissions, or
+cache independently. Endpoints without that invariant still use `GetCurrentActorAsync`
+and handle `None`.
+
+**Pipeline migration.** Normal helpers install `AuthorizationContextBehavior`
+automatically. Hand-built pipelines must place it before authorization; missing context is
+a diagnosed configuration fault, not an implicit provider lookup. Nested sends have their
+own snapshots, even inside the same DI scope. Native AOT hosts use the [literal closed
+generator configuration](trellis-api-mediator.md#native-aot-registration), not open
+behaviors closed dynamically over struct Result responses.
 
 For the same shared-loader shape without assembly scanning, register the implementation once and the behavior/accessor/adapter together per message:
 
@@ -774,6 +858,18 @@ invariant.Code.Should().Be("state-machine.invalid-transition");
 
 **Problem.** Unit-test the `PlaceOrderHandler` from Recipe 2 using FluentAssertions extensions from `Trellis.Testing`.
 
+For an actor-aware base, send the command/query through Mediator with `TestActorProvider`
+and fake business dependencies, then use the same Result assertions below. Keep the normal
+authorization, validation, and resource-loader registrations; supply fake commit/event
+dependencies when those stages are enabled. Assert denied/anonymous paths as well as
+business outcomes, ownership, existence hiding, and actor/resource snapshot identity.
+The actor/resource `Handle` overload is protected business logic, not a test seam.
+Calling the public two-argument `Handle` without an authorized dispatch throws before
+business logic, and registering a test actor provider alone does not create that dispatch.
+For pipeline-free unit tests, exercise aggregates, policies, or application services
+directly rather than unsealing a handler or accessing its protected hook by reflection.
+The direct test below is for Recipe 2's ordinary handler, not an actor-aware base.
+
 ```csharp
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -887,11 +983,27 @@ public static class CompositionRoot
 
 **Still app-owned.** `AddTrellis(...)` does **not** call `AddDbContext`, `AddMediator`, or route-constraint registration. Those choices depend on provider, connection string, source-generator setup, migrations, route template names, and hosting style.
 
+For versioned pagination, install `Trellis.Asp.ApiVersioning`, register
+`Asp.Versioning` normally, and replace `.UseAsp()` with
+`.UseAsp(asp => asp.UseVersionedPageUrls())` (import `Trellis.Asp.ApiVersioning`).
+Unversioned hosts keep `.UseAsp()`; both use the same `HttpContext.PageUrl` expression.
+The optional policy uses the existing options slot, so ServiceDefaults does not acquire
+a versioning-SDK dependency. Location still uses `.WithVersionedRoute()` per response.
+
 > **Set `options.ServiceLifetime = ServiceLifetime.Scoped` on `AddMediator(...)`** in any host that creates a request/execution scope (ASP.NET Core, workers). Mediator's default lifetime is `Singleton`, but the Trellis pipeline behaviors depend on per-request services (`IActorProvider`, `IUnitOfWork`, `IMessageValidator<>`), so a singleton handler/behavior fails the DI root-scope validation the moment it resolves a scoped dependency — a build-clean service that throws at startup. (Same guidance: `Trellis.Mediator` README and the [Mediator integration article](https://xavierjohn.github.io/Trellis/articles/integration-mediator.html).)
 
 ---
 
 ## Recipe 13 — Composite value object end-to-end (Domain + API JSON binding + EF Core ownership)
+
+| Task within this recipe | Read |
+|---|---|
+| Define and persist the composite value object | [Domain and persistence contract](#composite-value-object-domain-and-persistence-contract), including the solution and storage rules |
+| Choose the JSON boundary shape | [JSON wire shape](#composite-value-object-json-wire-shape), then [supported interiors and DTO seam](#supported-property-shapes-inside-a-composite-vo--when-to-map-to-a-dto-instead) |
+| Map a read-only collection with a backing field | [Owned collections](#owned-collections-with-a-private-backing-field) |
+| Only require a nonblank string | [Core string guard](trellis-api-core.md#required-nonblank-strings); the composite recipe is not needed |
+
+### Composite value object domain and persistence contract
 
 **Problem.** Persist a multi-field value object (`ShippingAddress` with street/city/state/postalCode/country) as part of a `Customer` aggregate. Every field is required, the VO must validate at construction, and the JSON wire format must reuse the same validation as the domain TryCreate.
 
@@ -970,9 +1082,9 @@ public sealed partial class Customer : Aggregate<CustomerId>
     }
 
     public static Result<Customer> TryCreate(CustomerId? id, string? name, ShippingAddress? shipping) =>
-        id.ToResult(Error.InvalidInput.ForField(field: "id", code: ValidationCodes.ValueNotNull, detail: "Customer id is required."))
-            .Combine(name.EnsureNotNullOrWhiteSpace(Error.InvalidInput.ForField(field: "name", code: ValidationCodes.ValueNotEmpty, detail: "Name is required.")))
-            .Combine(shipping.ToResult(Error.InvalidInput.ForField(field: "shipping", code: ValidationCodes.ValueNotNull, detail: "Shipping address is required.")))
+        Result.EnsureNotNull(id, "id", "Customer id is required.")
+            .Combine(name.EnsureNotNullOrWhiteSpace("name", "Name is required."))
+            .Combine(Result.EnsureNotNull(shipping, "shipping", "Shipping address is required."))
             .Map((id, name, shipping) => new Customer(id, name, shipping));
 }
 
@@ -1005,6 +1117,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
 **What it shows.**
 
+- Null-only required-field guards create errors only for missing values. `EnsureNotNullOrWhiteSpace("name", "Name is required.")` reports `value.not-null` for null names and `value.not-empty` for empty/whitespace names, without creating violations on success or trimming valid text.
 - `[OwnedEntity]` + `partial` + `ValueObject` + private ctor is the contract. The three diagnostics (`TRLS036`/`037`/`038`) catch each violation at compile time.
 - `CompositeValueObjectJsonConverter<T>` makes JSON deserialization round-trip through `TryCreate`, so an API request body with an **invalid** `state` (one that fails the VO's rule) produces the same `Error.InvalidInput` shape the domain emits. A **missing** required inner field is caught earlier as a `TrellisJsonValidationException` ("required property missing") *before* `TryCreate` runs.
 - `ApplyTrellisConventions` removes the boilerplate `OwnsOne` call. You only need `OwnsOne` when you want to **override** the convention (custom column names, table splitting, indexes on inner properties).
@@ -1016,7 +1129,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 | Required `ShippingAddress` (non-nullable) | Table-split: 5 columns on the `Customers` table — `ShippingAddress_Street`, `ShippingAddress_City`, `ShippingAddress_State`, `ShippingAddress_PostalCode`, `ShippingAddress_Country` (all `NOT NULL`). |
 | Optional `Maybe<ShippingAddress>` | `CompositeValueObjectConvention` **table-splits** it into the `Customers` table as **nullable** columns (`BillingAddress_Street`, …, all `NULL`-able); absence is encoded as all-null. It uses a **separate table** `{Owner}_{Property}` when the composite has **nested owned navigations** *or* a **non-nullable value-type inner property** — table-splitting can't represent either for an optional dependent (all-null columns would make existence ambiguous, and EF Core rejects making a non-nullable value-type column optional), so row existence encodes presence instead. See the storage rules in [trellis-api-efcore.md](trellis-api-efcore.md#maybet-storage-owned-types-and-migrations) for the full decision matrix. |
 
-**JSON wire shape.**
+### Composite value object JSON wire shape
 
 The `[JsonConverter(typeof(CompositeValueObjectJsonConverter<T>))]` attribute on the value object controls the wire format. There is no auto-discovery — the attribute is required for the converter to engage on request bodies and response payloads.
 
@@ -1093,13 +1206,15 @@ public partial class Innings : ValueObject
 }
 ```
 
-Map an **entity** collection explicitly with `OwnsMany`. Binding against the private backing field by name keeps the public surface an immutable `IReadOnlyList<T>` while EF writes through the field:
+Map an **entity** collection explicitly with expression-based `OwnsMany`. EF binds the
+read-only navigation to its conventionally named backing field, so the public facade
+stays read-only and refactoring tools can follow the mapping:
 
 ```csharp
 public sealed partial class Order : Aggregate<OrderId>
 {
     private readonly List<LineItem> _lineItems = [];
-    public IReadOnlyList<LineItem> LineItems => _lineItems;       // public facade — interface, EF can't materialize
+    public IReadOnlyList<LineItem> LineItems => _lineItems;
     // ...
 }
 
@@ -1109,10 +1224,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
     {
         builder.HasKey(o => o.Id);
 
-        // The public facade is IReadOnlyList<T> — EF cannot instantiate an interface.
-        // Ignore the facade and map directly against the private backing field by name.
-        builder.Ignore(o => o.LineItems);
-        builder.OwnsMany<LineItem>("_lineItems", li =>
+        builder.OwnsMany(o => o.LineItems, li =>
         {
             li.ToTable("LineItems");
             li.HasKey(x => x.Id);
@@ -1125,13 +1237,26 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 }
 ```
 
-The string `"_lineItems"` is unfortunately part of the public mapping contract: rename the private field and the EF model silently stops working. Two mitigations and what they buy you:
+**Fallback: convention cannot bind the field.** Only then ignore the facade and map
+the field explicitly. The field name is now part of the mapping contract and must
+be updated if the field is renamed:
+
+```csharp
+builder.Ignore(o => o.LineItems);
+builder.OwnsMany<LineItem>("_lineItems", li =>
+{
+    li.ToTable("LineItems");
+    li.HasKey(x => x.Id);
+});
+```
+
+Choose the mapping shape deliberately:
 
 | Mitigation | Compile-time safety | Cost |
 |---|---|---|
-| Raw string `"_lineItems"` | None — typo or rename breaks at runtime model-validation. | Zero. The pattern shown above. |
-| `private const string LineItemsField = "_lineItems";` on `Order`, then `builder.OwnsMany<LineItem>(Order.LineItemsField, …)` | Refactoring tools follow the constant. Still no compile check that the field actually exists. | Leaks the field name through `internal`/`public` constant on the aggregate — adds public surface for a persistence concern. |
-| `builder.OwnsMany(o => o.LineItems, cfg => cfg.HasKey(...))` directly against the facade | Refactor-safe — no magic string; renaming the field is transparent. | Works: EF binds the read-only `IReadOnlyList<LineItem>` navigation to the backing `List<LineItem>` field by convention and round-trips. The `cfg` callback still configures the owned type (`cfg.ToTable(...)`, `cfg.Property(...).HasColumnName(...)`, etc.). Prefer this form; fall back to the string-based `OwnsMany<LineItem>("_field", …)` only when the backing field is named differently from what the convention binds, or convention cannot resolve the facade-to-field link. |
+| `builder.OwnsMany(o => o.LineItems, cfg => cfg.HasKey(...))` directly against the facade | Refactor-safe — no magic string; renaming the field is transparent while convention can bind it. | **Preferred.** EF binds the read-only `IReadOnlyList<LineItem>` navigation to the backing `List<LineItem>` field by convention. The `cfg` callback still configures the owned type (`cfg.ToTable(...)`, `cfg.Property(...).HasColumnName(...)`, etc.). |
+| Raw string `"_lineItems"` | None — typo or rename breaks at runtime model-validation. | **Fallback only** when convention cannot resolve the facade-to-field link. |
+| `internal const string LineItemsField = "_lineItems";` on `Order`, then `builder.OwnsMany<LineItem>(Order.LineItemsField, …)` in the same assembly | Refactoring tools follow the constant. Still no compile check that the field actually exists. | Exposes a persistence field name through the aggregate; unlike expression mapping, the string still needs updating when the field is renamed. |
 
 **Why no convention for _entity_ collections (yet).** Composite **value-object** collections are already handled automatically (see the value-object case above) — `CompositeValueObjectConvention` registers each composite VO as owned, so EF Core's navigation discovery maps the `IReadOnlyList<VO>` facade with no extra configuration. An equivalent convention for **entity** collections would need to walk every aggregate, find `IReadOnlyList<T>` / `IReadOnlyCollection<T>` properties whose `T` is an entity, locate a matching `_camelCase` backing field, and register the `OwnsMany` against it. This is on the roadmap (tracked as the analogue of `MaybeConvention` for collections); for now the manual pattern above is the supported approach for entity collections.
 
@@ -1418,8 +1543,9 @@ public sealed record OrderShipped(OrderId OrderId, TrackingNumber Tracking, Date
 ```csharp
 public Result<Order> Submit(TimeProvider clock)
 {
-    return this.ToResult()
-        .Ensure(_ => Status == OrderStatus.Draft, Error.InvalidInput.ForRule(code: "order.already-submitted", detail: "Already submitted"))
+    return Result.Ok(this)
+        .Ensure(static order => order.Status == OrderStatus.Draft, static _ =>
+            Error.InvalidInput.ForRule(code: "order.already-submitted", detail: "Already submitted"))
         .Tap(_ =>
         {
             Status = OrderStatus.Submitted;
@@ -1521,6 +1647,44 @@ var command = Result.Combine(
         CustomerName.TryCreate(request.CustomerName, nameof(request.CustomerName)))
     .Map((email, customerName) => new CreateCustomerCommand(email, customerName));
 ```
+
+**Already-created but nullable values.** A command factory can also receive value objects
+that have already been validated but might be absent. Guard their presence without
+re-parsing, returning `Result<Unit>`, or recovering the values with `!`:
+
+```csharp
+public static Result<CreateCustomerCommand> RequireValues(
+    EmailAddress? email, CustomerName? customerName) =>
+    Result.EnsureNotNull(email, "email", "Email is required.")
+        .Combine(Result.EnsureNotNull(customerName, "customerName", "Customer name is required."))
+        .Map((email, customerName) => new CreateCustomerCommand(email, customerName));
+
+public static Task<Result<CreateCustomerCommand>> RequireValuesAsync(
+    Task<EmailAddress?> email, Task<CustomerName?> customerName) =>
+    email.EnsureNotNullAsync("email", "Email is required.")
+        .CombineAsync(customerName.EnsureNotNullAsync("customerName", "Customer name is required."))
+        .MapAsync((email, customerName) => new CreateCustomerCommand(email, customerName));
+```
+
+These methods belong on the command type above. Success carries the exact
+non-null references; `Combine` still reports every missing field. Nullable structs
+are unwrapped by the same guard, and the async forms also accept `ValueTask<T?>`.
+The field/detail overloads construct standard `value.not-null` violations only on
+failure. To choose another error, prefer a lazy `Func<Error>` that constructs it
+inside the callback; pass `Error` when an existing instance is intentionally reused. For a query
+where absence means not found rather than invalid input, choose a lazy
+`Error.NotFound` factory instead of a required-field violation.
+
+Use `Error.InvalidInput.Required(fieldName, detail)` for conditional requiredness or
+collection-element rules that are not a plain null check. Its `InputPointer` form
+preserves input location and can be used lazily:
+`Result.EnsureNotNull(value, () => Error.InvalidInput.Required(inputPointer, detail))`.
+Composite validators can use
+`FieldViolation.Required(fieldName, detail)` or `FieldViolation.Required(inputPointer, detail)`
+to retain an indexed path and input location. Core's nullable `ToResult` APIs and
+universal no-argument lift have been removed: use these guards for required values,
+`Result.Ok(value)` for deliberate success wrapping, and `maybe.ToResult(errorFactory)`
+when ordinary absence becomes a failure. TRLS066 now emits the static guard shape.
 
 **Nested collections.** When `CreateCustomerRequest` carries a `List<AddressDto>` whose items each need to become value objects, the `Result.Combine` shape above doesn't generalize to the collection — use [Recipe 20](#recipe-20--fail-fast-vs-accumulating-sequencetraverse-vs-sequencealltraverseall) (`TraverseAll`) to validate every row and accumulate per-item failures into one `Error.InvalidInput`. Inlining `.Select(item => item.ToCommand().Match(c => c, e => throw …))` throws on the first invalid row and surfaces as HTTP 500 instead of HTTP 422 with field violations.
 
@@ -1637,7 +1801,7 @@ return rows.TraverseAll(row => EmailAddress.TryCreate(row.Email));
 
 ## Recipe 21 — Parallel independent loads in handlers: `Result.ParallelAsync` + `WhenAllAsync`
 
-**Problem.** A handler needs two (or more) loads that are *genuinely* independent — a customer record from one upstream service, a product record from another; an HTTP call to authn plus a DB read for profile; or two reads against two distinct EF Core `DbContext` instances. Written sequentially, each `await` blocks the next, so latency = sum of fetches. Written naively in parallel with `Task.WhenAll`, error handling falls back to throwing, you lose the `Result<T>` track, and the lab evidence shows that authors (human and AI) reach for the sequential form by default because it "looks correct" and the tests pass.
+**Problem.** A handler needs two (or more) loads that are *genuinely* independent — a customer record from one upstream service, a product record from another; an HTTP call to authn plus a DB read for profile; or two reads against two distinct EF Core `DbContext` instances. Awaiting each load before starting the next serializes their latency. Starting both before awaiting either allows concurrency. `Task.WhenAll` preserves their `Result<T>` values but does not combine them into one result; the tuple `.WhenAllAsync()` extension supplies that fold.
 
 `Result.ParallelAsync(...)` is the framework's opinionated entry point: factory-takes-no-args, eagerly invokes each factory so both tasks actually run concurrently, returns a tuple of `Task<Result<T>>` that the matching `.WhenAllAsync()` extension awaits with `Task.WhenAll` and folds via `Result.Combine` into a single `Result<(T1, T2, …)>`. Failures combine through `Error.Combine`, so two `Error.InvalidInput` failures merge their fields, heterogeneous failures become an `Error.Aggregate`.
 
@@ -1674,14 +1838,15 @@ public sealed class CheckoutHandler(
 
 **What it shows.**
 
-- `Result.ParallelAsync` takes `Func<Task<Result<T>>>` factories, NOT `Task<Result<T>>` instances. The factory shape is the API's only safeguard against the "I started the tasks before passing them in" mistake that makes them sequential anyway.
+- `Result.ParallelAsync` takes `Func<Task<Result<T>>>` factories, NOT `Task<Result<T>>` instances. It invokes each factory without awaiting the returned tasks. Already-started tasks can also run concurrently: `(LoadUserAsync(), LoadQuoteAsync()).WhenAllAsync()` is supported. Both shapes invoke the synchronous portions of the operations in order; neither makes blocking work parallel.
 - `.WhenAllAsync()` on the tuple is the matching extension. Without it you still have a tuple of `Task<Result<T>>` — which isn't awaitable on its own; you'd have to await each task individually and combine the results by hand. `.WhenAllAsync()` is the one-line fold.
 - The combined `Result<(T1, T2)>` flows back into the standard ROP chain (`BindAsync`, `MapAsync`, `TapAsync`) — no `match` / `if (success)` branches.
-- `Result.ParallelAsync` ships overloads for 2–9 factories. For collections, prefer `TraverseAsync` ([Recipe 20](#recipe-20--fail-fast-vs-accumulating-sequencetraverse-vs-sequencealltraverseall)) — it's the right tool when the count is dynamic.
+- `Result.ParallelAsync` ships overloads for 2–9 factories. For dynamic collections, `TraverseAsync` is a **sequential, fail-fast alternative**, not parallel fan-in; `TraverseAllAsync` is also sequential but accumulates failures ([Recipe 20](#recipe-20--fail-fast-vs-accumulating-sequencetraverse-vs-sequencealltraverseall)). If collection loads need concurrency, use an explicitly bounded concurrency design over independent resources and deliberately choose failure aggregation and cancellation behavior.
+- Task faults and cancellation propagate from `.WhenAllAsync()` after all supplied tasks complete; they are not converted to Result failures. A factory that throws synchronously escapes from `ParallelAsync` immediately, so later factories are not invoked.
 
 **When NOT to use it.**
 
-1. **Two or more repositories sharing the same scoped `DbContext`.** The most common case in a typical Trellis service. The repos look independent at the C# level, but they all derive from `RepositoryBase<TAggregate, TId>` over the same scoped `TContext`. Parallelising them races the underlying connection and throws `InvalidOperationException`. **Keep them sequential with `BindZipAsync`** (it awaits the first, runs the second only on success, and zips both into a tuple — short-circuiting on failure) — the savings vs the sum-of-fetches are negligible against a local DB anyway, and the integrity loss is real.
+1. **Two or more repositories sharing the same scoped `DbContext`.** The most common case in a typical Trellis service. The repos look independent at the C# level, but they all derive from `RepositoryBase<TAggregate, TId>` over the same scoped `TContext`. Parallelising them races the underlying context and throws `InvalidOperationException`. **Keep them sequential with `BindZipAsync`** (it awaits the first, runs the second only on success, and zips both into a tuple — short-circuiting on failure). This is a correctness requirement regardless of database latency. Use independent contexts only when their consistency and unit-of-work boundaries fit the operation.
 2. **The second factory's body references a value produced by the first.** Not independent — keep the sequential `BindAsync` chain. The rule is mechanical: if the second load requires data the first one produced (an id, a filter, a cursor), the two are sequential by definition.
 3. **Side-effecting writes.** `Result.ParallelAsync` is for reads. Parallel `repository.Add(...)` calls against a shared context have the same race as parallel reads, plus tracker contention; parallel writes against per-scope contexts need transaction coordination outside this helper.
 
@@ -1690,7 +1855,7 @@ public sealed class CheckoutHandler(
 ```csharp
 // ❌ UNSAFE — two repository calls against repositories that share a scoped DbContext.
 // Looks "obviously parallelisable" but races the underlying EF context. `Task.WhenAll`
-// waits for both factories to complete (or one to throw), so the concrete failure mode
+// waits for both returned tasks to complete before surfacing a task fault. The failure mode
 // is an `InvalidOperationException("A second operation was started on this context...")`
 // thrown by EF Core when the second concurrent operation hits the shared connection.
 // Reproduction is timing-dependent: the throw is reliable under contention but can be
@@ -1708,7 +1873,7 @@ public ValueTask<Result<DraftOrderId>> Handle(CreateDraftOrderCommand command, C
 // `BindZipAsync` awaits the first read, runs the second ONLY if the first succeeded
 // (short-circuits), and zips both into `Result<(Customer, Product)>`. The two reads
 // never overlap, so the shared context is never raced. Latency = the sum of two
-// local reads, which is negligible in practice.
+// reads; correctness does not depend on those reads being fast.
 public ValueTask<Result<DraftOrderId>> Handle(CreateDraftOrderCommand command, CancellationToken cancellationToken) =>
     new(_customers.FindByIdAsync(command.CustomerId, cancellationToken)
         .BindZipAsync(_ => _products.FindByIdAsync(command.ProductId, cancellationToken))
@@ -1932,26 +2097,30 @@ foreach (var item in releasePlan)
 
 **Problem.** RFC 9110 §13.1.1 lets clients send `If-Match: "etag"` on unsafe methods to detect stale-read race conditions: if the resource's current ETag doesn't match, the server returns `412 Precondition Failed` instead of overwriting concurrent changes. For mutating handlers, the framework provides `ETagHelper.ParseIfMatch(request)` to extract the typed `EntityTagValue[]` from the incoming `If-Match` header, plus the `Result<T>.OptionalETag(...)` / `RequireETag(...)` extensions (and their `*Async` overloads) that evaluate the precondition at the read-modify-write boundary inside the handler chain. (`opts.WithETag(...).EvaluatePreconditions()` on the response builder is a different feature — it only runs on `GET` / `HEAD` for `If-None-Match` → `304` and `If-Match` → `412` on safe-method reads; it is **not** the mutation hook.) The decision question: which mutating endpoints actually need this?
 
-A blanket "wire `RequireETag` on every mutation" rule is wrong — it adds ceremony to endpoints where there is no lost-update window to begin with. Use the decision table:
+A blanket "require `If-Match` on every mutation" rule is wrong. **Not requiring a header is different from ignoring a supplied header.** RFC 9110 §§13.1.1 and 13.2.1 require eligible supplied preconditions to be evaluated before the action; a false `If-Match` must not perform the mutation. Domain transition guards do not replace this HTTP check. Use `OptionalETag` when unconditional callers are allowed and `RequireETag` when the endpoint requires a precondition:
 
-| Endpoint shape | Lost-update window? | Use `If-Match`? |
+| Endpoint shape | Lost-update window? | Precondition policy |
 |---|---|---|
-| **Body-less state-transition POST** (`POST /orders/{id}/submit`, `.../approve`, `.../cancel`, `.../return`) | **No.** The state machine + transition guards check the current state. A stale client calling `.../approve` on an order that has already shipped gets `422 Unprocessable Content` from the transition guard; there is nothing to overwrite. | **No.** The state machine substitutes for the precondition. Ceremony without benefit. |
+| **Body-less state-transition POST** (`POST /orders/{id}/submit`, `.../approve`, `.../cancel`, `.../return`) | Domain guards reject invalid transitions, but cannot determine whether the client saw the current version. | **Optional — `OptionalETag`.** Missing header proceeds to the domain guard; a supplied mismatch returns `412` before mutation. Require the header only when the endpoint contract demands it. |
 | **Body-carrying full-update PUT** (`PUT /orders/{id}` with a full replacement body) | **Yes.** The body silently overwrites whatever the concurrent edit wrote. | **Yes — `RequireETag`.** RFC 6585 says `428 Precondition Required` when missing, RFC 9110 says `412 Precondition Failed` when stale. |
 | **Body-carrying partial-update PATCH** with a JSON Patch / JSON Merge Patch document | **Yes.** Same overwrite risk as full update. | **Yes — `RequireETag`.** |
-| **Destructive `DELETE /resources/{id}`** | **Yes.** A stale client can delete a version it has not seen after another writer changed it. | **Yes — `RequireETag`** as the default. EF Core's row-version concurrency tokens are **not** an equivalent substitute: they catch concurrent *writes* racing after the row was loaded by the handler, not stale-client reads from before the request. Drop the precondition only if the endpoint is explicitly modeled as a guarded state-machine transition where a stale caller's intent is already invalid by construction. |
-| **Additive set operation** (`POST /orders/{id}/line-items`, `POST /products/{id}/stock-additions +5`) | **Maybe.** Depends on commutativity. Two concurrent `+5` calls produce `+10` correctly; "remove the last line item" against a stale read of "list has 2 items" can drop the wrong item. | **Case-by-case.** Commutative additive ops can stay precondition-free; remove-by-position or "remove the last X" operations should `RequireETag` (or `OptionalETag` only when the endpoint deliberately admits unconditional callers). |
-| **Resource creation** (`POST /customers`, `POST /products`) | **N/A.** No prior version to match against. | **No.** |
+| **Destructive `DELETE /resources/{id}`** | **Yes.** A stale client can delete a version it has not seen after another writer changed it. | **Required — `RequireETag`** by default. EF Core concurrency tokens catch writes racing after the handler's read, not stale-client reads before the request. A deliberately unconditional guarded-transition contract can use `OptionalETag`, but must still honor a supplied header. |
+| **Additive set operation** (`POST /orders/{id}/line-items`, `POST /products/{id}/stock-additions +5`) | **Maybe.** Depends on commutativity. Two concurrent `+5` calls produce `+10` correctly; "remove the last line item" against a stale read can drop the wrong item. | **Case-by-case.** Commutative operations may admit unconditional callers via `OptionalETag`; non-commutative operations should use `RequireETag`. Both enforce supplied headers. |
+| **Resource creation** (`POST /customers`, `POST /products`) | **N/A.** No prior version of the new aggregate to match against. | **Not normally required.** Any supplied precondition concerns the request's target resource, not the newly created aggregate's ETag. |
 
 ```csharp
-using Mediator;
 using Trellis;
 using Trellis.Asp;
 using Trellis.EntityFrameworkCore;
 
-// State-transition POST — no If-Match. The state machine guards the transition.
-app.MapPost("/orders/{id:guid}/approve", (OrderId id, ISender sender, CancellationToken ct) =>
-    sender.Send(new ApproveOrderCommand(id), ct)
+// State-transition POST — no required header, but a supplied If-Match is enforced.
+// Missing proceeds; mismatching, weak-only, empty, or malformed returns 412 before Approve.
+app.MapPost("/orders/{id:guid}/approve", (OrderId id, OrderDbContext db, HttpContext httpContext, CancellationToken ct) =>
+    db.Orders
+        .FirstOrDefaultResultAsync(o => o.Id == id, new Error.NotFound(ResourceRef.For<Order>(id)), ct)
+        .OptionalETagAsync(ETagHelper.ParseIfMatch(httpContext.Request))
+        .BindAsync(o => o.Approve())
+        .CheckAsync(_ => db.SaveChangesResultUnitAsync(ct))
         .ToHttpResponseAsync(OrderResponse.From));
 
 // Full-update PUT — RequireETag at the read-modify-write boundary.
@@ -1965,9 +2134,14 @@ app.MapPut("/orders/{id:guid}", (OrderId id, ReplaceOrderRequest request, OrderD
         .ToHttpResponseAsync(OrderResponse.From, opts => opts.HonorPrefer()));
 ```
 
-> **Direct `DbContext` in the Minimal API lambda vs command handler via Mediator.** Both shapes are canonical Trellis. This recipe shows the direct-`DbContext` shape because the precondition (`RequireETag`) belongs at the *read-modify-write* boundary — the same atomic unit where the read happens. If you prefer to dispatch through a command handler, move the same chain (`db.Orders.FirstOrDefaultResultAsync(...).RequireETagAsync(...).BindAsync(...).CheckAsync(_ => db.SaveChangesResultUnitAsync(ct))`) into the handler body; `TransactionalCommandBehavior` then owns the commit, and `db.SaveChangesResultUnitAsync(...)` becomes redundant (drop the `.CheckAsync` step). The precondition placement does not change — it still wraps the freshly-loaded aggregate and runs before any mutation.
+> **Direct `DbContext` in the Minimal API lambda vs command handler via Mediator.** Both shapes are canonical Trellis. This recipe shows the direct-`DbContext` shape because the precondition belongs at the *read-modify-write* boundary. With Mediator, parse `If-Match` at the HTTP boundary, carry `EntityTagValue[]? IfMatchETags` on the command, and move the same chain into the handler. Keep `OptionalETagAsync(command.IfMatchETags)` or `RequireETagAsync(command.IfMatchETags)` after the not-found projection and before mutation. `TransactionalCommandBehavior` owns the commit, so drop the explicit save step. Preserve permission/resource authorization before the precondition check, and retain persistence-level concurrency protection for writes racing after the read.
 
-**Rationale.** The framework helper is fine; the decision is whether the endpoint's semantics admit a lost-update window. State machines, additive set operations, and resource creation each carry their own concurrency control inside the domain or in the absence of prior state. Only payload-carrying overwrites need explicit precondition checking.
+**Rationale.** Header requirement is an endpoint policy; honoring a supplied precondition is not optional. State machines validate domain transitions, ETag checks enforce the caller's observed version, and persistence concurrency protection handles writes racing after the read. These mechanisms are complementary. A failed supplied precondition must leave state and representation metadata unchanged; no header still permits a guarded transition without a `428`.
+
+**Eager-overload exception.** `FirstOrDefaultResultAsync` accepts an `Error`, not an
+error factory, so these query examples supply it eagerly. Do not invent a factory
+overload. If lazy not-found construction is required, use the documented
+`FirstOrDefaultMaybeAsync` plus `ToResultAsync(() => new Error.NotFound(...))` composition.
 
 ---
 
@@ -1977,6 +2151,7 @@ app.MapPut("/orders/{id:guid}", (OrderId id, ReplaceOrderRequest request, OrderD
 - **Two independent `await` calls in a handler?** `Result.ParallelAsync` + `WhenAllAsync` is the framework idiom — **but only when the loads hit different resources**. Two repository reads against the same scoped `DbContext` (the typical Trellis setup with `AddTrellisUnitOfWork<TContext>()`) race EF Core and throw `InvalidOperationException`; keep those sequential. The recipe spells out the safe shapes (HTTP + DB, two distinct upstream services, factory-created `DbContext`s via `IDbContextFactory<T>`) and the anti-pattern. See [Recipe 21](#recipe-21--parallel-independent-loads-in-handlers-resultparallelasync--whenallasync). The rule for "independent": the second factory's body does not reference any value produced by the first **and** the two factories hit distinct underlying resources.
 - **Do not mix sync chain methods with async lambdas.** `result.Map(async v => …)` triggers `TRLS009`; use `MapAsync`. The fix provider can apply this rewrite automatically.
 - **Construct errors via the closed ADT.** `new Error.NotFound(ResourceRef.For<Order>(id))` — never `new Error("not_found", "...")`, which won't compile against the abstract base record.
+- **Construct custom guard/conversion errors lazily.** Put `new Error...`, `ForField(...)`, or `ForRule(...)` inside the supported factory callback; use `static` when no state is captured. Use the already-lazy field/detail `EnsureNotNull` shorthand for ordinary required fields. Eager violation construction records validation metrics even if the guard succeeds or an earlier failure skips it. Preserve each API's documented factory signature and keep eager overloads for existing/reused errors or APIs without a factory.
 - **Use `Result.Combine` (or `EnsureAll`) for accumulating validation.** Manual `IsSuccess` checks across multiple results trigger `TRLS008`.
 - **Aggregate per-item Results with `Traverse` / `Sequence` (fail-fast) or `TraverseAll` / `SequenceAll` (accumulating).** When you have a collection and a per-item function returning `Result<T>`, use `items.Traverse(item => Compute(item))` to lift it into `Result<IReadOnlyList<T>>`. When you already have an `IEnumerable<Result<T>>` (e.g., from a `Select`), call `.Sequence()` instead. Both short-circuit on the first failure. When you need to surface every failure (form-style validation), use `TraverseAll` / `SequenceAll`: they run through every item and fold failures via `Error.Combine` — two `Error.InvalidInput` errors merge their fields/rules, heterogeneous errors flatten into `Error.Aggregate`. See [Recipe 20](#recipe-20--fail-fast-vs-accumulating-sequencetraverse-vs-sequencealltraverseall) for when to choose which.
 - **Use `Error.InvalidInput.ForField` / `.ForRule` for single-violation 422s.** Prefer `Error.InvalidInput.ForField(ValidationCodes.StringEmail, "email", detail: "must contain @")` over manually wrapping a single `FieldViolation`. The pointer overload is `ForField(code, pointer, args: args, detail: detail)` and preserves nested/array paths and input location. Global rules use `ForRule(code, detail: detail)`; cross-field rules can also supply `fields: [firstPointer, secondPointer]` and `args`. Optional metadata can be omitted, but required codes must be nonblank. For multiple violations, keep the `Error.InvalidInput` constructor with an `EquatableArray<FieldViolation>`, or combine per-field `TryCreate` results as in Recipe 1.
@@ -2042,7 +2217,7 @@ public sealed record UploadScorecardCommand(MatchId MatchId, /* fields */)
     public IResult Authorize(Actor actor, IReadOnlyList<Team> owners) =>
         Result.Ensure(
             owners.Any(t => t.CreatedByActorId == actor.Id),
-            new Error.Forbidden("match.upload-scorecard")
+            static () => new Error.Forbidden("match.upload-scorecard")
                 { Detail = "Actor does not own either match team." });
 }
 
@@ -2057,6 +2232,17 @@ The pipeline:
 3. Calls `match.GetRelatedResourceIds()` → `[home, away]`, deduplicates, loads each via `SharedResourceLoaderById<Team, TeamId>`.
 4. Calls `command.Authorize(actor, [homeTeam, awayTeam])`.
 5. On any leaf-load failure, the loader's error bubbles. On any **intermediate** or owner-load failure, the pipeline collapses to `Error.Forbidden` (no existence leak). Empty ID list at any hop short-circuits to `Forbidden` without invoking `Authorize`.
+
+**Handler parameters.** `ActorResourceViaCommandHandler<UploadScorecardCommand,Match,Team,Result<Trellis.Unit>>`
+passes the checked actor and loaded **match** to protected `Handle`, not either team or
+the owner collection. Keep `owners.Any(...)` unchanged: owning the away team alone still
+allows an upload. For `Document -> Folder`, use
+`ActorResourceViaQueryHandler<ReadDocumentQuery,Document,Folder,Result<Document>>`;
+the business body receives the document while the folder remains an authorization input.
+All static/resource stages share one provider resolution per dispatch.
+These bases do not require static `IAuthorize`, and the registered leaf must agree with
+`TLeaf` or the normal handler entry throws diagnostically. Existing leaf accessors remain
+available when the business body does not need an actor.
 
 ### Chain — `Match → Team → Tournament`
 
@@ -2083,7 +2269,7 @@ public sealed record CancelMatchCommand(MatchId MatchId)
     public IResult Authorize(Actor actor, IReadOnlyList<Tournament> owners) =>
         Result.Ensure(
             owners[0].OwnerActorId == actor.Id,
-            new Error.Forbidden("match.cancel"));
+            static () => new Error.Forbidden("match.cancel"));
 }
 ```
 
@@ -2111,7 +2297,7 @@ public sealed record DeleteMatchCommand(MatchId MatchId)
     public IResult Authorize(Actor actor, IReadOnlyList<Team> owners) =>
         Result.Ensure(
             owners[0].CreatedByActorId == actor.Id,
-            new Error.Forbidden("match.delete"));
+            static () => new Error.Forbidden("match.delete"));
 }
 
 services.AddRelatedResourceAuthorization<
@@ -2203,7 +2389,7 @@ public sealed class Order : Aggregate<OrderId>
     public Result<Trellis.Unit> CanSubmit() =>
         Result.Ensure(
             LineItems.Count > 0,
-            () => Error.InvalidInput.ForRule(
+            static () => Error.InvalidInput.ForRule(
                 code: "order.empty",
                 detail: "Order must have at least one line item to submit."));
 
@@ -2485,7 +2671,7 @@ public class HealthProbeWorkerTests
 
 **Problem.** A worker (or any caller) processes events that may be redelivered. It must record "I handled event X for destination Y" exactly once. A `(EventId, DestinationId)` unique index in the database is the source of truth — the second delivery should silently no-op, not crash, not double-process. Doing this with `Any(...)` + `Add` + `SaveChangesAsync` is a TOCTOU race: two concurrent deliveries both see "not present", both `Add`, one wins and the loser throws `DbUpdateException`. Catching `DbUpdateException` and string-matching on the inner exception's message is provider-specific (SQL Server says one thing, PostgreSQL another, SQLite a third) and easy to get subtly wrong.
 
-**Solution.** `DbContext.TryInsertUniqueAsync(entity, ct)` (from `Trellis.EntityFrameworkCore.DbContextIdempotencyExtensions`) adds the entity, calls `SaveChangesAsync`, and converts a provider-level unique-constraint violation into `Result.Fail(new Error.Conflict(Resource: null, Code: "duplicate.key"))` with a generic safe `Detail`. Constraint identity (`ConstraintName`, `ConstraintTableName`) is extracted on a best-effort basis and attached to the `Error.Conflict` payload for structured logging. All other failures — concurrency, foreign-key, cancellation, connection errors — propagate to the caller so retry policies and global handlers see them. The helper requires a clean `DbContext` (no pending changes) so a duplicate-key violation can be unambiguously attributed to the entity being inserted.
+**Solution.** `DbContext.TryInsertUniqueAsync(entity, ct)` (from `Trellis.EntityFrameworkCore.DbContextIdempotencyExtensions`) adds the entity, calls `SaveChangesAsync`, and converts a provider-level unique-constraint violation into `Result.Fail(new Error.Conflict(Resource: null, Code: FaultCodes.DuplicateKey))` with a generic safe `Detail`. Constraint identity (`ConstraintName`, `ConstraintTableName`) is extracted on a best-effort basis and attached to the `Error.Conflict` payload for structured logging. All other failures — concurrency, foreign-key, cancellation, connection errors — propagate to the caller so retry policies and global handlers see them. The helper requires a clean `DbContext` (no pending changes) so a duplicate-key violation can be unambiguously attributed to the entity being inserted.
 
 ```csharp
 // Domain: a worker records each (EventId, DestinationId) it has dispatched.
@@ -2528,7 +2714,7 @@ public sealed class DispatchLogger(DispatchLogDbContext db, TimeProvider time, I
         if (result.IsSuccess)
             return Result.Ok(DeliveryOutcome.Recorded);
 
-        if (result.Error is Error.Conflict conflict && conflict.Code == "duplicate.key")
+        if (result.Error is Error.Conflict conflict && conflict.Code == FaultCodes.DuplicateKey)
         {
             // The second delivery — exactly what idempotency promises. No-op, do not fail.
             log.LogInformation(
@@ -2545,6 +2731,11 @@ public enum DeliveryOutcome { Recorded, AlreadyRecorded }
 ```
 
 **What it shows.** `TryInsertUniqueAsync` is the framework idiom for "insert unless a unique constraint says it already exists". The success path returns `Result.Ok(entity)` and the entity has its EF-populated generated values (PK, row version, sequence-assigned columns) in place on the same instance the caller passed in. The duplicate path returns a failed `Result<TEntity>` carrying an `Error.Conflict` whose `Code` is `"duplicate.key"` and whose `ConstraintName` / `ConstraintTableName` telemetry fields are populated from the underlying provider exception, and the helper detaches the attempted entity from the change tracker so a retry with a freshly-constructed entity does not re-flush the original on the next `SaveChangesAsync`. `ConstraintName` and `ConstraintTableName` are best-effort and marked `[JsonIgnore]` on `Error.Conflict` — they are telemetry fields for structured logs, never serialized to API responses; the safe-for-clients message lives in `Detail`. Foreign-key violations, `DbUpdateConcurrencyException`, connection-level exceptions, and `OperationCanceledException` all propagate normally so retry policies still see them. The clean-context precondition (throws `InvalidOperationException` if `ChangeTracker.HasChanges()` is `true` on entry) prevents the failure from being mis-attributed to the inserted entity when unrelated pending changes exist; flush them first or use a fresh context. Pair the helper with `SaveChangesWithRetryAsync` (from `Trellis.EntityFrameworkCore.DbContextRetryExtensions`) when the retry shape is "regenerate a key and try again" rather than "second writer wins" — the two helpers are complementary, not substitutes.
+
+Match `FaultCodes.DuplicateKey`, not a copied wire literal. The shared Core vocabulary also provides
+`FaultCodes.ReferentialIntegrity`, `FaultCodes.RetryAborted`, and `FaultCodes.RetryExhausted` for
+Result-returning save and retry helpers. Their spellings are frozen; the constants are available to
+clients and tests without an EF Core dependency.
 
 `DbExceptionClassifier.ExtractConstraintIdentity(DbUpdateException)` is the lower-level building block the helper uses; the same identity is also now populated on the `Error.Conflict` returned by `SaveChangesResultAsync` and `SaveChangesWithRetryAsync` for the `duplicate.key` and `referential.integrity` reason codes, so existing code paths get the new telemetry fields for free.
 
@@ -2714,7 +2905,7 @@ public sealed class LegacyContactRepository(AppDbContext db) : ILegacyContactRep
     public Task<Result<Contact>> FindByIdAsync(ContactId id, CancellationToken ct) =>
         db.ContactRows.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == id.Value, ct)
-            .ToResultAsync(() => new Error.NotFound(ResourceRef.For<Contact>(id)))
+            .EnsureNotNullAsync(() => new Error.NotFound(ResourceRef.For<Contact>(id)))
             .BindAsync(row => Result.Combine(
                 ContactId.TryCreate(row.Id, "Id"),
                 FirstName.TryCreate(row.FirstName, "FirstName"),
@@ -2815,6 +3006,31 @@ public sealed class CancelOrderHandler(IAuthorizedResource<CancelOrderCommand, O
 
 **Command and loader are unchanged.** Existing `IAuthorizeResource<Order>` + `IIdentifyResource<Order, OrderId>` + `SharedResourceLoaderById<Order, OrderId>` registrations stay exactly as in Recipe 7. The accessor is **auto-registered** by `AddResourceAuthorization(...)` for every closed `(TMessage, TResource)` pair the scan sees, and by the explicit `AddResourceAuthorization<TMessage, TResource, TResponse>()` / `AddRelatedResourceAuthorization<...>()` helpers for AOT consumers. No additional composition-root call is required.
 
+**Actor/resource parameter alternative.** When business logic also needs the checked
+actor, the accessor constructor can be replaced by a parameterless framework base:
+
+```csharp
+public sealed class CancelOrderHandler
+    : ActorResourceCommandHandler<CancelOrderCommand, Order, Result<Trellis.Unit>>
+{
+    protected override ValueTask<Result<Trellis.Unit>> Handle(
+        CancelOrderCommand command, Actor actor, Order order, CancellationToken cancellationToken)
+    {
+        order.Cancel();
+        return new(Result.Ok());
+    }
+}
+```
+
+Keep genuine business constructor dependencies; remove only actor/accessor plumbing.
+The normal entry checks every declared gate and binds the resource to that exact dispatch,
+so an inner handler cannot borrow an outer dispatch's resource. Via commands use the
+corresponding `ActorResourceViaCommandHandler<TCommand,TLeaf,TOwner,TResponse>` and
+receive the same leaf, not owners. Handler tests send the command through Mediator with
+`TestActorProvider` and fake loaders/business dependencies; the actor/resource hook is
+protected and cannot be invoked as a public bypass. All mutation-readiness and TOCTOU cautions
+below apply equally to base-supplied resources.
+
 **Via commands** (multi-hop authorization via `IAuthorizeResourceVia<TOwner>`) expose the **leaf** through the accessor — the resource the message identifies via `IIdentifyResource<TLeaf, TLeafId>`, which is the typical mutation target. The owner accessor is intentionally **not** exposed in v4; handlers that need owner state read it from their repository.
 
 ```csharp
@@ -2826,7 +3042,7 @@ public sealed record UploadScorecardCommand(MatchId MatchId, Scorecard Scorecard
     public MatchId GetResourceId() => MatchId;
     public IResult Authorize(Actor actor, IReadOnlyList<Team> teams) =>
         Result.Ensure(teams.Any(t => t.CreatedByActorId == actor.Id),
-            new Error.Forbidden("team.not-owner"));
+            static () => new Error.Forbidden("team.not-owner"));
 }
 
 public sealed class UploadScorecardHandler(
@@ -2869,14 +3085,13 @@ For optional reads use `TryGetResource(out var resource)` which returns `false` 
 
 **Problem.** A `Forbidden` response on `GET /incidents/{id}` tells the unauthorized caller "this resource exists and you may not access it". For some resources — incident reports, security findings, internal correspondence, private profiles — that disclosure is itself the leak. The boundary needs to return 404 (indistinguishable from "the resource does not exist") to unauthorized actors.
 
-**Fix.** Opt the resource into `AuthFailureExposurePolicy.HideAsNotFound` via `ResourceAuthorizationOptions`. The resource-authorization pipeline translates `Error.Forbidden` and `Error.AuthenticationRequired` to `new Error.NotFound(ResourceRef)`; the boundary maps the synthetic `NotFound` to HTTP 404. Other error kinds (`Unexpected`, `Unavailable`, `NotFound` from the loader, transport faults) pass through unchanged — operational signal is never hidden.
+**Fix.** Opt the resource into `AuthFailureExposurePolicy.HideAsNotFound` via `ResourceAuthorizationOptions`. Resource-stage root `Error.NotFound`, `Error.Gone`, `Error.Forbidden`, and `Error.AuthenticationRequired` become one fresh public NotFound. Its type and ID come from configuration and the request, never the original error; original code, detail, and cause are not copied. Other direct-resource / via-leaf errors pass through unchanged.
 
 ```csharp
 // Composition root.
 builder.Services.AddTrellis(options => options
-    .UseResourceAuthorization()                                      // pipeline enabled
     .UseResourceAuthorization<GetIncidentQuery, Incident, Result<IncidentDto>>()
-    .UseResourceAuthorization(o => o.HideExistence<Incident>()));    // opt-in per resource
+    .UseResourceAuthorization(o => o.HideExistence<Incident>()));
 ```
 
 ```csharp
@@ -2889,37 +3104,32 @@ public sealed record GetIncidentQuery(IncidentId Id)
     public IncidentId GetResourceId() => Id;
     public IResult Authorize(Actor actor, Incident incident) =>
         Result.Ensure(incident.AssigneeId == actor.Id || actor.HasPermission("incidents:read-any"),
-            new Error.Forbidden("incidents.read-denied"));
+            static () => new Error.Forbidden("incidents.read-denied"));
 }
 ```
 
-**On the wire.** Unauthorized request → `404 Not Found` with `ResourceRef` `{ "Type": "Incident", "Id": "inc-42" }`. The synthetic `NotFound` is indistinguishable from the real 404 a missing incident would produce.
+**Public metadata.** For the same request ID, missing, removed (`Gone`), denied, and anonymous resource-stage outcomes all yield NotFound with resource `{ Type: "Incident", Id: "inc-42" }`, code `error.unspecified`, and the standard NotFound display message. The default ASP mapper produces matching 404 ProblemDetails metadata, including `instance`; only per-request trace identifiers may vary. No original storage resource or cause reaches this public error.
 
-**Multiple resources.** `HideExistence<T>()` returns the options for fluent chaining, and repeated `UseResourceAuthorization(Action<>)` calls compose (each delegate runs against the same options instance in registration order — verified by `UseResourceAuthorization_ConfigureDelegate_CalledTwice_ComposesBothConfigurations`). All four styles below produce the same merged policy; pick the one that reads best for your composition root.
+**Fixed public code/detail.** Both `HideExistence` forms accept optional static metadata. Use the same configured reason for every concealed failure, not different missing/denied reasons:
 
 ```csharp
-// Style 1 — fluent chain in one configure delegate (small fixed list).
+.UseResourceAuthorization(o => o.HideExistence<Incident>(
+    code: "incident.not-found",
+    detail: "Incident not found."));
+```
+
+Omitted/null/empty/whitespace code uses `error.unspecified`; null detail uses the standard display message. The last call for a resource replaces its configuration; parameterless `HideExistence` resets code/detail to defaults.
+
+**Multiple resources.** Chain calls in one callback or contribute separate callbacks; callbacks compose in registration order.
+
+```csharp
 .UseResourceAuthorization(o => o
     .HideExistence<Incident>()
     .HideExistence<SecurityFinding>()
     .HideExistence<PrivateProfile>())
-
-// Style 2 — statement body when each entry warrants its own line / comment.
-.UseResourceAuthorization(o =>
-{
-    o.HideExistence<Incident>();
-    o.HideExistence<SecurityFinding>();          // SOC 2 — existence itself is sensitive
-    o.HideExistence<PrivateProfile>();
-    o.HideExistence<AccessKey, KeyPublicView>(); // projection-loader overload
-})
-
-// Style 3 — separate calls (each module contributes its own resources).
-.UseResourceAuthorization(o => o.HideExistence<Incident>())          // Incidents module
-.UseResourceAuthorization(o => o.HideExistence<SecurityFinding>())   // Security module
-.UseResourceAuthorization(o => o.HideExistence<PrivateProfile>())    // Profile module
 ```
 
-**Default is `Propagate`.** No behavior changes for resources that don't opt in. Existing consumers continue to see `Forbidden` and `AuthenticationRequired` verbatim. Set `DefaultExposurePolicy = AuthFailureExposurePolicy.HideAsNotFound` to flip the default for an entire service, then use `Propagate<TResource>()` to mark individual resources as safe-to-disclose.
+**Default is `Propagate`.** Resources that do not opt in retain their original errors. Set `DefaultExposurePolicy = AuthFailureExposurePolicy.HideAsNotFound` for service-wide hiding with default public metadata, then use `Propagate<TResource>()` for safe-to-disclose resources.
 
 ```csharp
 .UseResourceAuthorization(o =>
@@ -2932,18 +3142,22 @@ public sealed record GetIncidentQuery(IncidentId Id)
 **Projection-loader overload.** When the loader returns an internal projection for authorization but the wire-public type is different, use the two-type overload:
 
 ```csharp
-// Loader returns IncidentOwnership (small projection for auth check), but the public REST
-// resource is Incident. The synthetic NotFound must reference "Incident" on the wire.
-.UseResourceAuthorization(o => o.HideExistence<IncidentOwnership, Incident>());
+.UseResourceAuthorization(o => o.HideExistence<IncidentOwnership, Incident>(
+    code: "incident.not-found", detail: "Incident not found."));
 ```
 
-The pipeline extracts the ID from `IIdentifyResource<Incident, IncidentId>` first (the public-resource identifier), falling back to `IIdentifyResource<IncidentOwnership, ?>` if only the projection identifier is declared on the message. The synthetic `NotFound.ResourceRef.Type` is the public type name.
+The pipeline extracts the ID from `IIdentifyResource<Incident, IncidentId>` first, falling back to the projection's identifier interface when necessary. `NotFound.Resource.Type` is the public type name, for missing projections as well as denials.
 
-**Via commands** key on `TLeaf`. `HideExistence<Match>()` hides authorization failures on commands implementing `IAuthorizeResourceVia<Team>` + `IIdentifyResource<Match, MatchId>`. The synthetic `NotFound` references `Match` (the resource the command identifies), never `Team` (the authorization implementation detail).
+**Via commands** key on `TLeaf`. `HideExistence<Match>()` covers `IAuthorizeResourceVia<Team>` + `IIdentifyResource<Match,MatchId>`. Missing leaves and withheld outcomes use the same public Match error, never an owner error. The projection form can select a separate public leaf type.
 
 **Pipeline interaction caveat.** When a command implements both `IAuthorize` (static permissions) and `IAuthorizeResource<T>`, the canonical pipeline runs `AuthorizationBehavior` **before** `ResourceAuthorizationBehavior`. An unauthenticated caller fails the static gate first — that `AuthenticationRequired` is **not** translated to `NotFound`, because `AuthorizationBehavior` has no concept of the resource it's protecting. Commands that need full existence-hiding (anonymous probes return 404, not 401) must omit `IAuthorize` and let `HideAsNotFound` cover the resource-authorization branch alone.
 
-**Cache safety.** Hidden 404s look identical to real 404s on the wire. A shared cache will serve an unauthorized actor's synthetic 404 to a later authorized actor — incorrectly. Mark responses for hidden resources with `Cache-Control: private` or `no-store`:
+`ActorResourceQueryHandler<GetIncidentQuery,Incident,Result<IncidentDto>>` and the
+corresponding direct-command/via bases preserve this resource-only shape: they do **not**
+force `IAuthorize`. Their protected `Handle` receives the authenticated, resource-authorized
+actor and loaded incident/leaf only after the resource gate succeeds.
+
+**Cache safety.** A shared cache can serve an unauthorized actor's synthetic 404 to a later authorized actor, regardless of whether their error bodies match. Mark responses for hidden resources with `Cache-Control: private` or `no-store`:
 
 ```csharp
 endpoints.MapGet("/incidents/{id}", async (...) =>
@@ -2958,7 +3172,7 @@ EventId: 1 (EventName "ExistenceHidden")
 Resource-authorization failure hidden as NotFound for GetIncidentQuery: original Kind=forbidden Code=incidents.read-denied → public resource Incident
 ```
 
-The log carries the **original** `Kind` and `Code`, so SecOps can audit who tried to access what and the underlying denial reason without exposing the disclosure on the wire. Example SIEM query (KQL):
+The log retains the **original input** `Kind` and `Code` for private diagnostics, including missing-resource codes. They are not attached to the returned error or its cause. Example SIEM query (KQL):
 
 ```kusto
 Trellis_Logs
@@ -2966,9 +3180,9 @@ Trellis_Logs
 | summarize count() by MessageName, OriginalCode, PublicResourceType, bin(TimeGenerated, 5m)
 ```
 
-**Translation scope.** Only `Error.Forbidden` and `Error.AuthenticationRequired` are translated. The behavior's internal null-payload defense (a misbehaving loader returning `Result.Ok(null)`) also synthesises `Error.Forbidden` and IS translated — the same disclosure risk applies. `Error.NotFound` from the loader, `Error.Unexpected`, `Error.Unavailable`, and transport faults all pass through verbatim: hiding transient infrastructure failures behind 404 would destroy operational signal and lead clients and caches to treat them as permanent absence.
+**Normalization scope.** Only resource-stage root NotFound/Gone/Forbidden/AuthenticationRequired normalize, including the Forbidden generated for a loader's null-success contract violation. `Gone` uses the same public 404 so tombstones cannot reveal previous existence. Direct-resource / via-leaf `Unexpected`, `Unavailable`, transport faults, and other root kinds remain unchanged. Aggregates and unrelated handler failures are outside the policy. Application response customization must not reintroduce private distinctions; response timing is not equalized.
 
-**Via commands and intermediate hop failures.** The pass-through guarantee above applies to the **leaf** loader's return value (the resource the command identifies). For multi-hop authorization (`IAuthorizeResourceVia<TOwner>` with one or more intermediate / owner loads), `ResourceAuthorizationViaBehavior` follows the v1 multi-hop security model: any intermediate or owner load failure — regardless of underlying error kind — is collapsed to `new Error.Forbidden("resource.authorization-via.load-failed")` **before** exposure-policy translation runs, to avoid leaking the existence of related resources whose presence the actor may not be authorized to learn. Under `HideAsNotFound`, that synthetic Forbidden translates to `NotFound` like any other Forbidden, so an `Unavailable` from a downstream owner service surfaces as `404` to the consumer. The `ExistenceHidden` log carries `OriginalCode = "resource.authorization-via.load-failed"`, which tells SecOps that a hop failed but not the underlying downstream-failure kind — consumers needing finer-grained downstream-failure visibility for the related-resource graph should use the direct `IAuthorizeResource<TResource>` model and surface the downstream cause from their loader instead of opting into the multi-hop fan-out.
+**Via intermediate/owner failures.** Every intermediate/owner load failure collapses to `Forbidden("resource.authorization-via.load-failed")` before normalization, regardless of underlying kind. Under hiding, even owner `Unavailable` becomes the public NotFound. `ExistenceHidden` sees that collapsed code, not the downstream cause. Use direct authorization with a custom projection loader when your application needs to classify related-resource operational failures itself.
 
 **Related recipes.** [Recipe 7](#recipe-7--authorization-iactorprovider--iauthorize--resource-based-auth) for the authorization model; [Recipe 24](#recipe-24--indirect-multi-hop-resource-authorization) for via commands; [Recipe 31](#recipe-31--avoid-duplicate-load-with-iauthorizedresourcetcommand-tresource) for the resource-handoff accessor that composes with this policy.
 

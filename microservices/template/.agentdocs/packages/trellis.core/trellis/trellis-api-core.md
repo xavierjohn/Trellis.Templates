@@ -3,7 +3,7 @@ package: Trellis.Core
 namespaces: [Trellis]
 types: [Result, "Result<T>", IResult, "IResult<TValue>", "IFailureFactory<TSelf>", IPersistOnFailure, "Maybe<T>", Maybe, MaybeInvariant, Error, ITransportFault, ICodedTransportFault, RetryAdvice, RetryClassification, ErrorRetryExtensions, Unit, "Page<T>", Page, Cursor, PageSize, PageSizeLimitPolicy, PageRequest, "ICursorCodec<TState>", CursorCodec, PageBuilder, "EquatableArray<T>", EquatableArray, ResourceRef, InputPointer, InputLocation, FieldViolation, RuleViolation, IAggregate, "Aggregate<TId>", IETagStampable, IReconstitutionStampable, IEntity, "Entity<TId>", IDomainEvent, IIntegrationEvent, IntegrationEventNameAttribute, ITrackedAggregateSource, ValueObject, "ScalarValueObject<TSelf,T>", "IScalarValue<TSelf,TPrimitive>", "IFormattableScalarValue<TSelf,TPrimitive>", "RequiredString<TSelf>", "RequiredInt<TSelf>", "RequiredLong<TSelf>", "RequiredDecimal<TSelf>", "RequiredBool<TSelf>", "RequiredGuid<TSelf>", "RequiredDateTime<TSelf>", "RequiredDateTimeOffset<TSelf>", "RequiredEnum<TSelf>", "RequiredEnumJsonConverter<T>", "ParsableJsonConverter<T>", ResultRequiresExplicitHttpMappingConverter, PrimitiveValueObjectTrace, "Specification<T>", TrellisJsonValidationException, TrellisValidationFormatException, RangeAttribute, StringLengthAttribute, NotDefaultAttribute, TrimAttribute, PositiveAttribute, NonNegativeAttribute, NegativeAttribute, NonPositiveAttribute, RailwayTrackAttribute, TrackBehavior, EnumValueAttribute, ResourceCollectionNameAttribute, ResultDebugSettings]
 version: v3
-last_verified: 2026-09-12
+last_verified: 2026-10-07
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when you need exact signatures for Result, Maybe, Error, Page, aggregates, entities, specifications or Required value-object bases, or the ROP operations Bind, Map and Ensure."
@@ -49,7 +49,9 @@ Use this table before searching the long type catalog.
 | Return success/failure with payload | `Result.Ok(value)` / `Result.Fail<T>(error)` | [`Result<TValue>`](#public-readonly-struct-resulttvalue--iresulttvalue-iequatableresulttvalue-ifailurefactoryresulttvalue-ipersistonfailure) |
 | Fail but still persist staged work (worker pattern) | `Result.FailAfterCommit<T>(error)` / `Result.FailAfterCommit(error)` | [`Result`](#public-static-partial-class-result), [`IPersistOnFailure`](#public-interface-ipersistonfailure) |
 | Classify an `Error` for a worker/consumer retry loop | `error.Classify()` / `error.IsTransient()` / `error.IsPermanent()` / `error.IsFailFast()` / `error.GetRetryAdvice()` | [`Retry classification`](#retry-classification-errorretryextensions) |
-| Turn a boolean guard into a result | `Result.Ensure(condition, error)` or `Result.Ensure(condition, () => error)` for lazy errors; `.Ensure(...)` in a value-threaded chain | [`Result`](#public-static-partial-class-result), [`Ensure family`](#ensure-family--ensureextensions-ensureextensionsasync-ensureallextensions-ensureallextensionsasync) |
+| Turn a boolean guard into a result | `Result.Ensure(condition, errorFactory)` with fresh errors inside the factory; use `error` for a reused instance, or `.Ensure(...)` in a value-threaded chain | [`Result`](#public-static-partial-class-result), [`Ensure family`](#ensure-family--ensureextensions-ensureextensionsasync-ensureallextensions-ensureallextensionsasync) |
+| Require nullable values without `!`, including nullable-returning queries | `Result.EnsureNotNull(value, fieldName, detail)` for standard errors, `errorFactory` for custom failures, or `task.EnsureNotNullAsync(...)` | [Value-returning null guards](#value-returning-null-guards), [Nullable-task guards](#nullable-task-guards--ensureextensionsasync) |
+| Require nonblank text without trimming | `value.EnsureNotNullOrWhiteSpace(fieldName, detail)`; use a factory for custom failures | [Required nonblank strings](#required-nonblank-strings) |
 | Start independent async result-producing operations concurrently | `Result.ParallelAsync(...)`, then combine the returned tasks | [`Result`](#public-static-partial-class-result) |
 | Combine multiple validated *typed* fields into a tuple | static `Result.Combine<T1,T2>(Result<T1>, Result<T2>)` or instance `r1.Combine(r2)`, then `.Map(...)` | [`Combine family`](#combine-family--combineextensions-combineextensionsasync-combineerrorextensions) |
 | Combine multiple boolean guards | `Result.Ensure(...).Combine(Result.Ensure(...))` then `.Bind(...)` (extension `Combine` aggregates errors and adds each value as the next tuple element; pass a `Result<Unit>` from a no-payload guard and ignore it with `_` in the next lambda) | [`Combine family`](#combine-family--combineextensions-combineextensionsasync-combineerrorextensions) |
@@ -58,7 +60,7 @@ Use this table before searching the long type catalog.
 | Validate optional input, treating only null as absent | `Maybe.Optional(value, function)` | [`Maybe`](#public-static-class-maybe) |
 | Treat null, empty, or whitespace-only optional text as absent before validation | `Maybe.OptionalNonBlank(value, function)` | [`Maybe`](#public-static-class-maybe) |
 | Convert absence to a domain failure | `maybe.ToResult(error)` / `maybe.ToResult(errorFactory)` | [`MaybeExtensions`](#maybeextensions) |
-| Convert a nullable reference / value to a domain failure (sync or async) | `obj.ToResult(error)` / `task.ToResultAsync(error)` / `valueTask.ToResultAsync(errorFactory)` — works on `T?` for both `class` and `struct`, plus `Task<T?>` and `ValueTask<T?>`; prefer it to `Result.Ensure(x is not null, error)` (reported by `TRLS066`), because it returns the non-null value as a `Result<T>` instead of a discarded `Unit` | [`Nullable to Result`](#nullable-to-result--nullableextensions-nullableextensionsasync) |
+| Migrate universal or nullable `ToResult` calls | Use `Result.Ok(value)` for deliberate success wrapping, `Result.EnsureNotNull(value, error)` for required nullables, and `task.EnsureNotNullAsync(error)` for nullable tasks. Only `Maybe<T>` keeps Core's `ToResult(error/factory)` conversions. | [Choosing a Result entry point](#choosing-a-result-entry-point) |
 | Create HTTP-oriented domain errors | Closed `Error` cases plus `ResourceRef.For<TResource>(id)` | [`Error`](#public-abstract-record-error), [`Error Cases`](#error-cases-closed-adt) |
 | Validate pagination controls and return a page | `PageRequest.TryCreate(cursor, limit)` → typed `Decode(codec)` or EF `ToPageAsync`; `PageBuilder.FromOverFetch(rows, size, row => codec.Encode(state))` or direct `new Page<T>(...)` for provider tokens | [`Pagination`](#pagination) |
 | Model aggregates/entities/events | `Aggregate<TId>`, `Entity<TId>`, `IDomainEvent` | [`Domain-Driven Design`](#domain-driven-design) |
@@ -126,39 +128,11 @@ public Task<Result<Unit>> Handle(CancelOrderCommand cmd, CancellationToken ct) =
 | `Aggregate<TId>` / `Entity<TId>` already provide `CreatedAt` and `LastModified` (`CS0108`) | Both are `DateTimeOffset` (not `DateTime`) and infrastructure-managed by Trellis EF Core. Defining your own `public DateTime CreatedAt { ... }` on the aggregate triggers `CS0108: 'X.CreatedAt' hides inherited member 'Entity<TId>.CreatedAt'`. If your spec calls for an audit timestamp, use the inherited base property instead of declaring a new one. |
 | `Result<T>` has `.Error` (nullable, never throws) but **not** `.Value` | `result.Error` returns `Error?` (null on success). `result.TryGetError(out var err)` is the safe Boolean form. Reading the success value still requires `TryGetValue`/`Match`/destructuring. |
 
-## Breaking changes from v1
+## Migration from FunctionalDDD
 
-Migration notes for users moving from the previous `Trellis.Core` API surface.
-
-| Change | Previous API | Current API | Migration |
-|---|---|---|---|
-| Result success factory | `Result.Success(value)` / `Result.Success<T>(...)` / `Result.Success()` | `Result.Ok(value)` / `Result.Ok<T>(...)` / `Result.Ok()` | Mechanical find-and-replace of `Result.Success` → `Result.Ok` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Result failure factory | `Result.Failure<T>(error)` / `Result.Failure(error)` | `Result.Fail<T>(error)` / `Result.Fail(error)` | Mechanical find-and-replace of `Result.Failure` → `Result.Fail` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Deferred success factory | `Result.Success(Func<T> funcOk)` | *(removed)* | Inline the factory: `Result.Ok(funcOk())` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Deferred failure factory | `Result.Failure<T>(Func<Error> errorFactory)` | *(removed)* | Inline the factory: `Result.Fail<T>(errorFactory())` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Conditional factory | `Result.SuccessIf(cond, value, error)` / `Result.SuccessIf(cond, t1, t2, error)` | *(removed)* | Use a ternary: `cond ? Result.Ok(value) : Result.Fail<T>(error)` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Inverse-conditional factory | `Result.FailureIf(cond, value, error)` / `Result.FailureIf(predicate, value, error)` | *(removed)* | Use a ternary: `cond ? Result.Fail<T>(error) : Result.Ok(value)` | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Async-conditional factories | `Result.SuccessIfAsync(predicate, value, error)` / `Result.FailureIfAsync(predicate, value, error)` | *(removed)* | `(await predicate()) ? Result.Ok(value) : Result.Fail<T>(error)` (invert as needed; parens required because `await` binds tighter than `?:`) | <!-- stale-doc-ok: migration-comparison row intentionally cites removed v1 factory -->
-| Exception → result helpers | `Result.FromException(ex)` / `Result.FromException<T>(ex)` | *(removed)* | Use `Result.Try` / `Result.TryAsync` for inline exception capture, or log the exception and return `Result.Fail(new Error.Unexpected("unhandled-exception", faultId) { Detail = "An unexpected error occurred while processing the request." })`. Do not copy `ex.Message` into public `Detail`. |
-| Implicit operators on `Result<T>` | `Result<T> r = value;` and `Result<T> r = error;` | *(removed)* | Use the explicit factory: `Result.Ok(value)` / `Result.Fail<T>(error)`. The compiler flags every site with CS0029. |
-| Non-generic `Result` for void flows | `Result` was a separate `readonly struct` for success/failure with no payload, distinct from `Result<T>`. | The non-generic `Result` instance type was removed. `Result` is now a `public static partial class` factory only; for no-payload success/failure use `Result<Unit>` (returned by parameterless `Result.Ok()` / `Result.Fail(error)` / `Result.Ensure(...)` / `Result.Try(...)` factories). The `Trellis.Unit` type is a public `readonly record struct` with a single value (`Unit.Default`). | Replace `Result` parameter/return types with `Result<Unit>`; replace `Task<Result>` with `Task<Result<Unit>>`; in lambdas after `.Bind(...)` / `BindAsync(...)` accept the `Unit` argument explicitly (`_ =>` or `(Unit _) =>`). |
-| `Error` as open class hierarchy | `Error` was a `class` with 18 hand-written subclasses (`ValidationError`, `NotFoundError`, …) and static factory helpers (`Error.Validation(...)`, `Error.NotFound(...)`, …). | `Error` is an `abstract record` with **12 nested `sealed record` cases** (`Error.NotFound`, `Error.InvalidInput`, …). Closed via `private` constructor; static factories live on individual cases, not the base. | Replace not-found factories with `Error.NotFound.For<TResource>(id: id, detail: "...")`. Replace validation factories with `Error.InvalidInput.ForField(code, field, detail: detail)` or `Error.InvalidInput.ForRule(code, detail: detail)`. Replace concrete subclass type names (`ValidationError`, `NotFoundError`) with `Error.InvalidInput`, `Error.NotFound`. See "Error Cases (closed ADT)" below. | <!-- v1-stale-ok: migration-comparison row intentionally cites removed v1 factories -->
-| `MatchErrorExtensions` | `result.MatchError(onValidation: ..., onNotFound: ..., onUnexpected: ...)` | *(removed)* | Use a `switch` expression on the closed ADT: `result.Match(_ => ..., e => e switch { Error.NotFound nf => ..., Error.InvalidInput uc => ..., _ => ... })`. C# verifies exhaustiveness against the closed catalog. |
-| `FlattenValidationErrorsExtensions` | `result.FlattenValidationErrors()` | *(removed)* | `Combine` over multiple `Result<T>` automatically merges `Error.InvalidInput.Fields` and `.Rules`. |
-| `Error.Instance` field | `error.Instance` (string-shaped HTTP vocabulary) | *(removed)* | The ASP wire layer populates `ProblemDetails.Instance` from the server-relative request path+query (RFC 9457 §3.1). Typed payloads expose `ResourceRef` directly via fields like `Error.NotFound.Resource` for callers that need to assert on the resource identity. |
-| Public `Value` / `Error` accessors on `Result<T>` | Both threw on the wrong branch. | `result.Error` is `public Error?` and **never throws** (null on success). The throwing `result.Value` getter was removed entirely because it was the primary cause of unsafe value access. | Read errors with `if (result.Error is { } error) { ... }` or `result.TryGetError(out var error)`. Extract success values with `result.TryGetValue(out var v)`, `result.TryGetValue(out var v, out var err)`, `result.Match(...)`, or `var (ok, v, err) = result;` (Deconstruct). | <!-- stale-doc-ok: migration-comparison row intentionally cites removed value accessor -->
-| HTTP transport abstractions package | `Trellis.Core` | `Trellis.Http.Abstractions` | Add a PackageReference to `Trellis.Http.Abstractions` for code that names `WriteOutcome<T>`, `RepresentationMetadata`, `EntityTagValue`, `RetryAfterValue`, `PreconditionKind`, `AuthChallenge`, or `AggregateETagExtensions`. The CLR namespace stays `Trellis`, so most source files only need the package-reference change. |
-| Package id | `Trellis.Results` | `Trellis.Core` | Replace `<PackageReference Include="Trellis.Results" ... />` with `<PackageReference Include="Trellis.Core" ... />`. The CLR namespace stays `Trellis` — no `using` changes are needed. The legacy `Trellis.Results` package is unlisted with a redirect notice; there is no metapackage shim. | <!-- stale-doc-ok: migration-comparison row intentionally cites previous package id -->
-| OpenTelemetry `ActivitySource` name | `"Trellis.Results"` | `"Trellis.Results"` (unchanged) | No change needed. The source is named for the operations it traces, not for the package that ships it, so the v1 name carried over. The `ResultsTraceProviderBuilderExtensions.ActivitySourceName` constant exposes it programmatically. | <!-- stale-doc-ok: migration-comparison row intentionally cites the v1 activity source name -->
-| Test helper namespace | `Trellis.Results.Tests.*` | `Trellis.Core.Tests.*` | Internal change only — affects users who took an InternalsVisibleTo dependency on the test assembly (none expected). | <!-- stale-doc-ok: migration-comparison row intentionally cites previous test namespace -->
-| Package merge: DDD | <PackageReference Include="Trellis.DomainDrivenDesign" .../> | *(removed)* | All DDD types (`Aggregate<T>`, `Entity<T>`, `ValueObject`, `Specification<T>`, etc.) moved into `Trellis.Core`. Drop the `Trellis.DomainDrivenDesign` PackageReference; the types are still in `namespace Trellis;` so no using changes are needed. | <!-- stale-doc-ok: migration-comparison row intentionally cites previous package id -->
-| Package merge: Primitives generator | <PackageReference Include="Trellis.Primitives.Generator" .../> | *(removed)* | The Required* source generator is now bundled inside `Trellis.Core.nupkg` (`analyzers/dotnet/cs/Trellis.Core.Generator.dll`). Installing `Trellis.Core` (or any package depending on it) attaches the analyzer automatically. Drop the standalone PackageReference. |
-| `Required*` base classes | `Trellis.Primitives` | `Trellis.Core` | Source-tree consumers may need to ensure they reference `Trellis.Core`. Namespace is unchanged (`Trellis`), so no using edits are required. |
-| Package merge: Asp generator | `<PackageReference Include="Trellis.AspSourceGenerator" .../>` | *(removed)* | The ASP source generator is now bundled inside `Trellis.Asp.nupkg` (`analyzers/dotnet/cs/Trellis.AspSourceGenerator.dll`). Installing `Trellis.Asp` attaches the analyzer automatically. Drop the standalone PackageReference. |
-| Package merge: EF Core generator | `<PackageReference Include="Trellis.EntityFrameworkCore.Generator" .../>` | *(removed)* | The EF Core source generator (Maybe&lt;T&gt; partial properties + owned value-object helpers) is now bundled inside `Trellis.EntityFrameworkCore.nupkg` (`analyzers/dotnet/cs/Trellis.EntityFrameworkCore.Generator.dll`). Installing `Trellis.EntityFrameworkCore` attaches the analyzer automatically. Drop the standalone PackageReference. |
-| Package merge: Asp authorization | `<PackageReference Include="Trellis.Asp.Authorization" .../>` | *(removed)* | The ASP.NET actor providers (`ClaimsActorProvider`, `EntraActorProvider`, `DevelopmentActorProvider`, `CachingActorProvider`, `AddTrellisAspAuthorization()`) are now part of `Trellis.Asp.nupkg`. The CLR namespace stays `Trellis.Asp.Authorization` — no `using` changes needed. Drop the standalone PackageReference. `Trellis.Asp` now transitively brings in `Trellis.Authorization`. |
-
-The renames bring the factory names in line with Rust (`Ok`/`Err`), F# (`Ok`), and FluentResults (`Ok`/`Fail`). The `IsSuccess`/`IsFailure` predicate properties are **not** renamed — predicates read as questions and stay long-form.
+Read the separate [migration reference](trellis-api-migration.md#core-and-package-migration)
+when moving a FunctionalDDD application to Trellis. It compares the released predecessor
+with current APIs, not intermediate Trellis alpha builds, and is not needed for new Trellis code.
 
 ---
 
@@ -232,6 +206,9 @@ None.
 
 Static factory and helper surface for `Result<TValue>`. There is no non-generic instance `Result` type — for no-payload success/failure, use `Result<Unit>` (returned by the parameterless overloads listed below).
 
+`Trellis.Unit` is a public `readonly record struct` with a single value, `Unit.Default`.
+Qualify it when importing both Trellis and Mediator, which also declares a `Unit` type.
+
 > **Default-state invariant.** `default(Result<T>)` represents a **failure** carrying the
 > shared `new Error.Unexpected("default-initialized")` sentinel — *not* success. This makes uninitialized
 > state a typed failure rather than a silent success that would hide a programming error. Always
@@ -258,6 +235,12 @@ Static factory and helper surface for `Result<TValue>`. There is no non-generic 
 | `public static Result<Unit> Ensure(Func<bool> predicate, Func<Error> errorFactory)` | Evaluates the predicate once, then creates the error only when it returns false. |
 | `public static Task<Result<Unit>> EnsureAsync(Func<Task<bool>> predicate, Error error)` | Async predicate version |
 | `public static Task<Result<Unit>> EnsureAsync(Func<Task<bool>> predicate, Func<Error> errorFactory)` | Awaits the predicate once; invokes the synchronous error factory only after a false result. |
+| `public static Result<T> EnsureNotNull<T>(T? value, Error error) where T : class` | Carries the same non-null reference; null produces the supplied failure. |
+| `public static Result<T> EnsureNotNull<T>(T? value, Func<Error> errorFactory) where T : class` | Reference guard with lazy error creation. |
+| `public static Result<T> EnsureNotNull<T>(T? value, string? fieldName, string? detail = null) where T : class` | Reference guard; creates `Error.InvalidInput.Required(fieldName, detail)` only when null. |
+| `public static Result<T> EnsureNotNull<T>(T? value, Error error) where T : struct` | Unwraps `Nullable<T>`; null produces the supplied failure. |
+| `public static Result<T> EnsureNotNull<T>(T? value, Func<Error> errorFactory) where T : struct` | Nullable-struct guard with lazy error creation. |
+| `public static Result<T> EnsureNotNull<T>(T? value, string? fieldName, string? detail = null) where T : struct` | Nullable-struct guard; creates `Error.InvalidInput.Required(fieldName, detail)` only when null. |
 | `public static Result<T> Try<T>(Func<T> func, Func<Exception, Error>? map = null)` | Converts thrown exceptions to failures |
 | `public static Task<Result<T>> TryAsync<T>(Func<Task<T>> func, Func<Exception, Error>? map = null)` | Async exception capture |
 | `public static Result<Unit> Try(Action work, Func<Exception, Error>? map = null)` | No-payload exception capture (returns `Result<Unit>`) |
@@ -270,7 +253,51 @@ The default exception mapper produces `new Error.Unexpected("unhandled-exception
 
 #### Factory Methods
 
-`Ok`, `Fail`, `FailAfterCommit`, `Ensure`, `Try`, `TryAsync`, `Combine`, and `ParallelAsync`. Removed from the current API (see "Breaking changes from v1" above): `Success`, `Failure`, `Success(Func<T>)`, `Failure<T>(Func<Error>)`, `SuccessIf`, `FailureIf`, `SuccessIfAsync`, `FailureIfAsync`, `FromException`, and the non-generic `Result` instance type itself (`CreateFailure`, `IFailureFactory<Result>`, `IEquatable<Result>`, etc.).
+`Ok`, `Fail`, `FailAfterCommit`, `Ensure`, `EnsureNotNull`, `Try`, `TryAsync`, `Combine`, and `ParallelAsync`. For FunctionalDDD factory and accessor changes, read the [migration guide](trellis-api-migration.md#core-and-package-migration).
+
+#### Value-returning null guards
+
+Prefer static `Result.EnsureNotNull(value, fieldName, detail)` for ordinary required fields,
+or `Result.EnsureNotNull(value, errorFactory)` with error construction inside the
+callback for a custom failure. Use an eager error when reusing an existing instance.
+Use these guards for a missing-but-required value, rather
+than `Result.Ensure(value is not null, error)` followed by `value!`. Success carries the
+identical reference or the unwrapped struct, so typed `Combine`/`Map` needs no null
+suppression and still accumulates every missing field. These are **null-only** guards:
+empty/whitespace strings, zero, false, and default dates succeed. They do not trim,
+parse, or revalidate a value object.
+
+`Func<Error>` is required even on success, but runs exactly once only when null. Its
+exceptions propagate; a factory returning null on failure throws `ArgumentNullException`
+(parameter `error`), as does a null eager error when the value is missing. An eager null
+error is unused on success. Eager overloads have higher overload-resolution priority:
+a bare null second argument binds to `Error`; use `errorFactory:` or `fieldName:` to
+disambiguate intentional null arguments to other forms.
+
+The field/detail forms create neither errors nor violations on success (no validation
+metric), and normalize the field only on failure. Each missing value creates exactly
+one `ValidationCodes.ValueNotNull` violation. A malformed full JSON Pointer therefore
+throws `ArgumentException` only when the value is missing; a present value does not
+validate the field. Null/empty field names target the root. All six guards emit an `EnsureNotNull`
+activity with the normal success/failure status and never set persist-on-failure.
+There is no `value.EnsureNotNull(...)` extension on arbitrary values; the existing
+`Result<T?>.EnsureNotNull(error)` remains a separate receiver-based operation.
+
+Ordinary inferred calls with a non-nullable struct, including `Maybe<T>` and
+`Result<T>`, are compile errors for every error/factory/field form, sync or async.
+The nullable-struct overload requires nullable input; do not use a null guard to
+inspect presence or success inside these wrappers.
+
+```csharp
+string? name = "Ada";
+int? quantity = 0;
+Result<string> label = Result.EnsureNotNull(name, "name", "Name is required.")
+    .Combine(Result.EnsureNotNull(quantity, "quantity", "Quantity is required."))
+    .Map((name, quantity) => $"{name}:{quantity}");
+```
+
+For `Task<T?>` / `ValueTask<T?>`, use the twelve
+[`EnsureNotNullAsync` overloads](#nullable-task-guards--ensureextensionsasync).
 
 ---
 
@@ -558,6 +585,8 @@ Construct cases directly or use their **case-scoped static factories**. The base
 | --- | --- |
 | `InvalidInput` | `ForField(string code, string? field, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
 | `InvalidInput` | `ForField(string code, InputPointer field, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
+| `InvalidInput` | `Required(string? fieldName, string? detail = null)` |
+| `InvalidInput` | `Required(InputPointer field, string? detail = null)` |
 | `InvalidInput` | `ForRule(string code, IReadOnlyList<InputPointer>? fields = null, ImmutableDictionary<string, ValidationArgValue>? args = null, string? detail = null)` |
 | `Conflict`, `InvariantViolation`, `Forbidden` | `For<TResource>(string code, object? id = null, string? detail = null)` and `For(string code, ResourceRef resource, string? detail = null)` |
 | `Conflict`, `InvariantViolation` | `ForReason(string code, string? detail = null)` |
@@ -568,6 +597,17 @@ Construct cases directly or use their **case-scoped static factories**. The base
 Required codes reject null (`ArgumentNullException`), empty, or whitespace (`ArgumentException`) at construction, including direct case constructors and `FieldViolation` / `RuleViolation`. Assignments to `Error.Code`, `FieldViolation.ReasonCode`, or `RuleViolation.ReasonCode`, including `with` expressions, enforce the same invariant. This is invalid API usage, not a domain validation failure. Nonblank application codes pass through unchanged; no vocabulary membership or trimming is imposed. `NotFound` and `Gone` factories keep optional-code normalization: omission, null, empty, or whitespace means `ValidationCodes.Unspecified`.
 
 `ForField` converts a string field with `InputPointer.ForProperty`; null/empty targets the root. The pointer overload preserves its path and input location. `ForRule` defensively copies related `fields` in order; null/empty means no associated fields. Both preserve `args` and violation `detail`; `ForRule` also sets the root `Detail`. The root `InvalidInput.Code` remains the unspecified sentinel because reasons belong to its violations. Validated violation construction records one metric; `with` copies do not recount, and invalid constructor codes are rejected before recording a metric.
+
+`Error.InvalidInput.Required(fieldName, detail)` is exactly equivalent to
+`ForField(ValidationCodes.ValueNotNull, fieldName, detail: detail)`: one field violation,
+no rules or args, unspecified root code, and detail on the violation, not the root.
+No default human-readable detail is invented. Use it for conditional/cross-field
+requiredness or missing collection elements even when a plain null guard does not fit.
+It shares its required-code definition with `FieldViolation.Required` below.
+The `InputPointer` overload preserves the supplied path and input location. To retain
+a route, query, header, or indexed-body location in a lazy null guard, use
+`Result.EnsureNotNull(value, () => Error.InvalidInput.Required(pointer, detail))`;
+the field/detail guard overloads still take string field names.
 
 Resource factories use `ResourceRef.For<TResource>(id)` for type naming and invariant ID formatting. The explicit-reference forms accept `ResourceRef.For("Order", id)` instead of the removed string-resource overloads, and reject a default reference or blank `Type`. Null IDs remain valid collection-level references. `ForReason` / `ForPolicy` produce resourceless errors.
 
@@ -804,12 +844,21 @@ Emit these by constant, not by literal — a typo in a literal is a silent wire 
 | `UnhandledException` | `unhandled-exception` | An exception escaped to a boundary that converts it into a failed `Result`. |
 | `NotImplemented` | `not-implemented` | A boundary reached a path the framework does not implement. Carried by `Error.Unexpected`; surfaces as HTTP 501. |
 | `ConcurrentModification` | `concurrent-modification` | A write lost a race — the row changed between read and save. Carried by `Error.Conflict`; surfaces as 412 when the request carried `If-Match`, otherwise 409. |
+| `DuplicateKey` | `duplicate.key` | A write violates a unique constraint, including losing a concurrent unique-index insert race. Carried by `Error.Conflict`; default HTTP status 409. Emitted by EF save/idempotent-insert helpers and `FakeRepository.SaveAsync`. |
+| `ReferentialIntegrity` | `referential.integrity` | A write violates a foreign-key constraint. Carried by `Error.Conflict`; emitted by EF Result-returning save helpers. |
+| `RetryAborted` | `retry.aborted` | A retryable save failure was aborted by the regenerate callback. Carried by `Error.Conflict`; emitted by `SaveChangesWithRetryAsync`. |
+| `RetryExhausted` | `retry.exhausted` | A retryable save failure exhausted the allowed attempts. Carried by `Error.Conflict`; emitted by `SaveChangesWithRetryAsync`. |
 | `StateMachineInvalidTransition` | `state-machine.invalid-transition` | A trigger was rejected because the aggregate's current state forbids it. Carried by `Error.InvariantViolation`; surfaces as 422. Emitted by `Trellis.StateMachine`'s `FireResult`. |
 | `HttpResponseNotSuccess` | `http.response-not-success` | A response carried a non-success status on a path that needed its body. Carried by `Error.Unexpected`; emitted by `Trellis.Http`'s `ReadJsonAsync` / `ReadJsonMaybeAsync`. |
 | `HttpResponseNoBody` | `http.response-no-body` | A response that had to carry a body did not — `204`/`205`, or a zero-length payload. Carried by `Error.Unexpected`; emitted by `Trellis.Http`. |
 | `HttpResponseInvalidBody` | `http.response-invalid-body` | A response body could not be deserialized, or deserialized to `null`. Carried by `Error.Unexpected`; emitted by `Trellis.Http`. `Detail` reports JSON line/byte position only, never body content. |
 | `HttpResponseFault` | `http.response-fault` | A response status has no more specific mapping in the status-to-error table. Carried by `Error.Unexpected`; emitted by `Trellis.Http`'s `ToResultAsync`. |
 | `ResponseLocationUnresolved` | `response.location-unresolved` | A response was configured to emit a `Location` header but the URI could not be resolved. Carried by `Error.Unexpected`; emitted by `Trellis.Asp`. |
+
+These persistence constants live in Core, so clients and tests can match them without an EF Core
+dependency. Their wire spellings and meanings are frozen under the same contract as the rest of this
+vocabulary. Match `Error.Conflict.Code` against `FaultCodes.DuplicateKey` for a unique-index race
+instead of inspecting `Detail` or provider-specific constraint text.
 
 `RateLimitExceeded`, the `http.response-*` family, and `ResponseLocationUnresolved` are *not* dispatch keys —
 nothing branches on them to pick a status code. They are constants for the other reason a code exists: they
@@ -923,6 +972,20 @@ The same bound governs the human-readable `Detail`. `RequiredEnum.TryCreate` and
 `Error.InvalidInput.ForField` and `ForRule` each have an overload taking `args` directly.
 
 ---
+
+### `FieldViolation.Required` factories
+
+For composite validators that construct violations directly, use these static members
+on the existing `FieldViolation` record:
+
+| Signature | Notes |
+| --- | --- |
+| `public static FieldViolation Required(string? fieldName, string? detail = null)` | Normalizes via `InputPointer.ForProperty`; null/empty targets the root. |
+| `public static FieldViolation Required(InputPointer field, string? detail = null)` | Preserves the supplied path and input location, including indexed body fields and named query/header parameters. |
+
+Both produce `FieldViolation.ReasonCode = ValidationCodes.ValueNotNull`, `Args = null`, and the exact
+supplied `Detail` (null stays null), and count one field violation. Existing equality,
+hashing, serialization, and copy/rebase behavior are unchanged.
 
 ### `InputPointer` locations
 
@@ -1202,7 +1265,6 @@ Non-generic factory companion that allows type inference at the call site.
 | `public static T? AsNullable<T>(in this Maybe<T> value) where T : struct` |
 | `public static Result<TValue> ToResult<TValue>(in this Maybe<TValue> maybe, Error error) where TValue : notnull` |
 | `public static Result<TValue> ToResult<TValue>(in this Maybe<TValue> maybe, Func<Error> ferror) where TValue : notnull` |
-| `public static Result<TValue> ToResult<TValue>(this TValue value)` |
 
 `ToResult(..., Func<Error> ferror)` validates `ferror` before inspecting the `Maybe<T>` state. A null factory throws `ArgumentNullException` even when the maybe currently has a value; async overloads validate the factory before awaiting the receiver.
 
@@ -1293,7 +1355,6 @@ The result API contains a large generated extension surface. Exact public famili
 | `ResultLinqExtensions`, `ResultLinqExtensionsTaskAsync`, `ResultLinqExtensionsTaskLeftAsync`, `ResultLinqExtensionsTaskRightAsync`, `ResultLinqExtensionsValueTaskAsync`, `ResultLinqExtensionsValueTaskLeftAsync`, `ResultLinqExtensionsValueTaskRightAsync` | LINQ query syntax support via `Select`/`SelectMany`/`Where` for `Result<T>`, `Task<Result<T>>` and `ValueTask<Result<T>>` (mixed sync/async sources and continuations) |
 | `MapExtensions`, `MapExtensionsAsync`, `MapIfExtensions`, `MapOnFailureExtensions` | Success-path mapping, conditional mapping, and failure remapping; tuple overloads generated for arities 2-9 |
 | `MatchExtensions`, `MatchExtensionsAsync`, `MatchTupleExtensions`, `MatchTupleExtensionsAsync` | Terminal branching for normal and tuple results. (The previous `MatchErrorExtensions` API was removed — use `result.Match(_ => ..., e => e switch { Error.NotFound nf => ..., ... })` against the closed catalog.) |
-| `NullableExtensions`, `NullableExtensionsAsync` | Converts nullable reference/value types to `Result<T>` |
 | `RecoverExtensions`, `RecoverExtensionsAsync`, `RecoverOnFailureExtensions`, `RecoverOnFailureExtensionsAsync` | Converts failures into fallback success values or results |
 | `TapExtensions`, `TapExtensionsAsync`, `TapOnFailureExtensions`, `TapOnFailureExtensionsAsync` | Side effects on success or failure; tuple overloads generated for arities 2-9 |
 | `ToMaybeExtensions`, `ToMaybeExtensionsAsync` | Converts `Result<T>` to `Maybe<T>` |
@@ -1453,8 +1514,9 @@ Task<Result<Settings>> Load(UserId id) =>
 
 Predicate-based validation. `Ensure` short-circuits on the first failed predicate; `EnsureAll` accumulates every failure via `Error.Combine` (homogeneous `Error.InvalidInput` failures merge into a single `Error.InvalidInput`; heterogeneous failures fold into `Error.Aggregate`) for applicative-style validation.
 
-**Static guards need no receiver.** `Result.Ensure(condition, () => error)` returns
-`Result<Unit>` and constructs no error on success. The predicate and async-predicate
+**Static guards need no receiver.** `Result.Ensure(condition, errorFactory)` returns
+`Result<Unit>` and invokes the factory only on failure. Construct a fresh error inside
+the factory to avoid unused allocation and validation metrics. The predicate and async-predicate
 static overloads also accept `Func<Error>`. Factories run exactly once on a false result,
 never while an async predicate is pending or after a predicate throws, faults, or cancels.
 Null delegates throw `ArgumentNullException` before evaluating the predicate, even for a
@@ -1475,7 +1537,6 @@ var guard = Result.Ensure(end != start, () =>
 | --- | --- | --- |
 | `public static Result<TValue> Ensure<TValue>(this Result<TValue> result, Func<TValue, bool> predicate, Error error)` | `Result<TValue>` | Sync ensure with predicate + `Error`. Five sync overloads (with/without value arg, factory error, embedded result). |
 | `public static Result<TValue> Ensure<TValue>(this Result<TValue> result, Func<TValue, bool> predicate, Func<TValue, Error> errorPredicate)` | `Result<TValue>` | Sync ensure with lazy error factory. |
-| `public static Result<string> EnsureNotNullOrWhiteSpace(this string? str, Error error)` | `Result<string>` | Lifts a possibly-blank string to `Result<string>`. |
 | `public static Result<T> EnsureNotNull<T>(this Result<T?> result, Error error) where T : class` | `Result<T>` | Reference-type `EnsureNotNull` overload that strips the nullable annotation. |
 | `public static Result<T> EnsureNotNull<T>(this Result<T?> result, Error error) where T : struct` | `Result<T>` | Value-type `EnsureNotNull` overload that unwraps the nullable. |
 | `public static Task<Result<TValue>> EnsureAsync<TValue>(this Task<Result<TValue>> resultTask, Func<TValue, Task<bool>> predicate, Error error)` | `Task<Result<TValue>>` | `EnsureExtensionsAsync` covers all `Result<T>`/`Task<Result<T>>`/`ValueTask<Result<T>>` receivers × `Func<TValue, bool>`/`Task<bool>`/`ValueTask<bool>` predicates × constant-, factory-, async-factory- and embedded-`Result<TValue>` error producers (~34 overloads across the six `Ensure.*` partial files). |
@@ -1485,6 +1546,39 @@ var guard = Result.Ensure(end != start, () =>
 | `public static Result<TValue> EnsureAll<TValue>(this Result<TValue> result, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `Result<TValue>` | Lazy accumulation: each failed check calls its factory exactly once with the successful value; passing checks never create errors. |
 | `public static Task<Result<TValue>> EnsureAllAsync<TValue>(this Task<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `Task<Result<TValue>>` | Awaits the receiver, then applies lazy accumulation. |
 | `public static ValueTask<Result<TValue>> EnsureAllAsync<TValue>(this ValueTask<Result<TValue>> resultTask, params (Func<TValue, bool> predicate, Func<TValue, Error> errorFactory)[] checks)` | `ValueTask<Result<TValue>>` | ValueTask receiver with lazy accumulation. |
+
+##### Required nonblank strings
+
+| Signature | Returns | Description |
+| --- | --- | --- |
+| `public static Result<string> EnsureNotNullOrWhiteSpace(this string? str, Error error)` | `Result<string>` | Rejects null/empty/whitespace with an existing error; returns valid strings unchanged. |
+| `public static Result<string> EnsureNotNullOrWhiteSpace(this string? str, Func<Error> errorFactory)` | `Result<string>` | Calls the factory exactly once only on null/empty/whitespace. |
+| `public static Result<string> EnsureNotNullOrWhiteSpace(this string? str, string? fieldName, string? detail = null)` | `Result<string>` | Creates one field violation: `ValueNotNull` for null, or `ValueNotEmpty` for empty/whitespace. |
+
+`EnsureNotNullOrWhiteSpace` returns the original valid string without trimming.
+Prefer the field/detail overload for standard nonblank fields, or a `Func<Error>`
+that constructs a custom error inside its body; use `static` when no state is captured.
+The field/detail form follows the framework's absent-versus-blank convention:
+`ValueNotNull` for null and `ValueNotEmpty` for empty/whitespace, matching required
+primitive validation. The eager and factory forms preserve the caller's error and
+reason codes; use them when both cases intentionally share a custom error.
+Neither lazy form creates errors or validation violations on success. The factory is required
+even on success (`ArgumentNullException`, `errorFactory`); factory exceptions propagate,
+and a factory returning null on failure throws `ArgumentNullException` naming `error`.
+Field names follow `ForField` normalization: null/empty targets the root, simple names
+are escaped, and full JSON Pointers are validated only on failure. The eager overload
+retains higher resolution priority, so bare-null second arguments keep binding to
+`Error`; use named `fieldName:` or `errorFactory:` to select a null argument intentionally.
+
+```csharp
+Result<string> NotBlank(string? raw) =>
+    raw.EnsureNotNullOrWhiteSpace(fieldName: null);
+
+Result<string> NotBlankWithCustomError(string? raw) =>
+    raw.EnsureNotNullOrWhiteSpace(static () => new Error.Forbidden("name.denied"));
+```
+
+##### Accumulating predicate validation
 
 Both `EnsureAll` families preserve upstream failures (including persist-on-failure intent)
 without invoking predicates or factories. Empty checks preserve the original result. A
@@ -1500,9 +1594,44 @@ Result<Quote> Validate(Quote q) =>
     Result.Ok(q).EnsureAll(
         (x => x.Total > 0,            _ => Error.InvalidInput.ForField(field: "total", code: ValidationCodes.ValueGreaterThan)),
         (x => x.Currency.Length == 3, _ => Error.InvalidInput.ForField(field: "currency", code: ValidationCodes.StringCurrencyCode)));
+```
 
-Result<string> NotBlank(string? raw) =>
-    raw.EnsureNotNullOrWhiteSpace(Error.InvalidInput.ForField(field: InputPointer.Root, code: ValidationCodes.ValueNotEmpty));
+##### Nullable-task guards — `EnsureExtensionsAsync`
+
+These extend nullable-value tasks directly, not `Task<Result<T>>`. Each awaits the
+source exactly once with `ConfigureAwait(false)` and then calls static
+`Result.EnsureNotNull`. Task input returns `Task<Result<T>>`; ValueTask input returns
+`ValueTask<Result<T>>`. All six sync forms above have both receiver variants:
+
+| Signature | Returns |
+| --- | --- |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, Error error) where T : class` | `Task<Result<T>>` |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, Func<Error> errorFactory) where T : class` | `Task<Result<T>>` |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, string? fieldName, string? detail = null) where T : class` | `Task<Result<T>>` |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, Error error) where T : struct` | `Task<Result<T>>` |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, Func<Error> errorFactory) where T : struct` | `Task<Result<T>>` |
+| `public static Task<Result<T>> EnsureNotNullAsync<T>(this Task<T?> task, string? fieldName, string? detail = null) where T : struct` | `Task<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, Error error) where T : class` | `ValueTask<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, Func<Error> errorFactory) where T : class` | `ValueTask<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, string? fieldName, string? detail = null) where T : class` | `ValueTask<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, Error error) where T : struct` | `ValueTask<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, Func<Error> errorFactory) where T : struct` | `ValueTask<Result<T>>` |
+| `public static ValueTask<Result<T>> EnsureNotNullAsync<T>(this ValueTask<T?> task, string? fieldName, string? detail = null) where T : struct` | `ValueTask<Result<T>>` |
+
+Null Task inputs throw `ArgumentNullException` (parameter `task`). Factories are
+validated **before awaiting**, even if the source is pending. These argument exceptions surface through
+the returned Task/ValueTask. Valid factories run only after a successful source
+completion with null; source faults/cancellation propagate unchanged without invoking
+the factory or constructing a required error. A default `ValueTask<T?>` completes
+with null and therefore fails the guard. Null-error overload resolution and the
+success/failure `EnsureNotNull` activity follow the sync guards.
+
+```csharp
+Task<string?> nameTask = Task.FromResult<string?>("Ada");
+Task<int?> quantityTask = Task.FromResult<int?>(0);
+Task<Result<string>> labelTask = nameTask.EnsureNotNullAsync("name")
+    .CombineAsync(quantityTask.EnsureNotNullAsync("quantity"))
+    .MapAsync((name, quantity) => $"{name}:{quantity}");
 ```
 
 #### Check / CheckIf families — `CheckExtensions`, `CheckExtensionsAsync`, `CheckIfExtensions`, `CheckIfExtensionsAsync`
@@ -1741,40 +1870,44 @@ Project a `Result<T>` to a `Maybe<T>` (failure → `None`).
 Maybe<Order> maybe = await repo.TryLoadAsync(id).ToMaybeAsync();
 ```
 
-#### Nullable to Result — `NullableExtensions`, `NullableExtensionsAsync`
+#### Choosing a Result entry point
 
-Bridge a plain nullable value (`T?` for reference or value types) into the Result track. Mirrors `Maybe<T>.ToResult` for repositories that return raw nullables instead of `Maybe<T>`. The async overloads extend `Task<T?>` and `ValueTask<T?>` directly, so call sites can chain `.ToResultAsync(error)` onto a repository call without an intermediate `await` — matching the receiver pattern used by `BindAsync` / `EnsureAsync` / `MapAsync`.
+Core's unconstrained, no-argument `ToResult` lift and all twelve nullable-value
+`ToResult` / `ToResultAsync` overloads have been removed. An omitted failure must not
+silently wrap a nullable or `Maybe<T>` in a successful result.
 
-The `Func<Error>` async overloads delegate to the sync `ToResult` after awaiting, so the `ArgumentNullException.ThrowIfNull(errorFactory)` check fires on the awaited continuation rather than synchronously. The thrown exception still surfaces from the returned `Task` / `ValueTask`. This intentionally differs from `MaybeExtensionsAsync.ToResultAsync(Func<Error>)`, which validates the factory before awaiting.
+| Intent | Use |
+| --- | --- |
+| Deliberately wrap a successful payload | `Result.Ok(value)`; this does not check for null or inspect a wrapper's state. |
+| Check a boolean condition without carrying a value | `Result.Ensure(condition, errorFactory)`; returns `Result<Unit>`. Construct custom errors inside the callback. |
+| Require a nullable reference or struct | `Result.EnsureNotNull(value, fieldName, detail)` for standard required fields; `Result.EnsureNotNull(value, errorFactory)` for custom failures. |
+| Require a nonblank string without trimming | `value.EnsureNotNullOrWhiteSpace(fieldName, detail)` for `ValueNotNull` on null and `ValueNotEmpty` on blank; use `errorFactory` for a custom failure. |
+| Require a nullable task result | `task.EnsureNotNullAsync(fieldName, detail)` / `valueTask.EnsureNotNullAsync(errorFactory)`. |
+| Turn ordinary `Maybe<T>` absence into failure | `maybe.ToResult(errorFactory)`; Task/ValueTask `ToResultAsync` forms remain supported. |
 
-**Sync — `NullableExtensions` (4 overloads)**
+The null guards preserve the reference or unwrap the struct, and lazy errors run
+only on absence. Continue typed `Combine` / `Map` chains without `!`; async chains
+use `CombineAsync` / `MapAsync`. See the exact
+[sync](#value-returning-null-guards) and
+[async](#nullable-task-guards--ensureextensionsasync) guard contracts.
 
-| Signature | Returns | Description |
-| --- | --- | --- |
-| `public static Result<T> ToResult<T>(this T? nullable, Error error) where T : struct` | `Result<T>` | Value-type variant. `null` → `Fail(error)`; otherwise `Ok(nullable.Value)`. |
-| `public static Result<T> ToResult<T>(this T? nullable, Func<Error> errorFactory) where T : struct` | `Result<T>` | Value-type factory variant. Throws `ArgumentNullException` when `errorFactory` is `null`. |
-| `public static Result<T> ToResult<T>(this T? obj, Error error) where T : class` | `Result<T>` | Reference-type variant. |
-| `public static Result<T> ToResult<T>(this T? obj, Func<Error> errorFactory) where T : class` | `Result<T>` | Reference-type factory variant. |
+The eager `Error` overloads remain valid for existing/reused errors. A factory must
+construct the error inside its body to avoid allocating an unused instance; use
+`static` when no captured state is needed. Capturing callbacks can still allocate
+closures, so lazy error construction is not a blanket allocation-free guarantee.
 
-**Async — `NullableExtensionsAsync` (8 overloads)**
-
-| Signature | Returns | Description |
-| --- | --- | --- |
-| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Error error) where T : struct` | `Task<Result<T>>` | `Task<T?>` value-type variant. |
-| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Func<Error> errorFactory) where T : struct` | `Task<Result<T>>` | `Task<T?>` value-type factory variant. |
-| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Error error) where T : class` | `Task<Result<T>>` | `Task<T?>` reference-type variant — the canonical "repo returns `Task<User?>`" bridge. |
-| `public static Task<Result<T>> ToResultAsync<T>(this Task<T?> nullableTask, Func<Error> errorFactory) where T : class` | `Task<Result<T>>` | `Task<T?>` reference-type factory variant. |
-| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Error error) where T : struct` | `ValueTask<Result<T>>` | `ValueTask<T?>` value-type variant. |
-| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Func<Error> errorFactory) where T : struct` | `ValueTask<Result<T>>` | `ValueTask<T?>` value-type factory variant. |
-| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Error error) where T : class` | `ValueTask<Result<T>>` | `ValueTask<T?>` reference-type variant — the canonical "repo returns `ValueTask<Order?>`" bridge. |
-| `public static ValueTask<Result<T>> ToResultAsync<T>(this ValueTask<T?> nullableTask, Func<Error> errorFactory) where T : class` | `ValueTask<Result<T>>` | `ValueTask<T?>` reference-type factory variant. |
+**Migration edge cases.** The guards validate factories before awaiting, whereas the
+retired nullable async conversions validated them after awaiting. An invalid factory
+therefore takes precedence over a pending, faulted, or cancelled source; the argument
+exception surfaces through the returned Task/ValueTask. Null Task receivers now
+produce `ArgumentNullException` naming `task`. Activities are named `EnsureNotNull`.
+These are deliberate guard semantics, not a behavior-identical rename for invalid
+arguments. The `Maybe<T>` conversion contracts are unchanged.
 
 ```csharp
-// Repository returns ValueTask<Order?>. ToResultAsync extends the task receiver
-// directly, so no intermediate await + sync ToResult call is required.
 private ValueTask<Result<Order>> LoadOrderAsync(OrderId id, CancellationToken ct) =>
     _orderRepository.FindByIdAsync(id, ct)
-        .ToResultAsync(new Error.NotFound(ResourceRef.For<Order>(id)));
+        .EnsureNotNullAsync(() => new Error.NotFound(ResourceRef.For<Order>(id)));
 ```
 
 ---
@@ -2846,6 +2979,12 @@ Core-owned trace source used by generated `Required*<TSelf>` value objects and c
 ### Source-generated members
 
 The incremental generator at `Trellis.Core/generator/RequiredPartialClassGenerator.cs` (bundled inside `Trellis.Core.nupkg` at `analyzers/dotnet/cs/Trellis.Core.Generator.dll`) augments partial classes that inherit a `Required*<TSelf>` base type.
+
+Generated Guid, numeric, boolean, and date/time nullable-input factories use
+`Result.EnsureNotNull(value, field, detail)`: the standard required-field error is
+created only when the input is null. The normalized field, `value.not-null` code,
+and existing type-specific detail are preserved; later empty, parse, range, and
+custom-validation checks keep their existing lazy factories.
 
 #### `RequiredString<TSelf>`
 

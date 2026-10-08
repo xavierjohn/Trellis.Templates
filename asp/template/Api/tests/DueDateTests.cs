@@ -18,7 +18,7 @@ public class DueDateTests(TestWebApplicationFactoryFixture factory, ITestOutputH
     {
         string[] versions =
         [
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             "2026-03-26",
 #endif
             "2026-12-01",
@@ -83,7 +83,7 @@ public class DueDateTests(TestWebApplicationFactoryFixture factory, ITestOutputH
     }
 
     [Theory]
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     [InlineData("2026-03-26", false)]
     [InlineData("2026-03-26", true)]
 #endif
@@ -168,7 +168,7 @@ public class DueDateTests(TestWebApplicationFactoryFixture factory, ITestOutputH
 
     private static string Url(string path, string version)
     {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         return $"{path}?api-version={version}";
 #else
         return path;

@@ -50,18 +50,9 @@ public sealed record UpdateTodoCommand : ICommand<Result<TodoItem>>, IAuthorize
     /// <param name="ifMatchETags">Optional ETags from the <c>If-Match</c> header for conditional update.</param>
     /// <param name="timeProvider">Optional time provider for testability. Defaults to <see cref="TimeProvider.System"/>.</param>
     public static Result<UpdateTodoCommand> TryCreate(TodoId? todoId, Title? title, DueDate? dueDate, Maybe<Tag> tag, EntityTagValue[]? ifMatchETags = null, TimeProvider? timeProvider = null) =>
-        todoId.ToResult(Error.InvalidInput.ForField(
-            code: "required",
-            field: "id",
-            detail: "Todo id is required."))
-            .Combine(title.ToResult(Error.InvalidInput.ForField(
-                code: "required",
-                field: "title",
-                detail: "Title is required.")))
-            .Combine(dueDate.ToResult(Error.InvalidInput.ForField(
-                code: "required",
-                field: "dueDate",
-                detail: "Due date is required.")))
+        Result.EnsureNotNull(todoId, "id", "Todo id is required.")
+            .Combine(Result.EnsureNotNull(title, nameof(title), "Title is required."))
+            .Combine(Result.EnsureNotNull(dueDate, nameof(dueDate), "Due date is required."))
             .Ensure(values => values.Item3 > (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
                 Error.InvalidInput.ForField(
                     code: "out_of_range",

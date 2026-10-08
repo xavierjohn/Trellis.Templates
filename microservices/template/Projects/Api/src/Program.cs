@@ -4,6 +4,9 @@ using ProjectTrackerTemplate.Projects.Api;
 using ProjectTrackerTemplate.Projects.Application;
 using Scalar.AspNetCore;
 using Trellis.Asp;
+#if (UseApiVersioning)
+using Trellis.Asp.ApiVersioning;
+#endif
 using Trellis.Microservices.AspNetCore;
 using Trellis.ServiceDefaults;
 using Trellis.ServiceLevelIndicators;
@@ -41,7 +44,7 @@ builder.Services.AddOpenTelemetry()
 // ProblemDetails, scalar value-object validation, and Service Level Indicators. The endpoints —
 // versioned route groups — live in Endpoints/ProjectEndpoints.cs.
 
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 builder.Services.AddApiVersioning(options => options.ReportApiVersions = true)
     .AddApiExplorer()
     .AddOpenApi(options => options.Document.AddScalarTransformers());
@@ -61,7 +64,11 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 // into a 422 ProblemDetails before the handler runs. Add .WithScalarValueValidation() to an
 // endpoint only when its request BODY carries value objects (none here yet).
 builder.Services.AddTrellis(options => options
+#if (UseApiVersioning)
+    .UseAsp(asp => asp.UseVersionedPageUrls())
+#else
     .UseAsp()
+#endif
     .UseScalarValueValidation()
     .UseProblemDetails()
     .UseMediator()
@@ -118,7 +125,7 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     app.MapOpenApi().WithDocumentPerVersion();
     app.MapScalarApiReference(options =>
     {

@@ -3,7 +3,7 @@ package: Trellis.Asp
 namespaces: [Trellis.Asp, Trellis.Asp.Authorization, Trellis.Asp.Idempotency, Trellis.Asp.ModelBinding, Trellis.Asp.Routing, Trellis.Asp.Validation]
 types: [TrellisHttpResult, ToHttpResponse, AsActionResult, HttpRequestPaginationExtensions, HttpResponseOptionsBuilder<T>, CacheControl, InputOriginAttribute, WithInputOrigin, MaybePrimitiveJsonConverter<T>, MaybePrimitiveJsonConverterFactory, MaybePrimitiveModelBinder<T>, MaybePrimitives, IProvideActorVaryHeaders, ClaimsActorProvider, NestedJsonPathClaimsActorOptions, NestedJsonPathClaimsActorProvider, EntraActorProvider, DevelopmentActorProvider, CachingActorProvider, AddTrellisProblemDetails, UseTrellisProblemDetails, RateLimiterOptionsExtensions, UseTrellisRejectionHandler, ResourceCollectionNameRegistry, ResourceCollectionNameOverride, AddResourceCollectionName, AddResourceCollectionNames, IdempotentAttribute, IdempotencyOptions, IIdempotencyStore, InMemoryIdempotencyStore, IIdempotencyScopeResolver, DefaultIdempotencyScopeResolver, AnonymousIdempotencyScopeResolver, ActorIdempotencyScopeResolver, IdempotencyReservationOutcome, IdempotencyResponseSnapshot, IdempotencyKeyParser, IdempotencyFingerprint, CapturingResponseBodyFeature, IdempotencyMiddleware, AddTrellisIdempotency, AddInMemoryIdempotencyStore, UseTrellisIdempotency, EasyAuthDefaults, EasyAuthAuthenticationExtensions, IdempotencyApplicationBuilderExtensions, IdempotencyServiceCollectionExtensions, ResourceCollectionNameServiceCollectionExtensions]
 version: v3
-last_verified: 2026-10-02
+last_verified: 2026-10-08
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when wiring ASP.NET Core endpoints that parse pagination input or return Trellis Result, WriteOutcome or Page: response mapping, Problem Details, ETags, actors and route binding."
@@ -42,6 +42,7 @@ See also: [trellis-start-here.md](trellis-start-here.md#task---recipe-lookup) �
 | Honor `Prefer: return=minimal` | `.HonorPrefer()` on write responses | [`HttpResponseOptionsBuilder<TDomain>`](#httpresponseoptionsbuildertdomain) |
 | Parse pagination query input in MVC or Minimal APIs | `Request.TryCreatePageRequest()`; bind its `Result<PageRequest>` before dispatching the query | [`HttpRequestPaginationExtensions`](#httprequestpaginationextensions) |
 | Return paginated list responses | `Result<Page<T>>.ToHttpResponse(urlBuilder, bodySelector, ...)` with `(cursor, PageDirection, appliedLimit)`; the two-argument `nextUrlBuilder` convenience remains available | [`PagedResponse<TResponse>`](#pagedresponsetresponse), [`PageDirection`](#pagedirection) |
+| Build pagination links with or without API versioning | `HttpContext.PageUrl(routeName, routeValues)`; configure the optional version-aware policy once when using `Trellis.Asp.ApiVersioning` | [`HttpContextPaginationExtensions`](#httpcontextpaginationextensions) |
 | Resolve actors from requests | `AddClaimsActorProvider`, `AddNestedJsonPathClaimsActorProvider`, `AddEntraActorProvider`, or `AddDevelopmentActorProvider`. For microservices consuming gateway-minted internal JWTs, see [`Trellis.Microservices.AspNetCore`](https://github.com/xavierjohn/Trellis.Microservices) (the `TrellisInternalJwtActorProvider` types moved out of this repo in v3 cleanup). | [`Trellis.Asp.Authorization`](#namespace-trellisaspauthorization) |
 | Compose a system actor for background workers | `AddTrellisWorkerActor` | [`Trellis.Asp.Authorization`](#namespace-trellisaspauthorization) |
 | Bind scalar value objects from routes/query/body | `AddTrellisAspWithScalarValidation()` (or `AddTrellisAsp()` + `AddScalarValueValidation()`), plus route constraints / validation middleware as needed | [`Trellis.Asp.ModelBinding`](#namespace-trellisaspmodelbinding), [`Trellis.Asp.Validation`](#namespace-trellisaspvalidation) |
@@ -55,7 +56,7 @@ See also: [trellis-start-here.md](trellis-start-here.md#task---recipe-lookup) �
 - Every endpoint that returns a Trellis `Result` ultimately calls `ToHttpResponse` / `AsActionResult`.
 - Pagination endpoints parse raw query values with `Request.TryCreatePageRequest()` when missing-vs-empty cursor semantics matter, and declare `cursor` / `limit` explicitly in OpenAPI because the parser adds no endpoint metadata.
 - OpenAPI metadata includes the success code and every failure code listed by the product spec.
-- `201 Created` endpoints include a usable `Location` header. Prefer `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` on `CreatedAtRoute` / `CreatedAtAction` to resolve the destination's mapped query/segment version. If using manual query values, include `["api-version"]` only for a versioned target and ensure it accepts that version. Test dereferencing the link, not just the response status.
+- Supply a usable `Location` for a newly created resource when its URI differs from the request URL; a PUT that creates at the request URL can return `WriteOutcome.Created(value)` without a Location. Prefer `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` on route/action locations to resolve the destination's mapped query/segment version. If using manual query values, include `["api-version"]` only for a versioned target and ensure it accepts that version. Test dereferencing emitted links, not just the response status.
 - `[Consumes("application/json")]` is **not** safe at the controller level when the controller has trigger-style POSTs without bodies (e.g., `POST /orders/{id}/submission`). ASP.NET Core returns `415 Unsupported Media Type` for any request without a `Content-Type` header. Apply `[Consumes]` per-action on body-bearing endpoints only, or scope it to a route convention.
 - Integration tests include at least one business-validation failure that asserts `422` Problem Details; do not rely on exception middleware to prove Result mapping.
 
@@ -87,7 +88,7 @@ The single Trellis verb for converting `Result` / `Result<T>` / `Result<WriteOut
 | `public static IResult ToHttpResponse(this Error error, Action<HttpResponseOptionsBuilder>? configure = null)` | `IResult` | Maps a standalone `Error` to a Problem Details response (for endpoints that produce a deterministic error). |
 | `public static IResult ToHttpResponse<T>(this Result<T> result, Action<HttpResponseOptionsBuilder<T>>? configure = null)` | `IResult` | Maps `Result<T>` to `200 OK` with the value as body, or `201 Created` + `Location` when `Created` / `CreatedAtRoute` / `CreatedAtAction` is configured. For `Result<Unit>` (the no-payload result returned by `Result.Ok()` / `Result.Fail(error)`), success emits `204 No Content`. Failures go through Problem Details. |
 | `public static IResult ToHttpResponse<TDomain, TBody>(this Result<TDomain> result, Func<TDomain, TBody> body, Action<HttpResponseOptionsBuilder<TDomain>>? configure = null)` | `IResult` | Same as the `Result<T>` overload, but projects the response body via `body`. Selectors in the options builder still run against the domain value. |
-| `public static IResult ToHttpResponse<T>(this Result<WriteOutcome<T>> result, Action<HttpResponseOptionsBuilder<T>>? configure = null)` | `IResult` | Maps `Result<WriteOutcome<T>>` per RFC 9110: `Created → 201 + Location`, `Updated → 200` (or `204` with `Prefer: return=minimal` **when `HonorPrefer()` is configured**), `UpdatedNoContent → 204`, `Accepted → 202` (+ `Retry-After` when `RetryAfter != null`, + `Location` when `MonitorUri != null`), `AcceptedNoContent → 202` (+ `Retry-After`/`Location` under the same conditions). |
+| `public static IResult ToHttpResponse<T>(this Result<WriteOutcome<T>> result, Action<HttpResponseOptionsBuilder<T>>? configure = null)` | `IResult` | Maps `Result<WriteOutcome<T>>` per RFC 9110: `Created → 201` with optional Location (nonblank outcome Location wins; otherwise use the builder fallback, or omit the header), `Updated → 200` (or `204` with `Prefer: return=minimal` **when `HonorPrefer()` is configured**), `UpdatedNoContent → 204`, `Accepted → 202` (+ `Retry-After` when `RetryAfter != null`, + `Location` when `MonitorUri != null`), `AcceptedNoContent → 202` (+ `Retry-After`/`Location` under the same conditions). |
 | `public static IResult ToHttpResponse<TDomain, TBody>(this Result<WriteOutcome<TDomain>> result, Func<TDomain, TBody> body, Action<HttpResponseOptionsBuilder<TDomain>>? configure = null)` | `IResult` | `WriteOutcome` overload with body projection. |
 | `public static IResult ToHttpResponse<T, TBody>(this Result<Page<T>> result, Func<Cursor, int, string> nextUrlBuilder, Func<T, TBody> body, Action<HttpResponseOptionsBuilder<Page<T>>>? configure = null)` | `IResult` | Maps `Result<Page<T>>` to a paginated JSON envelope (`PagedResponse<TBody>`) plus an RFC 8288 `Link` header. Convenience overload: the same `nextUrlBuilder(cursor, appliedLimit)` callback builds both next and previous links, without direction information. |
 | `public static IResult ToHttpResponse<T, TBody>(this Result<Page<T>> result, Func<Cursor, PageDirection, int, string> urlBuilder, Func<T, TBody> body, Action<HttpResponseOptionsBuilder<Page<T>>>? configure = null)` | `IResult` | Direction-aware pagination. Calls `urlBuilder(cursor, PageDirection.Next, appliedLimit)` for `Next` and `urlBuilder(cursor, PageDirection.Previous, appliedLimit)` for `Previous`, only when the corresponding cursor exists. Each generated URL is shared by the envelope and `Link` header. |
@@ -109,6 +110,73 @@ public static ValueTask<IResult> ToHttpResponseAsync<T, TBody>(
     Func<T, TBody> body,
     Action<HttpResponseOptionsBuilder<Page<T>>>? configure = null);
 ```
+
+### `HttpContextPaginationExtensions`
+
+`HttpContext.PageUrl` builds absolute named-route pagination links without a versioning
+dependency. The two signatures return `Func<Cursor, int, string>` and
+`Func<Cursor, PageDirection, int, string>` respectively:
+
+```csharp
+public static Func<Cursor, int, string> PageUrl(this HttpContext httpContext, string routeName,
+    Func<Cursor, int, RouteValueDictionary> routeValues,
+    Func<PageUrlRouteContext, Endpoint>? routeResolver = null);
+public static Func<Cursor, PageDirection, int, string> PageUrl(this HttpContext httpContext, string routeName,
+    Func<Cursor, PageDirection, int, RouteValueDictionary> routeValues,
+    Func<PageUrlRouteContext, Endpoint>? routeResolver = null);
+```
+
+`PageUrlRouteContext` exposes `HttpContext`, `RouteName`, `Candidates`, and the cloned,
+mutable `RouteValues`. `TrellisAspOptions.PageUrlRouteResolver` configures a host-local
+destination/version policy through `AddTrellisAsp` or `UseAsp`; a per-builder resolver wins.
+Resolvers must return one candidate or the link-enabled active endpoint with the same
+name, never null. Unversioned hosts need no resolver. Versioned hosts must configure the
+optional package's version-aware policy. Missing destinations, incompatible layouts,
+ambiguous cross-route destinations, invalid resolver results, null callback dictionaries,
+and failed link generation throw. Links preserve scheme, host, and `PathBase`; shared
+callback dictionaries are never mutated. Builders are request-scoped.
+
+Endpoint discovery is cached by `EndpointDataSource` instance, using weak keys so retired
+sources are not kept alive. Link-enabled named endpoints are indexed once per stable
+change-token generation, and compatible route groups are validated on first use.
+Subsequent links reuse the immutable candidates without rescanning endpoints or
+rechecking compatibility. A signaled change invalidates the index and validated groups;
+a change during indexing causes a retry before publication. Custom data sources must
+signal their change token when endpoints or URL-generation metadata change.
+Previously, candidate discovery reread `Endpoints` for each link and could observe
+unsignaled mutations. Cached discovery intentionally does not support those mutations;
+custom sources must publish a new change-token generation instead.
+Callbacks, cloned route values, active-endpoint selection, and host/per-builder policies
+still run for every link; requested versions and selected destinations are not cached.
+
+Shared names require matching route templates, defaults, required values, and parameter
+policies so named link generation cannot fall through to a differently constrained
+destination. Only MVC selector keys `controller`, `action`, and `area` may differ when
+they are not template parameters and each endpoint has a matching default/required value
+for that key. Differently named attribute-routed controllers can therefore share a
+pagination name; conventional `{controller}/{action}` differences still throw.
+Other non-template defaults remain checked: a `cursor` default can suppress an explicit
+query value and break continuation. Inline policies compare by content; out-of-line
+policy objects must compare equal (normally the same instance). Otherwise give the
+destinations distinct route names.
+
+```csharp
+// Same expression in unversioned and versioned endpoints.
+nextUrlBuilder: HttpContext.PageUrl(
+    "Orders_List",
+    (cursor, applied) => new RouteValueDictionary
+    {
+        ["cursor"] = cursor.Token,
+        ["limit"] = applied,
+    })
+```
+
+For API versioning, reference the optional package and configure
+[`UseVersionedPageUrls`](trellis-api-asp-apiversioning.md#trellisaspoptionsapiversioningextensions)
+through `AddTrellisAsp` or `UseAsp`. Without a policy, this helper performs **unversioned**
+routing; it does not inspect optional SDK metadata or infer versioning configuration.
+Versioned hosts must enable the policy even for self-pagination. Typed `ApiVersion` pins
+remain extensions in the optional package and override the host policy per builder.
 
 ### `HttpRequestPaginationExtensions`
 
@@ -189,7 +257,7 @@ Fluent options builder used by every generic `ToHttpResponse` overload. Selector
 | `Created(Func<TDomain, string> selector)` | `HttpResponseOptionsBuilder<TDomain>` | Returns `201 Created` with a `Location` derived from the value. |
 | `CreatedAtRoute(string routeName, Func<TDomain, RouteValueDictionary> routeValues)` | `HttpResponseOptionsBuilder<TDomain>` | Returns `201 Created` with a relative `Location` path generated via `LinkGenerator.GetPathByName` (resolved from `HttpContext.RequestServices` at execute time). AOT-safe. For API versioning, prefer `.WithVersionedRoute()` from [Trellis.Asp.ApiVersioning](trellis-api-asp-apiversioning.md#httpresponseoptionsbuilderapiversioningextensions): it resolves the destination and supplies its mapped query/segment version. Manual query-style links to versioned targets need an accepted `api-version` value; neutral/unversioned targets do not. `TRLS023` warns on bare `CreatedAtRoute` / `CreatedAtAction` / `WithLocation` calls inside `[ApiVersion]` controllers and offers a code fix that appends `.WithVersionedRoute()`. |
 | `CreatedAtRoute(string routeName, Func<TDomain, object> idSelector, string idRouteKey = "id")` | `HttpResponseOptionsBuilder<TDomain>` | Convenience overload for the common single-id route. Constructs a `RouteValueDictionary` with `[idRouteKey] = idSelector(value)` and chains the multi-key overload. |
-| `WithLocation(string routeName, Func<TDomain, RouteValueDictionary> routeValues)` | `HttpResponseOptionsBuilder<TDomain>` | Adds a relative `Location` path to the response **without** changing the status code (typically 200 OK). Generated via `LinkGenerator.GetPathByName`. RFC 9110 §10.2.2 permits `Location` on any 2xx response that identifies a related resource — use this on state-transition endpoints that mutate an existing resource (e.g., `POST /orders/{id}/return` returning 200 OK). For new-resource creation use `CreatedAtRoute` / `CreatedAtAction` instead. Applies to `Result<T>` responses (`ToHttpResponse`) only; it has no effect on `Result<WriteOutcome<T>>`, which uses its own outcome-specific Location behavior. Same versioning trap as `CreatedAtRoute` — chain `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` under query/header versioning. |
+| `WithLocation(string routeName, Func<TDomain, RouteValueDictionary> routeValues)` | `HttpResponseOptionsBuilder<TDomain>` | Adds a relative `Location` via `LinkGenerator.GetPathByName` **without** changing the status (typically 200 for `Result<T>`). Also supplies a fallback for `WriteOutcome.Created` when its Location is null, empty, or whitespace; that outcome remains 201. Nonblank outcome locations win, and other outcome variants are unchanged. Chain `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` for versioned destinations. |
 | `WithLocation(string routeName, Func<TDomain, object> idSelector, string idRouteKey = "id")` | `HttpResponseOptionsBuilder<TDomain>` | Single-id convenience overload for `WithLocation`. |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] CreatedAtAction(string actionName, Func<TDomain, RouteValueDictionary> routeValues, string? controllerName = null)` | `HttpResponseOptionsBuilder<TDomain>` | MVC equivalent of `CreatedAtAction` — emits a relative `Location` path via `LinkGenerator.GetPathByAction`. **Not trim/AOT-safe**; use `CreatedAtRoute` for AOT scenarios. Under query/header API versioning, it has the same `api-version` route-value requirement as `CreatedAtRoute`; chain `.WithVersionedRoute()` from `Trellis.Asp.ApiVersioning` to inject it automatically. |
 | `WithRouteValueResolver(string key, Func<HttpContext, string?> resolver)` | `HttpResponseOptionsBuilder<TDomain>` | Registers a per-request route-value callback after the domain `routeValues` selector and before `WithLocationRouteResolver`. Returning `null` skips injection and preserves an existing entry. Useful for tenant id, request culture, etc. Writes do not mutate a shared selector dictionary. All these callbacks run before the destination-aware callback, regardless of fluent configuration order. |
@@ -217,7 +285,12 @@ Namespace: `Trellis.Asp`. Constructed internally by the response builder; there 
 
 Only one destination-aware callback is stored. Repeated `WithLocationRouteResolver` calls replace it; `WithVersionedRoute()` and `WithVersionedRoute(ApiVersion)` use that same slot, so the last registration wins across those methods too. Configure a custom callback deliberately rather than assuming it composes with version injection.
 
-The hook does not change response statuses: `CreatedAtRoute` / `CreatedAtAction` remain 201 and `WithLocation` retains the normal 2xx response. It does not rewrite `Created(string locationLiteral)`, `Created(Func<TDomain, string> selector)`, or `WriteOutcome` Location/monitor URIs. Named-route generation remains AOT-compatible; `CreatedAtAction` retains `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`. No service registration or composition-root builder slot is introduced.
+The hook runs for route/action fallbacks on `WriteOutcome.Created` as well as ordinary
+`Result<T>` locations. Outcome status is authoritative, so even `WithLocation` retains 201
+on Created. It does not rewrite literal/selector `Created(...)` locations, nonblank outcome
+locations, or Accepted monitor URIs. Named routes remain AOT-compatible; `CreatedAtAction`
+retains `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`. No new registration or builder
+slot is needed.
 
 For destination resolution, mapped-version validation, segment parameters, and migration behavior of `WithVersionedRoute`, see [Trellis.Asp.ApiVersioning](trellis-api-asp-apiversioning.md#behavioral-notes).
 
@@ -304,6 +377,7 @@ Configuration registered via `AddTrellisAsp(...)` that maps domain `Error` types
 | Name | Type | Description |
 | --- | --- | --- |
 | `SystemDefault` | `static TrellisAspOptions` (internal) | Read-only default instance used when DI cannot resolve a configured `TrellisAspOptions` (e.g. the host did not call `AddTrellisAsp`). Internal — not callable from user code. Hosts customize the mappings by passing a configure delegate to `AddTrellisAsp(o => o.MapError<...>(...))`; raw `AddSingleton(new TrellisAspOptions())` is unsupported and will be replaced by the bridge factory the next time `AddTrellisAsp` runs. |
+| `PageUrlRouteResolver` | `Func<PageUrlRouteContext, Endpoint>?` | Host-local pagination policy. Selects a candidate or the matching link-enabled active endpoint and may enrich cloned route values. Null means unversioned named routing. Per-builder policies override it. Configure through `AddTrellisAsp` / `UseAsp`; the optional versioning package supplies `UseVersionedPageUrls`. |
 | `FailFastOnSilentVersionInjection` | `bool` | When `true`, every `.WithVersionedRoute()` (or pinned overload) call that would silently skip `api-version` injection because the target endpoint has no `ApiVersionMetadata` throws `InvalidOperationException` instead of logging a single warning per endpoint. Defaults to `false` (warn-once-per-(endpoint, AppDomain) via the `Trellis.Asp.ApiVersioning` `ILogger` category). Intended for non-Production environments to surface mid-migration regressions where `AddApiVersioning(...)` was removed but `.WithVersionedRoute()` chains remain. |
 | `ProblemContentLanguage` | `string?` | The language tag emitted as `Content-Language` on problem responses, or `null` (the default) to emit none. Every problem response ships prose in `title` and `detail`; setting this declares what language that prose is in. The default is deliberately unset because `detail` is frequently application-supplied, so the framework cannot know its language and would otherwise assert something it has not checked. This is a single static value, not server-side negotiation: nothing reads `Accept-Language`, and no `Vary` header is emitted, because the response genuinely does not vary by it. It composes with rather than competes against reason codes and args — `detail` is negotiated prose where negotiation exists, while codes and args let the *client* hold the catalog, which is the only option when the server has no translations at all. |
 | `SynthesizeProblemDetailsInstanceFromResourceRef` | `bool` | When `true` (the default), `ResponseFailureWriter` populates `ProblemDetails.Instance` from the failing `ResourceRef` (`/{collectionName}/{id}`) when the request URL does not already identify the resource, and preserves the original request URL under `Extensions["request"]`. Applies to `NotFound`, `Gone`, `Conflict`, `Forbidden`, `InvariantViolation`, and `TransportFault(HttpError.PreconditionFailed)`. Set to `false` to retain the historical request-URL-only `Instance`. Collection name defaults to `{Type.ToLowerInvariant()}s`; override via `[ResourceCollectionName(name)]` on the aggregate or `services.AddResourceCollectionName<T>(name)`. |
@@ -366,7 +440,7 @@ Codes Trellis did not choose are never rewritten — an `Error.TransportFault` p
 
 > **Breaking change.** Every error without an explicit reason now emits `error.unspecified` where it previously emitted its kind slug. This includes `InvalidInput` and `Aggregate` — whose codes live per-violation and per-child, not at the root — and `NotFound`, `Gone`, `RateLimited`, `AuthenticationRequired`, and `Unavailable` constructed without a `Code`. Clients branching on `code` for these cases must branch on `kind` (or `status`) instead — which is what those members were always for.
 
-> **Naming the reason.** Every error case carries an inherited `Code` (see [`Error` cases](trellis-api-core.md#concrete-error-cases)), so `error.unspecified` on a response means the producer named no reason — not that the case is incapable of carrying one. `new Error.NotFound(ResourceRef.For<Account>(id)) { Code = "account.not-found" }` puts `account.not-found` on the wire, which is what lets a client tell "no such row" from "withheld from you" without parsing `detail`.
+> **Naming the reason.** Every error case carries an inherited `Code` (see [`Error` cases](trellis-api-core.md#concrete-error-cases)), so `error.unspecified` means the producer named no reason. `new Error.NotFound(ResourceRef.For<Account>(id)) { Code = "account.not-found" }` emits that application reason verbatim. For sensitive resources, configure [`HideExistence`](trellis-api-mediator.md#resourceauthorizationoptions) so missing and withheld outcomes share the same public code, detail, and resource metadata; do not restore private distinctions in response customization.
 
 #### Reading the reason from a response
 
@@ -1632,7 +1706,7 @@ public static class ValidationErrorsContext
 
 - **One verb, every shape.** `ToHttpResponse` is the only supported response mapper. The generic result types it constructs (`TrellisHttpResult<TDomain, TBody>`, `TrellisWriteOutcomeResult<TDomain, TBody>`, and the paged success wrapper) implement `IResult`. Beyond that the two differ, and OpenAPI/ApiExplorer output differs with them:
   - `TrellisHttpResult<TDomain, TBody>` also implements `IStatusCodeHttpResult`, `IValueHttpResult`, `IValueHttpResult<TBody>`, `IContentTypeHttpResult` and `IEndpointMetadataProvider`. It emits `200`, `201`, `304`, `400`, `404`, `412`, `500` metadata — or, for the `Result<Unit>`/no-body shape, `204`, `400`, `404`, `500`.
-  - `TrellisWriteOutcomeResult<TDomain, TBody>` implements only `IStatusCodeHttpResult` and `IEndpointMetadataProvider` — **not** `IValueHttpResult<T>` or `IContentTypeHttpResult`. It emits `200`, `201`, `204`, `202`, `400`, `412` metadata.
+  - `TrellisWriteOutcomeResult<TDomain, TBody>` implements only `IStatusCodeHttpResult` and `IEndpointMetadataProvider` — **not** `IValueHttpResult<T>` or `IContentTypeHttpResult`. It emits `200`, `201`, `204`, `202`, `400`, `412`, `500` metadata, including configured-location failures.
   
   Standalone `Error.ToHttpResponse(...)` uses `TrellisErrorOnlyResult`, an `IResult` failure writer. Layer your own `[ProducesResponseType]` / `Produces<T>` on top.
 - **Failures use Problem Details.** A failure runs through `ResponseFailureWriter` (internal). `Error.InvalidInput` with field violations uses `Results.ValidationProblem(...)`; everything else uses `Results.Problem(...)`. The `errors` dictionary keys are the violation `Field.Path` translated from RFC 6901 JSON Pointer to ASP.NET Core MVC dot+bracket convention, and the RFC 6901 pointers are preserved losslessly beside that map — per field under the top-level `fieldViolations` array's `location` member, and per rule under the `ruleViolations` array's `locations[]` entries (populated via `ProblemDetails.Extensions["fieldViolations"]` / `["ruleViolations"]`). Companion headers are emitted automatically: `Allow` for `Error.TransportFault(new HttpError.MethodNotAllowed(...))`, `Content-Range: {Unit} */{CompleteLength}` for `Error.TransportFault(new HttpError.RangeNotSatisfiable(...))`, `Retry-After` from `RetryAdvice` on `Error.RateLimited` / `Error.Unavailable`, and `WWW-Authenticate` from `Error.AuthenticationRequired.Scheme` or the registered `IAuthenticationSchemeProvider` fallback when the resolved status is `401`. For `Error.TransportFault`, the top-level Problem Details extension members `code` and `kind` come from the wrapped `HttpError`, not the outer `transport-fault` envelope. Every failure response carries top-level `code` and `kind` (RFC 9457 §3.2 extension members, populated via `ProblemDetails.Extensions["code"]` / `["kind"]` and serialized at the JSON root, not nested under an `extensions` object); `Error.Unexpected` adds top-level `faultId` when set; rule violations are surfaced under the top-level `ruleViolations` array; `Error.Aggregate` adds top-level `problems`; every response also carries top-level `instance`. For `5xx` responses the public `detail` is always `"An internal error occurred."`, and the same redaction is applied per child inside `Error.Aggregate`'s top-level `problems` array — a child whose own mapped status is `5xx` reports the redacted detail even when the envelope status is not.
@@ -1714,8 +1788,15 @@ app.MapPost("/widgets", async (CreateWidget cmd, IWidgetWriter writer, Cancellat
 });
 ```
 
-> [!WARNING]
-> Do **not** reach for `CreatedAtRoute(...)` / `CreatedAtAction(...)` on a `Result<WriteOutcome<T>>`. `HttpResponseOptionsBuilder<TDomain>` is shared by both response paths, so the call compiles — but only `TrellisHttpResult<TDomain, TBody>` (the `Result<T>` path) consumes it. `TrellisWriteOutcomeResult<TDomain, TBody>` calls `Results.Created(created.Location, …)`, taking the `Location` header **exclusively** from `WriteOutcome<T>.Created.Location`. On a `WriteOutcome` the builder call is silently inert: no error, no warning, and the `Location` you configured is simply absent. Set the location on the `WriteOutcome.Created` your domain returns instead.
+> [!NOTE]
+> `WriteOutcome.Created(value)` leaves Location generation at the HTTP boundary. A nonblank
+> outcome Location wins; null, empty, or whitespace falls back to the builder's `Created`,
+> `CreatedAtRoute`, `CreatedAtAction`, or `WithLocation`. Without either source, Created emits
+> 201 without a Location header. Builder status flags never change the outcome's status.
+> Route/action fallbacks run the usual route-value and destination-aware callbacks, including
+> `WithVersionedRoute()`. An unresolved configured fallback emits
+> `FaultCodes.ResponseLocationUnresolved` (500 by default); callback exceptions propagate.
+> Other outcome variants and Accepted monitor URIs do not use these fallbacks.
 
 ### Parse pagination input and return `Result<Page<T>>`
 

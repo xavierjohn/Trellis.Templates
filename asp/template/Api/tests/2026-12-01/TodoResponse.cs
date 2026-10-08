@@ -1,4 +1,4 @@
-﻿#if (!NoApiVersioning)
+﻿#if (UseApiVersioning)
 namespace Api.Tests._2026_12_01;
 #else
 namespace Api.Tests;

@@ -1,7 +1,13 @@
-# Agent instructions — Trellis.Templates
+﻿# Agent instructions — Trellis.Templates
 
 This repository holds the official Trellis project templates **and** the contract that keeps them at parity.
 Read this before editing.
+
+Template conditions use positive `UseApiVersioning`, `UseOtlp`, and `UseAzureMonitor` symbols.
+The repository-root `Directory.Build.targets` defines them for source builds so versioned APIs
+and both exporters remain covered. That file is not packed; generated apps follow `--api-versioning`
+(false by default) and `--telemetry-exporters` (`otlp` by default, or `azure-monitor` / `both`).
+Keep native template condition parentheses, for example `#if (UseOtlp)`.
 
 ## Layout
 

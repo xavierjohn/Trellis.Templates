@@ -1,4 +1,4 @@
-# Manual publish of a template package to this account's GitHub Packages NuGet feed (alpha channel).
+﻿# Manual publish of a template package to this account's GitHub Packages NuGet feed (alpha channel).
 #
 # Uses the built-in GITHUB_TOKEN (no stored secret). The version is the Nerdbank.GitVersioning stamp
 # (a prerelease, unique per commit). This is the internal/alpha channel; for the public, stable
@@ -43,7 +43,7 @@ jobs:
             echo "slnx=TrellisAspTemplate.slnx" >> "$GITHUB_OUTPUT"
             echo "test=true" >> "$GITHUB_OUTPUT"
           else
-            echo "slnx=ProjectTrackerTemplate.slnx" >> "$GITHUB_OUTPUT"
+            echo "slnx=ProjectTracker.slnx" >> "$GITHUB_OUTPUT"
             echo "test=false" >> "$GITHUB_OUTPUT"
           fi
 

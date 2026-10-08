@@ -13,7 +13,7 @@ namespace Eventing.Tests;
 // team directory — proving outbox -> broker -> inbox -> read-model projection -> read port end to end.
 public sealed class MemberInvitedEventingTests : IAsyncDisposable
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private const string VersionQuery = "?api-version=2026-03-26";
 #else
     private const string VersionQuery = "";

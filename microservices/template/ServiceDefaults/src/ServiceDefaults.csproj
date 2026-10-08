@@ -16,15 +16,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Asp.Versioning.Http" />
     <!--#endif-->
-    <!--#if (!NoAzureMonitor)-->
+    <!--#if (UseAzureMonitor)-->
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
     <!--#endif-->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" />
-    <!--#if (!NoOtlp)-->
+    <!--#if (UseOtlp)-->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <!--#endif-->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
@@ -33,7 +33,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
     <PackageReference Include="Trellis.ServiceLevelIndicators" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!--#endif-->
     <PackageReference Include="Trellis.ResourceNaming.Azure" />

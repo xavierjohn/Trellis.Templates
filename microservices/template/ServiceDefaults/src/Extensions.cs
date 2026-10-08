@@ -5,13 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
 using Asp.Versioning;
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 #endif
-#if (!NoOtlp)
+#if (UseOtlp)
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 #endif
@@ -119,7 +119,7 @@ public static class Extensions
                 if (!string.IsNullOrEmpty(tenantId))
                     context.SetCustomerResourceId($"tenant://{tenantId}");
             })
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
             .AddApiVersion()
 #endif
             ;
@@ -129,7 +129,7 @@ public static class Extensions
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-#if (!NoOtlp)
+#if (UseOtlp)
         var endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
@@ -147,7 +147,7 @@ public static class Extensions
         }
 
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
         var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
         if (!string.IsNullOrWhiteSpace(connectionString))
             builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.ConnectionString = connectionString);
@@ -174,7 +174,7 @@ public static class Extensions
             // Tag the health endpoints API-version-neutral so they answer without ?api-version and
             // surface as "Neutral" (not "Unspecified") in the SLI / OpenTelemetry version dimension.
             app.MapHealthChecks("/health")
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
 #else
                 ;
@@ -184,7 +184,7 @@ public static class Extensions
             {
                 Predicate = r => r.Tags.Contains("live"),
             })
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
                 .WithMetadata(new ApiVersionNeutralAttribute());
 #else
                 ;

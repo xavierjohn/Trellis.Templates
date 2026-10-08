@@ -1,4 +1,4 @@
-﻿#if (!NoApiVersioning)
+﻿#if (UseApiVersioning)
 namespace Api.Tests._2026_12_01;
 #else
 namespace Api.Tests;
@@ -7,6 +7,7 @@ namespace Api.Tests;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Trellis.Testing;
 using Trellis.Testing.AspNetCore;
@@ -15,7 +16,7 @@ using Trellis.Testing.AspNetCore;
 public class TodosControllerTests
 {
     private readonly TestWebApplicationFactoryFixture _factory;
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private const string VersionParam = "api-version=2026-12-01";
     private const string VersionQuery = "?" + VersionParam;
     private const string VersionFilter = "&" + VersionParam;
@@ -78,7 +79,7 @@ public class TodosControllerTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         // The Location header must round-trip the requested api-version so the follow-up GET
         // dereferences correctly. CreatedAtVersionedRoute (Trellis.Asp.ApiVersioning) injects
         // this automatically — without it the URL would 404 under query-string versioning.
@@ -508,15 +509,19 @@ public class TodosControllerTests
         firstPage.Next.Should().NotBeNull();
         firstPage.Next!.Cursor.Should().NotBeNullOrEmpty();
         firstPage.Next.Href.Should().Contain("cursor=");
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         firstPage.Next.Href.Should().Contain(VersionParam, "PageUrl must inject the api-version so the next-page link resolves under query-string versioning");
 #else
         firstPage.Next.Href.Should().NotContain("api-version");
 #endif
 
-        var secondPage = await client.GetFromJsonAsync<PagedTodoResponse>(
-            firstPage.Next.Href,
-            TestContext.Current.CancellationToken);
+        var secondResponse = await client.GetAsync(firstPage.Next.Href, TestContext.Current.CancellationToken);
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondJson = await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var secondDocument = JsonDocument.Parse(secondJson);
+        secondDocument.RootElement.GetProperty("items")[0].GetProperty("isOverdue").GetBoolean().Should().BeTrue(
+            "following the pagination link must retain the current response shape");
+        var secondPage = await secondResponse.Content.ReadFromJsonAsync<PagedTodoResponse>(TestContext.Current.CancellationToken);
         secondPage.Should().NotBeNull();
         secondPage!.Items.Should().HaveCount(1);
         secondPage.Items[0].Id.Should().NotBe(firstPage.Items[0].Id);

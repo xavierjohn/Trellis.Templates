@@ -27,8 +27,6 @@ signing keys are Development-only; production must use an external issuer and pe
 
 **Reference docs are authoritative.** If anything in this file conflicts with one of the AgentDocs-managed `trellis-*.md` files, the reference file wins — AgentDocs installs those version-aligned files from the restored, approved framework and microservices packages. This file is curated guidance that can drift. Please file any contradiction as feedback.
 
-**Known erratum — Trellis 3.0.0-alpha.542, cookbook Recipe 23:** its claim that guarded transitions can omit precondition checking is incorrect. Follow this guide's supplied `If-Match` rule below: the header may be optional, but `OptionalETag` must enforce it when present. This narrow HTTP-policy correction overrides that recipe's contrary wording, not the authoritative API signatures. Keep managed package references unchanged until a corrected framework package is published and synced.
-
 | When working on... | Read first |
 |---|---|
 | **Anything — start here.** Task routing, recipes, preflight, inherited surface | `.agentdocs/packages/trellis.core/trellis/trellis-start-here.md` |
@@ -197,14 +195,8 @@ public sealed record InviteMemberCommand : ICommand<Result<Member>>, IAuthorize
     }
 
     public static Result<InviteMemberCommand> TryCreate(EmailAddress? email, Role? role) =>
-        email.ToResult(Error.InvalidInput.ForField(
-            code: "required",
-            field: "email",
-            detail: "Email is required."))
-            .Combine(role.ToResult(Error.InvalidInput.ForField(
-                code: "required",
-                field: "role",
-                detail: "Role is required.")))
+        Result.EnsureNotNull(email, nameof(email), "Email is required.")
+            .Combine(Result.EnsureNotNull(role, nameof(role), "Role is required."))
             .Map((validEmail, validRole) => new InviteMemberCommand(validEmail, validRole));
 }
 
@@ -445,18 +437,9 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
     }
 
     public static Result<UpdateProjectCommand> TryCreate(ProjectId? id, ProjectTitle? title, ProjectDescription? description, EntityTagValue[]? ifMatchETags) =>
-        id.ToResult(Error.InvalidInput.ForField(
-            code: "required",
-            field: "id",
-            detail: "Project id is required."))
-            .Combine(title.ToResult(Error.InvalidInput.ForField(
-                code: "required",
-                field: "title",
-                detail: "Title is required.")))
-            .Combine(description.ToResult(Error.InvalidInput.ForField(
-                code: "required",
-                field: "description",
-                detail: "Description is required.")))
+        Result.EnsureNotNull(id, nameof(id), "Project id is required.")
+            .Combine(Result.EnsureNotNull(title, nameof(title), "Title is required."))
+            .Combine(Result.EnsureNotNull(description, nameof(description), "Description is required."))
             .Map((validId, validTitle, validDescription) => new UpdateProjectCommand(validId, validTitle, validDescription, ifMatchETags));
 
     public ProjectId GetResourceId() => Id;
@@ -492,6 +475,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 
 - **Rule:** When `apiVersioning` is enabled, 🔴 MUST bind each endpoint group to an `ApiVersionSet` (`NewApiVersionSet(...).HasApiVersion(...).Build()`) and `MapToApiVersion(...)` on the group, and on any `CreatedAtRoute`/`WithLocation` chain include the version by calling `.WithVersionedRoute()`. Omitting it produces `Location` headers that drop `api-version` and 404 on dereference (analyzer `TRLS023`).
 - **Rationale:** Query-string API versioning means a generated `Location` without the version points at a route that cannot be resolved; `WithVersionedRoute()` injects the active version automatically.
+- **Pagination links:** Both profiles use `HttpContext.PageUrl(...)` from `Trellis.Asp`. Versioned hosts MUST configure `.UseAsp(asp => asp.UseVersionedPageUrls())` with `using Trellis.Asp.ApiVersioning;`; `AddApiVersioning()` alone does not enable the pagination policy. Unversioned hosts keep `.UseAsp()` without optional versioning dependencies. Follow the generated next-page URL in tests.
 - **Correct:** `.CreatedAtRoute("Members_GetById", m => m.Id).WithVersionedRoute()` — see `Members/Api/src/MemberEndpoints.cs`.
 - **Incorrect:** `.CreatedAtRoute("Members_GetById", m => m.Id)` with no `.WithVersionedRoute()` under query-string versioning.
 - **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-asp-apiversioning.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-analyzers.md` (TRLS023).
@@ -522,7 +506,7 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Scenario | Use | Not |
 |---|---|---|
 | Command construction (required fields **and** cross-field rules) | Private ctor + static `TryCreate(...)` returning `Result<T>` — for **every** command; the endpoint does `XyzCommand.TryCreate(...).BindAsync(command => mediator.Send(command, ct))` | `new XyzCommand(...)` at the call site; a public ctor that admits a null/`default` field |
-| Required nullable fields | `value.ToResult(error)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
+| Required nullable fields | `Result.EnsureNotNull(value, fieldName, detail)`, `Combine` for independent fields, then `Map` using the validated values (TRLS066) | Nullable `value.ToResult(error)` (removed); `Result.Ensure(value is not null, error)` followed by `value!`; keep `Result.Ensure` for boolean guards |
 | Static permission gate | `IAuthorize` + `Permissions.*` constant | Handler-side permission `if` |
 | Per-resource ownership/tenant check | `IAuthorizeResource<T>` + `IIdentifyResource<T, TId>` + loader | Handler-side ownership checks |
 | Shared loader by id | `SharedResourceLoaderById<T, TId>` | Repeating per-command loader code |
@@ -530,6 +514,8 @@ public sealed record UpdateProjectCommand : ICommand<Result<Project>>, IAuthoriz
 | Hide existence of a sensitive resource | API root's `UseResourceAuthorization(o => o.HideExistence<T>())` (404 on cross-tenant) | Leaking 403 that confirms existence |
 | Required `If-Match` on body-overwriting mutation | `.RequireETag(command.IfMatchETags)` | Omitting it (lost-update race) |
 | Body-less state-transition POST | `.OptionalETag(command.IfMatchETags)` before mutation: no header proceeds, supplied mismatch returns `412` | Ignoring a supplied header; requiring one unless the endpoint contract demands it |
+
+Use the field/detail null-guard form for required fields unless a custom code is needed. The sample command factories emit standard `ValidationCodes.ValueNotNull` (`"value.not-null"`) codes and create errors only for missing inputs. `Maybe<T>.ToResult(...)` and its async forms remain supported for optional repository results.
 
 ### Handler and endpoint decisions
 

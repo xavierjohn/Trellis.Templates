@@ -1,4 +1,4 @@
-# Trellis Template Capability-Parity Manifest
+﻿# Trellis Template Capability-Parity Manifest
 # Single source of truth for the cross-cutting capabilities every Trellis template MUST implement.
 # CI instantiates each template (dotnet new), builds it, optionally boots it, and asserts each
 # required capability's checks. A missing/failed capability fails the build — drift is caught by CI,
@@ -41,11 +41,18 @@ capabilities:
     requiredFor: [asp, microservices]
     when: { apiVersioning: "false" }
     checks:
-      - { kind: source-not-contains, glob: "**/src/**/*.cs", pattern: "using Asp\\.Versioning|using Trellis\\.Asp\\.ApiVersioning|AddApiVersioning\\(|\\.WithVersionedRoute\\(|\\.AddApiVersion\\(" }
+      - { kind: source-not-contains, glob: "**/src/**/*.cs", pattern: "using Asp\\.Versioning|using Trellis\\.Asp\\.ApiVersioning|AddApiVersioning\\(|\\.WithVersionedRoute\\(|\\.AddApiVersion\\(|UseVersionedPageUrls\\(" }
       - { kind: package-not-referenced, package: "Trellis.Asp.ApiVersioning" }
       - { kind: package-not-referenced, package: "Trellis.ServiceLevelIndicators.Asp.ApiVersioning" }
       - { kind: package-not-referenced, package: "Asp.Versioning.OpenApi" }
       - { kind: files-absent, glob: "Api/src/2026-*/**" }
+
+  pagination:
+    title: Common named-route pagination links
+    requiredFor: [asp, microservices]
+    checks:
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "nextUrlBuilder:\\s+(?:HttpContext|http)\\.PageUrl\\(", desc: "both profiles use the common pagination builder" }
+      - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "\\.UseAsp\\(asp => asp\\.UseVersionedPageUrls\\(\\)\\)", when: { apiVersioning: "true" }, desc: "versioned hosts explicitly enable the pagination policy" }
 
   database-selection:
     title: Selected database provider
@@ -224,6 +231,7 @@ capabilities:
       - { kind: source-contains, glob: "**/.agentdocs/README.md", pattern: "Required reading by project", desc: "project-aware guidance index is shipped" }
       - { kind: source-contains, glob: "**/.agentdocs/packages/trellis.core/trellis/trellis-start-here.md", pattern: "Trellis.*start here", desc: "framework router is installed in the canonical AgentDocs package location" }
       - { kind: source-contains, glob: "**/.agentdocs/agent-context.json", pattern: "\"Graph\"", desc: "managed context records the restored graph" }
+      - { kind: source-contains, glob: "**/.agentdocs/agent-context.json", pattern: "\"EntryPoints\"", desc: "managed context records solution entrypoints" }
       - { kind: source-contains, glob: "AGENTS.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "canonical agent guide has a managed index pointer" }
       - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "(?s)<!-- agentdocs:start -->.*\\.agentdocs/README\\.md.*<!-- agentdocs:end -->", desc: "Copilot has a managed index pointer" }
 

@@ -12,7 +12,7 @@ namespace Members.Api.Tests;
 // pipeline against in-memory SQLite.
 public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersApiFactory>
 {
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
     private const string Version = "2026-03-26";
     private const string VersionQuery = "?api-version=" + Version;
 #else
@@ -66,7 +66,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
-#if (!NoApiVersioning)
+#if (UseApiVersioning)
         response.Headers.Location!.OriginalString.Should().Contain($"api-version={Version}", "WithVersionedRoute must inject the api-version so the created resource's Location resolves");
 #else
         response.Headers.Location!.OriginalString.Should().NotContain("api-version");

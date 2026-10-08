@@ -1,4 +1,4 @@
-services:
+﻿services:
   gateway:
     build:
       context: .
@@ -18,11 +18,11 @@ services:
       Authentication__Authority: ${AUTHORITY:?Set the HTTPS OIDC issuer}
       Authentication__Audience: ${AUDIENCE:?Set the API audience}
 #endif
-#if (!NoOtlp)
+#if (UseOtlp)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 #endif
       services__projects__http__0: http://projects:8080
@@ -51,11 +51,11 @@ services:
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
       AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
-#if (!NoOtlp)
+#if (UseOtlp)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 #endif
 
@@ -70,10 +70,10 @@ services:
       Gateway__Issuer: ${GATEWAY_ISSUER:?Set the HTTPS public gateway URL}
       ConnectionStrings__projectsdb: ${PROJECTS_DATABASE_CONNECTION_STRING:?Set the selected provider connection string}
       ConnectionStrings__messaging: ${SERVICEBUS_CONNECTION_STRING:?Set the Service Bus connection string}
-#if (!NoOtlp)
+#if (UseOtlp)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 #endif

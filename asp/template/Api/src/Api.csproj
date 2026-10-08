@@ -3,22 +3,22 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Asp.Versioning.OpenApi" />
     <!--#endif-->
     <PackageReference Include="Azure.Identity" />
-    <!--#if (!NoAzureMonitor)-->
+    <!--#if (UseAzureMonitor)-->
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
     <!--#endif-->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Trellis.Asp" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.Asp.ApiVersioning" />
     <!--#endif-->
     <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
     <PackageReference Include="Trellis.ServiceDefaults" />
-    <!--#if (!NoOtlp)-->
+    <!--#if (UseOtlp)-->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <!--#endif-->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
@@ -26,7 +26,7 @@
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp" />
-    <!--#if (!NoApiVersioning)-->
+    <!--#if (UseApiVersioning)-->
     <PackageReference Include="Trellis.ServiceLevelIndicators.Asp.ApiVersioning" />
     <!--#endif-->
   </ItemGroup>

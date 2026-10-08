@@ -1,4 +1,4 @@
-# Build gate for both templates.
+﻿# Build gate for both templates.
 #
 # For each template: build + test the scaffolded content, pack the template, then install the
 # pack, instantiate it, and build the generated solution end-to-end. This catches the
@@ -31,7 +31,7 @@ jobs:
             short: trellis-asp
             runTests: true
           - template: microservices
-            slnx: ProjectTrackerTemplate.slnx
+            slnx: ProjectTracker.slnx
             short: trellis-microservices
             runTests: true
     defaults:
