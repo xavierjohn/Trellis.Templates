@@ -118,8 +118,8 @@
     "UsePostgres": { "type": "computed", "value": "database == \"postgres\"" },
     "UseSqlServer": { "type": "computed", "value": "database == \"sqlserver\"" },
     "UseEntra": { "type": "computed", "value": "auth == \"entra\"" },
-    "NoOtlp": { "type": "computed", "value": "telemetryExporters == \"azure-monitor\"" },
-    "NoAzureMonitor": { "type": "computed", "value": "telemetryExporters == \"otlp\"" },
+    "UseOtlp": { "type": "computed", "value": "telemetryExporters == \"otlp\" || telemetryExporters == \"both\"" },
+    "UseAzureMonitor": { "type": "computed", "value": "telemetryExporters == \"azure-monitor\" || telemetryExporters == \"both\"" },
     "AzureDeployment": { "type": "computed", "value": "deployment == \"azure\"" },
     "httpApiVersionQuery": {
       "type": "generated",

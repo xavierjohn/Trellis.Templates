@@ -4,7 +4,7 @@
 using Asp.Versioning;
 using Asp.Versioning.Conventions;
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 #endif
 using Microsoft.Extensions.Configuration;
@@ -13,7 +13,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Logs;
-#if (!NoOtlp)
+#if (UseOtlp)
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 #endif
@@ -131,7 +131,7 @@ internal static class DependencyInjection
             options.SetResourceBuilder(resourceBuilder);
         }));
 
-#if (!NoOtlp)
+#if (UseOtlp)
         var endpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
@@ -149,7 +149,7 @@ internal static class DependencyInjection
         }
 #endif
 
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
         var connectionString = configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
         if (!string.IsNullOrWhiteSpace(connectionString))
             telemetry.UseAzureMonitor(options => options.ConnectionString = connectionString);

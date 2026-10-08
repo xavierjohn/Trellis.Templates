@@ -1,4 +1,4 @@
-services:
+﻿services:
   api:
     build: .
     ports:
@@ -22,11 +22,11 @@ services:
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
       AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
-#if (!NoOtlp)
+#if (UseOtlp)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 #endif
 #if (!UsePostgres && !UseSqlServer)

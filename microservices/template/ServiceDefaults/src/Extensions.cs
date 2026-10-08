@@ -8,10 +8,10 @@ using Microsoft.Extensions.Configuration;
 #if (UseApiVersioning)
 using Asp.Versioning;
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 #endif
-#if (!NoOtlp)
+#if (UseOtlp)
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 #endif
@@ -129,7 +129,7 @@ public static class Extensions
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-#if (!NoOtlp)
+#if (UseOtlp)
         var endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
@@ -147,7 +147,7 @@ public static class Extensions
         }
 
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
         var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
         if (!string.IsNullOrWhiteSpace(connectionString))
             builder.Services.AddOpenTelemetry().UseAzureMonitor(options => options.ConnectionString = connectionString);

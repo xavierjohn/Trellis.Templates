@@ -1,22 +1,22 @@
 ﻿#pragma warning disable IDE0047
-#if (!NoOtlp)
+#if (UseOtlp)
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 #endif
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 #endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-#if (!NoOtlp)
+#if (UseOtlp)
 using Microsoft.Extensions.Logging;
 #endif
 using Microsoft.Extensions.Options;
-#if (!NoOtlp)
+#if (UseOtlp)
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -31,7 +31,7 @@ namespace Members.Api.Tests;
 
 public class HostingConfigurationTests
 {
-#if (!NoOtlp)
+#if (UseOtlp)
     private static readonly Action<ILogger, Exception?> LogCompositionTest =
         LoggerMessage.Define(LogLevel.Information, new EventId(1), "Composition test");
 #endif
@@ -67,7 +67,7 @@ public class HostingConfigurationTests
         configure.Should().Throw<InvalidOperationException>().WithMessage("*DeployedEnvironment:Region*");
     }
 
-#if (!NoAzureMonitor)
+#if (UseAzureMonitor)
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -93,7 +93,7 @@ public class HostingConfigurationTests
     }
 
 #endif
-#if (!NoOtlp)
+#if (UseOtlp)
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

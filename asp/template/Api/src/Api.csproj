@@ -7,7 +7,7 @@
     <PackageReference Include="Asp.Versioning.OpenApi" />
     <!--#endif-->
     <PackageReference Include="Azure.Identity" />
-    <!--#if (!NoAzureMonitor)-->
+    <!--#if (UseAzureMonitor)-->
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
     <!--#endif-->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
@@ -18,7 +18,7 @@
     <!--#endif-->
     <PackageReference Include="Trellis.Asp.Idempotency.Cosmos" />
     <PackageReference Include="Trellis.ServiceDefaults" />
-    <!--#if (!NoOtlp)-->
+    <!--#if (UseOtlp)-->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <!--#endif-->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />

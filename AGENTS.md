@@ -3,10 +3,11 @@
 This repository holds the official Trellis project templates **and** the contract that keeps them at parity.
 Read this before editing.
 
-Template conditions use the positive `UseApiVersioning` symbol. The repository-root
-`Directory.Build.targets` defines it for source builds so both versioned branches remain covered.
-That file is not packed; generated apps still follow `--api-versioning`, which defaults to false.
-Keep native template condition parentheses, for example `#if (UseApiVersioning)`.
+Template conditions use positive `UseApiVersioning`, `UseOtlp`, and `UseAzureMonitor` symbols.
+The repository-root `Directory.Build.targets` defines them for source builds so versioned APIs
+and both exporters remain covered. That file is not packed; generated apps follow `--api-versioning`
+(false by default) and `--telemetry-exporters` (`otlp` by default, or `azure-monitor` / `both`).
+Keep native template condition parentheses, for example `#if (UseOtlp)`.
 
 ## Layout
 

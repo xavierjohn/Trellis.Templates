@@ -1,5 +1,5 @@
 ﻿<Project>
   <PropertyGroup Label="Template source">
-    <DefineConstants>$(DefineConstants);UseApiVersioning</DefineConstants>
+    <DefineConstants>$(DefineConstants);UseApiVersioning;UseOtlp;UseAzureMonitor</DefineConstants>
   </PropertyGroup>
 </Project>
