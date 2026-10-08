@@ -17,6 +17,17 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw $Message }
 }
 
+$publishMatrixExpression = '${{ fromJSON(inputs.template == ''both'' && ''["asp", "microservices"]'' || format(''["{0}"]'', inputs.template)) }}'
+foreach ($workflowName in @('publish-templates.yml', 'publish-templates-github.yml')) {
+    $workflow = Get-Content (Join-Path $repository ".github\workflows\$workflowName") -Raw
+    Assert-True ($workflow.Contains('options: [ both, asp, microservices ]')) "'$workflowName' must support publishing both templates in one run."
+    Assert-True ($workflow.Contains('default: both')) "'$workflowName' must select both templates by default."
+    Assert-True ($workflow.Contains($publishMatrixExpression)) "'$workflowName' must expand the selected templates into its publishing matrix."
+    Assert-True ($workflow -match '(?m)^\s+fail-fast:\s+false\s*$') "'$workflowName' must not cancel the other template when one publishing job fails."
+    Assert-True ($workflow.Contains('working-directory: ${{ matrix.template }}')) "'$workflowName' must run in the selected matrix template directory."
+    Assert-True ($workflow.Replace($publishMatrixExpression, '') -notmatch 'inputs\.template') "'$workflowName' must use matrix.template in every per-template publishing step."
+}
+
 $defaults = @{
     apiVersioning = 'false'
     database = $(if ($Template -eq 'asp') { 'sqlite' } else { 'sqlserver' })
