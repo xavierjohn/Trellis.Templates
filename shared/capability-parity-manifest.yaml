@@ -229,6 +229,7 @@ capabilities:
       - { kind: source-not-contains, glob: "AGENTS.md", pattern: "pipeline behaviors are singleton-based|prevents a singleton pipeline", desc: "Trellis behaviors depend on scoped services" }
       - { kind: source-not-contains, glob: "AGENTS.md", pattern: "caches the actor per request in `HttpContext\\.Items`", desc: "actor resolution is cached on the scoped wrapper" }
       - { kind: source-not-contains, glob: "AGENTS.md", pattern: "\\*\\*Incorrect:\\*\\*\\s*```csharp\\s*services\\.AddScoped<IActorProvider\\s*,", desc: "scoped actor registration is not an anti-pattern" }
+      - { kind: source-not-contains, glob: "AGENTS.md", pattern: "Register `AddMediator\\(\\.\\.\\.\\)` before the existing `AddTrellis\\(\\.\\.\\.\\)` composition", when: { template: asp }, desc: "guard guidance must not contradict the template's presentation-first order" }
       - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "\\.\\./AGENTS\\.md", desc: "Copilot delegates to the canonical agent guide" }
       - { kind: source-contains, glob: "**/.config/dotnet-tools.json", pattern: "\"trellis.agentdocs\"", desc: "local AgentDocs tool is pinned" }
       - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Core\"", desc: "framework guidance publisher is approved" }

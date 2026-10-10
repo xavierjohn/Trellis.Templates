@@ -859,7 +859,7 @@ Study these files before replacing the Todo sample.
 
 - **Rule:** 🔴 MUST keep repository interfaces in Application, implementations in Acl, one `DependencyInjection.cs` per layer, `IActorProvider` as scoped in Api, scoped Mediator in Application, and `TimeProvider.System` as a singleton in Application.
 - **Rationale:** Trellis pipeline behaviors are scoped and depend on per-request services; ASP.NET Core does not auto-register `TimeProvider`.
-- Prefer the profile's existing `UseDevelopmentActorProvider()`, `UseClaimsActorProvider()`, or `UseEntraActorProvider()` selection in `AddTrellis`. The corresponding direct `AddXxxActorProvider` helpers also register scoped providers.
+- Prefer the profile's existing `UseDevelopmentActorProvider()`, `UseClaimsActorProvider()`, or `UseEntraActorProvider()` selection in `AddTrellis`. The corresponding direct `AddXxxActorProvider` helpers also register scoped providers. The template uses the builder selection; the direct-helper example below is an alternative, not an additional registration.
 - **Correct (Application):**
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -867,7 +867,7 @@ using Microsoft.Extensions.DependencyInjection;
 services.AddSingleton(TimeProvider.System);
 services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
 ```
-- **Correct (claims-backed Api, when caching is needed):**
+- **Correct (direct-helper alternative for a claims-backed Api, when caching is needed):**
 ```csharp
 using Trellis.Asp.Authorization;
 
@@ -883,7 +883,7 @@ services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Single
 
 > **`CachingActorProvider`:** Use `AddCachingActorProvider<T>()` (or `UseCachingActorProvider<T>()` in the existing builder) when repeated async actor lookups must reuse the same resolution. Configure the matching provider helper first. Both the inner provider and wrapper are scoped; the wrapper stores the inner provider's resolution task on its own instance, not in `HttpContext.Items`. Authorization and handlers must use the same scoped wrapper. Caching does not make a singleton Mediator compatible with scoped dependencies.
 
-> **Mediator lifetime guard:** Register `AddMediator(...)` before the existing `AddTrellis(...)` composition that selects `UseMediator()` (or before a direct `AddTrellisBehaviors()` call). `AddTrellisBehaviors()` rejects an already-registered singleton `IMediator` or `ISender`; it does not detect singleton registrations added afterward.
+> **Mediator lifetime guard:** `AddTrellisBehaviors()` rejects an already-registered singleton `IMediator` or `ISender`; it does not detect singleton registrations added afterward. In this template, `Program.cs` calls `AddPresentation()` before `AddApplication()`. The latter explicitly registers Mediator with `ServiceLifetime.Scoped`, so scoped behavior resolution is safe without relying on the earlier guard.
 
 ### Project layout
 
