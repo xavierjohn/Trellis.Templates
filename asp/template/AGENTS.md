@@ -857,22 +857,33 @@ Study these files before replacing the Todo sample.
 - Enable OTLP only with `OTEL_EXPORTER_OTLP_ENDPOINT`, and Azure Monitor only with
   `APPLICATIONINSIGHTS_CONNECTION_STRING`. Azure profiles include a deployment guide for the matching resources.
 
-- **Rule:** 🔴 MUST keep repository interfaces in Application, implementations in Acl, one `DependencyInjection.cs` per layer, `IActorProvider` as singleton in Api, and `TimeProvider.System` as a singleton in Application.
-- **Rationale:** Trellis pipeline behaviors are singleton-based, and ASP.NET Core does not auto-register `TimeProvider`.
-- **Correct:**
+- **Rule:** 🔴 MUST keep repository interfaces in Application, implementations in Acl, one `DependencyInjection.cs` per layer, `IActorProvider` as scoped in Api, scoped Mediator in Application, and `TimeProvider.System` as a singleton in Application.
+- **Rationale:** Trellis pipeline behaviors are scoped and depend on per-request services; ASP.NET Core does not auto-register `TimeProvider`.
+- Prefer the profile's existing `UseDevelopmentActorProvider()`, `UseClaimsActorProvider()`, or `UseEntraActorProvider()` selection in `AddTrellis`. The corresponding direct `AddXxxActorProvider` helpers also register scoped providers.
+- **Correct (Application):**
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 
 services.AddSingleton(TimeProvider.System);
-services.AddCachingActorProvider<HttpActorProvider>();
+services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
+```
+- **Correct (claims-backed Api, when caching is needed):**
+```csharp
+using Trellis.Asp.Authorization;
+
+services.AddClaimsActorProvider();
+services.AddCachingActorProvider<ClaimsActorProvider>();
 ```
 - **Incorrect:**
 ```csharp
-services.AddScoped<IActorProvider, HttpActorProvider>();
+services.AddSingleton<IActorProvider, ClaimsActorProvider>();
+services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Singleton);
 ```
-- **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-authorization.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-cookbook.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md`.
+- **Reference:** See `.agentdocs/packages/trellis.core/trellis/trellis-api-authorization.md`, `.agentdocs/packages/trellis.core/trellis/trellis-api-asp.md §ServiceCollectionExtensions` and `§CachingActorProvider`, `.agentdocs/packages/trellis.core/trellis/trellis-api-mediator.md §ServiceCollectionExtensions`, `.agentdocs/packages/trellis.core/trellis/trellis-api-servicedefaults.md §TrellisServiceBuilder`, and `.agentdocs/packages/trellis.core/trellis/trellis-api-cookbook.md` Recipe 12.
 
-> **`CachingActorProvider`:** When you need synchronous actor access after the async pipeline resolves it, use `AddCachingActorProvider<T>()`. It caches the actor per request in `HttpContext.Items` and prevents a singleton pipeline from depending on a scoped provider.
+> **`CachingActorProvider`:** Use `AddCachingActorProvider<T>()` (or `UseCachingActorProvider<T>()` in the existing builder) when repeated async actor lookups must reuse the same resolution. Configure the matching provider helper first. Both the inner provider and wrapper are scoped; the wrapper stores the inner provider's resolution task on its own instance, not in `HttpContext.Items`. Authorization and handlers must use the same scoped wrapper. Caching does not make a singleton Mediator compatible with scoped dependencies.
+
+> **Mediator lifetime guard:** Register `AddMediator(...)` before the existing `AddTrellis(...)` composition that selects `UseMediator()` (or before a direct `AddTrellisBehaviors()` call). `AddTrellisBehaviors()` rejects an already-registered singleton `IMediator` or `ISender`; it does not detect singleton registrations added afterward.
 
 ### Project layout
 

@@ -225,6 +225,10 @@ capabilities:
       - { kind: source-contains, glob: "AGENTS.md", pattern: "command and its handler", desc: "canonical agent guide documents command + handler colocation" }
       - { kind: source-contains, glob: "AGENTS.md", pattern: "[Pp]ermission", desc: "canonical agent guide documents permissions-in-Domain" }
       - { kind: source-contains, glob: "AGENTS.md", pattern: "TRLS066", desc: "canonical agent guide documents nullable-field conversion" }
+      - { kind: source-not-contains, glob: "AGENTS.md", pattern: "`IActorProvider` as (?:a )?singleton", desc: "request actor providers are scoped" }
+      - { kind: source-not-contains, glob: "AGENTS.md", pattern: "pipeline behaviors are singleton-based|prevents a singleton pipeline", desc: "Trellis behaviors depend on scoped services" }
+      - { kind: source-not-contains, glob: "AGENTS.md", pattern: "caches the actor per request in `HttpContext\\.Items`", desc: "actor resolution is cached on the scoped wrapper" }
+      - { kind: source-not-contains, glob: "AGENTS.md", pattern: "\\*\\*Incorrect:\\*\\*\\s*```csharp\\s*services\\.AddScoped<IActorProvider\\s*,", desc: "scoped actor registration is not an anti-pattern" }
       - { kind: source-contains, glob: ".github/copilot-instructions.md", pattern: "\\.\\./AGENTS\\.md", desc: "Copilot delegates to the canonical agent guide" }
       - { kind: source-contains, glob: "**/.config/dotnet-tools.json", pattern: "\"trellis.agentdocs\"", desc: "local AgentDocs tool is pinned" }
       - { kind: source-contains, glob: "**/.agentdocs/policy.json", pattern: "\"Trellis.Core\"", desc: "framework guidance publisher is approved" }

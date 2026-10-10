@@ -62,6 +62,10 @@ Unversioned output legitimately drops versioning-package guidance from the raw s
 Generated AgentDocs entrypoints and solution-item references must follow the selected solution name,
 including when the C# namespace is overridden or derived from a name that needs sanitizing.
 
+The guidance gate rejects stale singleton actor/pipeline instructions, the `HttpContext.Items`
+actor-cache claim, and marking scoped actor registration as incorrect. These checks apply only
+to the generated root `AGENTS.md`, leaving deliberate singleton test fixtures alone.
+
 The contract also requires the shipped Trellis composition and ProblemDetails APIs, conditional
 OTLP/Azure Monitor exporters, and durable idempotency outside Development. Cosmos infrastructure
 must use `/scope`, per-item TTL (`defaultTtl: -1`), keyless authentication and container-scoped native
