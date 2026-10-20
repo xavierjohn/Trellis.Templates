@@ -4,6 +4,10 @@ Opted-in write endpoints use Trellis's `Idempotency-Key` middleware. Select the 
 `AddTrellis(options => options.UseIdempotency())`, then register the store separately.
 Vendor stores deliberately have no composition-builder slot.
 
+Clients must send keys as quoted RFC 9651 Strings, for example
+`Idempotency-Key: "11111111-1111-1111-1111-111111111111"`. Bare, unquoted values return `400`.
+Use a unique key for each intended operation and reuse it only when retrying that same request.
+
 Development defaults to `AddInMemoryIdempotencyStore`. Outside Development, both templates default
 to `AddCosmosIdempotencyStore` and explicitly reject an `Idempotency:Store=InMemory` override.
 Unknown stores and incomplete Cosmos settings fail composition; no memory fallback is allowed.

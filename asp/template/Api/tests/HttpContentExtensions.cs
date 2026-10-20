@@ -40,7 +40,7 @@ public static class HttpContentExtensions
         => client.PostJsonWithKeyAsync(url, body, Guid.NewGuid().ToString(), cancellationToken);
 
     /// <summary>
-    /// Issues a JSON POST with a caller-supplied <c>Idempotency-Key</c> header.
+    /// Issues a JSON POST with a caller-supplied key quoted as an RFC 9651 String.
     /// Used by replay tests that intentionally retry with the same key to exercise the
     /// middleware's snapshot/replay path.
     /// </summary>
@@ -51,7 +51,7 @@ public static class HttpContentExtensions
         {
             Content = JsonContent.Create(body),
         };
-        request.Headers.Add("Idempotency-Key", idempotencyKey);
+        request.Headers.Add("Idempotency-Key", $"\"{idempotencyKey}\"");
         return client.SendAsync(request, cancellationToken);
     }
 }

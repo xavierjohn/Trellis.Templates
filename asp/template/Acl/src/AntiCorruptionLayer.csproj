@@ -7,6 +7,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <!--#elseif (UseSqlServer)-->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <!--#else-->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <!--#endif-->

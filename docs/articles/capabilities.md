@@ -26,6 +26,9 @@ Mutating endpoints honor an **`Idempotency-Key`** header: a retried request with
 original result instead of performing the work twice. Network blips and client retries stop being a
 data-integrity problem.
 
+Send the key as a quoted RFC 9651 String, for example `Idempotency-Key: "order-123"`.
+Unquoted keys are rejected with `400 Bad Request`; use a distinct key for each intended operation.
+
 ## Problem Details
 
 Every error is an **RFC 9457 `application/problem+json`** document — a stable, machine-readable shape with a

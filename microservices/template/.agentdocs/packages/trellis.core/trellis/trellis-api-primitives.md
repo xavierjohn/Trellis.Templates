@@ -3,7 +3,7 @@ package: Trellis.Primitives
 namespaces: [Trellis, Trellis.Primitives]
 types: [Age, CountryCode, CurrencyCode, EmailAddress, GeoBoundingBox, GeoBounds, GeoCoordinate, Hostname, IpAddress, LanguageCode, MonetaryAmount, Money, Percentage, PhoneNumber, Slug, Url, WeeklyPeriod, WeeklySchedule, CompositeValueObjectJsonConverter<T>, PrimitiveValueObjectTraceProviderBuilderExtensions]
 version: v3
-last_verified: 2026-10-02
+last_verified: 2026-10-12
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when using ready-made value objects such as EmailAddress, Money or GeoCoordinate, building geographic bounds, or choosing a built-in primitive versus a custom one."
@@ -70,7 +70,7 @@ The Trellis validation attributes are **class-targeted** with **different shapes
 
 **Field-targeted (apply to `public static readonly` members of a `RequiredEnum<TSelf>`-derived value object):**
 
-`Trellis.EnumValueAttribute(string value)` overrides the external symbolic name for a single enum member. Apply it to a `public static readonly TSelf` field whose canonical name should differ from the C# field identifier (e.g., when serializing `Status.InProgress` as `"in-progress"`). Without the attribute, `RequiredEnum<TSelf>` falls back to the field name. **This is the only Trellis primitive attribute that targets `AttributeTargets.Field` and takes a `string` argument** — do not include it in the class-targeted table above.
+`Trellis.EnumValueAttribute(string value)` overrides the external symbolic name for a single enum member. Apply it to a `public static readonly TSelf` field whose canonical name should differ from the C# field identifier (e.g., when serializing `Status.InProgress` <!-- doc-member-ok: Status.InProgress; illustrative consumer-defined smart-enum member --> as `"in-progress"`). Without the attribute, `RequiredEnum<TSelf>` falls back to the field name. **This is the only Trellis primitive attribute that targets `AttributeTargets.Field` and takes a `string` argument** — do not include it in the class-targeted table above.
 
 A property-targeted form like `[StringLength(20, MinimumLength = 3)] public string Value { get; }` produces `CS0592: Attribute is not valid on this declaration type` only if `[StringLength]` resolves to `Trellis.StringLengthAttribute`, which targets `AttributeTargets.Class` only. The DataAnnotations attribute of the same name targets properties/fields/parameters and compiles in those positions, but the Trellis source generator only inspects attributes on the partial class declaration, so a DataAnnotations attribute on a member of a `Required*<TSelf>`-derived class is silently ignored. A DataAnnotations `[StringLength]`/`[Range]` applied to the class itself is a compile error (`CS0592`, or `CS0104` for an unqualified attribute when both namespaces are in scope).
 
@@ -256,13 +256,24 @@ public partial class EmailAddress : ScalarValueObject<EmailAddress, string>, ISc
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `Value` | `string` | Trimmed email string. |
+| `Value` | `string` | Trimmed email string; stored casing is preserved. |
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public static Result<EmailAddress> TryCreate(string? value, string? fieldName = null)` | `Result<EmailAddress>` | Regex-based email validation, bounded by the RFC 5321 limits: 254 characters overall and 64 for the local part. |
+| `public static Result<EmailAddress> TryCreate(string? value, string? fieldName = null)` | `Result<EmailAddress>` | Validates the common email profile below, with RFC 5321-derived length limits: 254 characters overall and 64 for the local part. |
 | `public static EmailAddress Parse(string? s, IFormatProvider? provider)` | `EmailAddress` | Throws `FormatException` on failure. |
 | `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out EmailAddress result)` | `bool` | Safe parse helper. |
+
+**Supported profile, not full RFC 5322 conformance.** The local part is dot-atom-style:
+letters, digits, and ``!#$%&'*+/=?^_`{|}~-``,
+optionally separated by single dots (no leading, trailing, or consecutive dots).
+The domain has at least two alphanumeric/hyphen labels, with no leading or trailing
+label hyphen. Unlike `Hostname`, it does not enforce a 63-character limit per domain
+label; the overall address-length limit still applies.
+Matching is case-insensitive; surrounding whitespace is trimmed.
+Quoted local parts, comments, display names, and domain literals are rejected.
+This validates the supported syntax and lengths, not mailbox existence or deliverability.
+The accepted-input profile is unchanged.
 
 ### `GeoCoordinate`
 
@@ -391,13 +402,22 @@ public partial class Hostname : ScalarValueObject<Hostname, string>, IScalarValu
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `Value` | `string` | RFC 1123 hostname. |
+| `Value` | `string` | Trimmed ASCII hostname; stored casing is preserved. |
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public static Result<Hostname> TryCreate(string? value, string? fieldName = null)` | `Result<Hostname>` | RFC 1123 hostname validation. |
+| `public static Result<Hostname> TryCreate(string? value, string? fieldName = null)` | `Result<Hostname>` | RFC 1123 ASCII labels of 1-63 characters; at most 253 characters after trimming, including separating dots. No leading/trailing label hyphens or trailing root dot. |
 | `public static Hostname Parse(string? s, IFormatProvider? provider)` | `Hostname` | Throws `FormatException` on failure. |
 | `public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out Hostname result)` | `bool` | Safe parse helper. |
+
+RFC 1035 sections 2.3.4 and 3.1 cap the complete encoded DNS name at 255 octets,
+including each label's length byte and the root terminator. For this no-trailing-dot
+ASCII presentation form, the encoded name is two octets longer than the text, so
+253 characters is the maximum.
+
+**Breaking correction:** 254- and 255-character hostnames previously passed validation
+but exceed that wire limit. They now fail with `string.hostname`; the 63-character label
+limit, trimming, casing, and other syntax rules are unchanged.
 
 ### `IpAddress`
 
@@ -464,7 +484,7 @@ public class MonetaryAmount : ScalarValueObject<MonetaryAmount, decimal>, IScala
 ### `CompositeValueObjectJsonConverter<T>`
 
 ```csharp
-public sealed class CompositeValueObjectJsonConverter<T> : JsonConverter<T>
+public sealed class CompositeValueObjectJsonConverter<T> : ResultJsonConverter<T>
     where T : ValueObject
 ```
 
@@ -478,12 +498,19 @@ order the properties are declared.
 
 | Signature | Returns | Description |
 | --- | --- | --- |
-| `public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `T?` | Reads a JSON object, populates parameters by JSON property name (case-insensitive), invokes `TryCreate`, and throws `TrellisJsonValidationException` with the error display message on failure. When required properties are missing, throws a single `TrellisJsonValidationException` listing **all** missing names (e.g. `Required properties missing: 'amount', 'currency'.`) so multi-field violations surface in one round trip. |
+| `public override Result<T> TryRead(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)` | `Result<T>` | Reads the complete object, populates parameters by JSON property name (case-insensitive), and returns accumulated token-format/null/missing-field violations before invoking `TryCreate`. Domain validation failures remain Result values. A missing-field-only failure lists **all** missing names (e.g. `Required properties missing: 'amount', 'currency'.`). |
 | `public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)` | `void` | Writes one JSON property per eligible property declared directly on `T`, in declaration order, using the underlying primitive value for `IScalarValue<,>` properties. Inherited properties, indexers, and properties with public setters are excluded. |
 
 Apply via `[JsonConverter(typeof(CompositeValueObjectJsonConverter<MyVo>))]` on the value object type.
 Reflection is performed once per generic instantiation and cached (lazily, so a configuration error surfaces
 its own actionable message rather than being buried inside a `TypeInitializationException`).
+
+Inherited `Read` from [`ResultJsonConverter<T>`](trellis-api-core.md#resultjsonconvertert)
+rejects standalone serializer failures with `TrellisJsonValidationException`, preserving the
+structured `Error.InvalidInput`. ASP collecting adapters call `TryRead` directly instead, so
+ordinary client validation failures do not throw or depend on `ThrowOnBadRequest`. Invalid
+token values are fully consumed before collection continues; malformed JSON and unsupported
+configuration still throw. The parser and writer remain ASP-independent.
 
 **Native AOT / trimming.** The converter is AOT-usable, subject to two rooting requirements:
 
@@ -721,11 +748,11 @@ The base classes (`ValueObject`, `ScalarValueObject<TSelf, T>`, `RequiredString<
 | `Age` | `Trellis.Primitives` | Scalar | JSON number or numeric string input; JSON number output | `int`, range `0..150`. |
 | `CountryCode` | `Trellis.Primitives` | Scalar | JSON string | Uppercase ASCII ISO 3166-1 alpha-2 (exactly two ASCII letters). |
 | `CurrencyCode` | `Trellis.Primitives` | Scalar | JSON string | Uppercase ASCII ISO 4217 (exactly three ASCII letters). |
-| `EmailAddress` | `Trellis.Primitives` | Scalar | JSON string | Trimmed validated email. |
+| `EmailAddress` | `Trellis.Primitives` | Scalar | JSON string | Common dot-atom-style email profile; 254 characters overall, 64 in the local part. |
 | `GeoBoundingBox` | `Trellis.Primitives` | Structured | Application query value | One immutable non-wrapping inclusive geographic rectangle. |
 | `GeoBounds` | `Trellis.Primitives` | Structured | Application query value | Validated spherical search origin/radius with one or two conservative boxes. |
 | `GeoCoordinate` | `Trellis.Primitives` | Structured | JSON object `{ "latitude": number, "longitude": number }` | Finite latitude/longitude; approximate in-memory great-circle distance in meters. |
-| `Hostname` | `Trellis.Primitives` | Scalar | JSON string | RFC 1123 hostname. |
+| `Hostname` | `Trellis.Primitives` | Scalar | JSON string | ASCII RFC 1123 labels; 253-character presentation maximum. |
 | `IpAddress` | `Trellis.Primitives` | Scalar | JSON string | IPv4 or IPv6 text. |
 | `LanguageCode` | `Trellis.Primitives` | Scalar | JSON string | Lowercase ASCII ISO 639-1 alpha-2. |
 | `MonetaryAmount` | `Trellis.Primitives` | Scalar | JSON number or numeric string input; JSON number output | Non-negative single-currency amount with 2-decimal rounding. |
@@ -746,11 +773,11 @@ Every built-in primitive's `TryCreate` failure carries a `FieldViolation.ReasonC
 | all string primitives | input was `null` | `value.not-null` | — |
 | all string primitives | input was empty or whitespace | `value.not-empty` | — |
 | `EmailAddress` | absent or blank | `value.not-null` / `value.not-empty` | — |
-| `EmailAddress` | not a valid address | `string.email` | — |
+| `EmailAddress` | fails the supported format or length limits | `string.email` | — |
 | `CountryCode` | not two ASCII letters | `string.country-code` | — |
 | `CurrencyCode` | not three ASCII letters | `string.currency-code` | — |
 | `LanguageCode` | not two ASCII letters | `string.language-code` | — |
-| `Hostname` | not RFC 1123 compliant | `string.hostname` | — |
+| `Hostname` | fails the supported label syntax or DNS name-length limit | `string.hostname` | — |
 | `IpAddress` | not IPv4 or IPv6 | `string.ip-address` | — |
 | `Slug` | not a valid slug | `string.slug` | — |
 | `Url` | not an absolute HTTP/HTTPS URI | `string.url` | — |

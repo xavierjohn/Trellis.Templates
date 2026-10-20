@@ -64,7 +64,7 @@ public class DueDateTests(TestWebApplicationFactoryFixture factory, ITestOutputH
             request.Headers.IfMatch.Add(created.Headers.ETag!);
         }
         else
-            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            request.Headers.Add("Idempotency-Key", $"\"{Guid.NewGuid()}\"");
 
         using var response = await client.SendAsync(request, cancellationToken);
 

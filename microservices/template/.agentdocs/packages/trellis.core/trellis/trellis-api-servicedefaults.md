@@ -3,10 +3,10 @@ package: Trellis.ServiceDefaults
 namespaces: [Trellis.ServiceDefaults]
 types: [TrellisServiceCollectionExtensions, TrellisServiceBuilder]
 version: v3
-last_verified: 2026-10-07
+last_verified: 2026-10-14
 audience: [llm]
 agent_usage: onDemand
-agent_description: "Open when wiring a composition root with AddTrellis(...) so Trellis modules apply in the canonical order, and what it deliberately does not register."
+agent_description: "Open when wiring AddTrellis(...) in canonical order, including reliable outbox/inbox/transport composition and registrations deliberately kept outside the builder."
 ---
 # Trellis.ServiceDefaults API Reference
 
@@ -20,6 +20,7 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 
 - You are wiring a composition root and want Trellis modules applied in the canonical order.
 - You want one fluent builder for ASP, Mediator, FluentValidation, resource authorization, actor provider, and EF unit-of-work registration.
+- You are composing domain events, an outbox, broker publication, inbox consumption, and transport adapters without confusing their boundaries.
 - You need to know what `AddTrellis(...)` deliberately does not register.
 
 ## Patterns Index
@@ -37,10 +38,14 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 | Register an actor provider | `.UseClaimsActorProvider()`, `.UseNestedJsonPathClaimsActorProvider()`, `.UseEntraActorProvider()`, or `.UseDevelopmentActorProvider()`. For microservices consuming gateway-minted internal JWTs, install [`Trellis.Microservices.AspNetCore`](https://github.com/xavierjohn/Trellis.Microservices) and call `services.AddTrellisInternalJwtActorProvider(...)` directly (no `TrellisServiceBuilder` slot — the `UseTrellisInternalJwtActor` slot was removed in v3 cleanup when the implementation moved). | [`TrellisServiceBuilder`](#trellisservicebuilder), [ASP actor providers](trellis-api-asp.md#namespace-trellisaspauthorization) |
 | Add EF unit-of-work behavior | `.UseEntityFrameworkUnitOfWork<TContext>()` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Mediator UoW](trellis-api-mediator.md#cross-package-preflight-for-pipeline-changes) |
 | Relay domain events durably via a transactional outbox | `.UseOutbox<TContext>(configure?)` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Outbox reference](trellis-api-efcore-outbox.md#useoutbox-builder-slot) |
+| Explicitly enable outbox readiness without changing liveness or adding an endpoint | `.UseOutboxReadiness<TContext>(OutboxReadinessOptions.CreateStagedOperationalProfile())` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Outbox readiness](trellis-api-efcore-outbox.md#outbox-readiness) |
+| Monitor metadata from an API host with a separate outbox worker | `.UseOutboxReadiness<TContext>(OutboxReadinessOptions.CreateMetadataOnlyProfile(workerMaxAttempts))` | [Split API/worker hosts](trellis-api-efcore-outbox.md#split-apiworker-hosts) |
 | Dispatch domain events from successful commands | `.UseDomainEvents(typeof(MyHandler).Assembly)` or `.UseDomainEvents()` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Mediator domain events](trellis-api-mediator.md#domaineventdispatchbehavior) |
 | Publish a translated external contract (integration events) via the outbox | `.UseIntegrationEvents(typeof(MyHandler).Assembly)` or `.UseIntegrationEvents()` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Outbox integration events](trellis-api-efcore-outbox.md#integration-events) |
 | Consume integration events idempotently (deduplicate transport redeliveries) | `.UseInbox<TContext>(o => o.ConsumerId = "orders")` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Inbox reference](trellis-api-efcore-inbox.md#useinbox-builder-slot) |
+| Wire reliable integration messaging by producer/consumer role | Builder slots for Trellis behavior and persistence; direct transport registration for vendor adapters | [Messaging setup by deployment role](#messaging-setup-by-deployment-role) |
 | Auto-dispatch domain events from every tracked aggregate (outcome-DTO commands) | `.UseTrackedAggregateDomainEvents(typeof(MyHandler).Assembly)` or `.UseTrackedAggregateDomainEvents()` | [`TrellisServiceBuilder`](#trellisservicebuilder), [Mediator tracked dispatch](trellis-api-mediator.md#trackedaggregatedomaineventdispatchbehavior) |
+| Classify health features versus metadata/adapter leaves | Outbox readiness is slotted; capture age and consumer lag are options on that existing feature, while application/vendor lag providers are direct leaf adapters | [Health registration classification](#health-registration-classification) |
 
 ## Common traps
 
@@ -48,9 +53,98 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-12--di-wiring
 - `UseEntityFrameworkUnitOfWork<TContext>()` is applied last so transaction commit remains innermost in the mediator pipeline.
 - Calling `UseEntityFrameworkUnitOfWork<TContext>()` more than once (with the same or a different `TContext`) throws `InvalidOperationException`. The Trellis pipeline supports exactly one transactional `IUnitOfWork` per composition; chaining two calls (e.g. for a read/write context split) is always misconfiguration. Use a separate composition root or a single multi-tenant `DbContext` instead.
 - `UseOutbox<TContext>()` registers only the relay hosted service; you must also call `AddTrellisOutboxInterceptor()` on the context options and `AddTrellisOutbox()` in `OnModelCreating`. Calling `UseOutbox` more than once throws `InvalidOperationException` (one outbox relay per composition). It is order-independent versus `UseEntityFrameworkUnitOfWork<TContext>()` because the relay is a hosted service, not a pipeline behavior.
-- `UseInbox<TContext>()` registers only the inbound dispatcher, the EF dedup store, and `InboxOptions`; you must also call `AddTrellisInbox()` in `OnModelCreating` to map the `TrellisInboxMessages` table, and register the `IIntegrationEventHandler<TEvent>` implementations that consume the messages. `InboxOptions.ConsumerId` is required, so the `configure` callback that sets it is mandatory. Calling `UseInbox` more than once throws `InvalidOperationException` (one inbox per composition). It is order-independent versus `UseEntityFrameworkUnitOfWork<TContext>()` because the dispatcher is an inbound seam, not a pipeline behavior.
+- `UseInbox<TContext>()` registers only the inbound dispatcher, its matching EF dedup store, and `InboxOptions`; you must also call `AddTrellisInbox()` in `OnModelCreating` to map the `TrellisInboxMessages` table, and register the `IIntegrationEventHandler<TEvent>` implementations that consume the messages. A new message with no handler throws without committing its dedup row. `InboxOptions.ConsumerId` is required, so the `configure` callback that sets it is mandatory. Calling `UseInbox` more than once throws `InvalidOperationException` (one inbox per composition). It is order-independent versus `UseEntityFrameworkUnitOfWork<TContext>()` because the dispatcher is an inbound seam, not a pipeline behavior. A custom `IInboxStore` needs a coordinated custom dispatcher rather than this EF slot.
+- Every `UseIntegrationEvents(...)` overload wires the default **best-effort local** publisher when none is registered. Swallowed consumer failures make the integration row processed without a consumer retry. A broker adapter must await publication acceptance and propagate failures to the relay. `UseInbox<TContext>()` does not reroute default publication: an adapter must actually call `IInboxDispatcher.DispatchAsync` and expose failures for transport redelivery.
 - If you only need one module, direct package-specific registration remains valid; the builder is for composition-root clarity.
+- Minimal API hosts pair the registration with validation middleware and endpoint filters; scalar and composite JSON failures are collected without a `ThrowOnBadRequest` override. See [semantic JSON validation](trellis-api-asp.md#minimal-api-semantic-json-validation).
+- Formatting bare error responses is a separate host policy, not a scalar-validation side effect. For Problem Details on bare framework 400s, explicitly pair `AddTrellisProblemDetails()` with `app.UseStatusCodePages()`; status-code pages also format eligible application-owned bodyless responses.
 - Shared-loader adapters are fallbacks: when `UseResourceAuthorization(assemblies)` discovers a custom per-message loader, it replaces an adapter installed by an earlier direct `AddSharedResourceAuthorization` call. Scanning never replaces an application-provided implementation, factory, or instance registration, and leaves keyed registrations untouched.
+
+## Messaging setup by deployment role
+
+Reliable messaging is a composition of separate layers. Select the rows that belong to
+the process being configured; no single registration silently supplies the others.
+
+| Role | Trellis builder/model setup | Direct application or transport setup |
+|---|---|---|
+| Produce domain changes and translate contracts | `UseDomainEvents(...)`, `UseIntegrationEvents(...)`, `UseEntityFrameworkUnitOfWork<TContext>()`, `UseOutbox<TContext>()`; `AddTrellisOutbox()` in the model and `AddTrellisOutboxInterceptor()` on context options | Register the `DbContext`, migrations, translators, and stable `[IntegrationEventName]` contracts. |
+| Publish outside the process | Keep `UseIntegrationEvents(...)` and `UseOutbox<TContext>()` | Register one broker `IIntegrationEventPublisher`, such as `AddAzureServiceBusIntegrationEventPublisher(...)`. It replaces the default best-effort publisher and must preserve `OutboundIntegrationMessage.MessageId`. Register one shared singleton `ServiceBusClient` for Azure publication and consumption. |
+| Consume with transactional deduplication | `UseIntegrationEvents(...)`, `UseInbox<TContext>(...)`; `AddTrellisInbox()` in the model | Register the `DbContext`, migrations, and `IIntegrationEventHandler<TEvent>` implementations. `UseEntityFrameworkUnitOfWork<TContext>()` is for this process's Mediator commands; inbox dispatch owns its own single save. |
+| Feed the inbox from a broker | The inbox slot supplies `IInboxDispatcher`; registration alone does not route messages | Use the shared singleton `ServiceBusClient` and register `AddAzureServiceBusIntegrationEventConsumer(...)`, or call `IInboxDispatcher.DispatchAsync(...)` from an application adapter. Complete `Processed` and `SkippedDuplicate`; expose failures for redelivery. |
+
+The producer and consumer may be different services. Each builds an
+`IntegrationEventNameMap` over its local contract assembly. The publisher carries the
+outbox row id as the transport message id; the consumer passes that same id to the inbox.
+Broker acceptance completes publication, not downstream processing. The default
+publisher is best-effort local fan-out and is not an implicit loopback through the inbox.
+
+### Producer: outbox + Azure Service Bus
+
+```csharp
+var names = IntegrationEventNameMap.FromAssemblies(
+    typeof(OrderPlacedIntegrationEvent).Assembly);
+
+builder.Services.AddSingleton(_ => new ServiceBusClient(serviceBusConnectionString));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(databaseConnectionString)
+        .AddTrellisOutboxInterceptor());
+
+builder.Services.AddTrellis(trellis => trellis
+    .UseDomainEvents(typeof(Program).Assembly)
+    .UseIntegrationEvents(typeof(Program).Assembly)
+    .UseEntityFrameworkUnitOfWork<AppDbContext>()
+    .UseOutbox<AppDbContext>());
+
+builder.Services.AddAzureServiceBusIntegrationEventPublisher(
+    names,
+    options => options.MessageSource = "orders-service");
+```
+
+Map `modelBuilder.AddTrellisOutbox()` and apply the application-owned migration.
+Publisher registration is order-independent with `AddTrellis(...)`: the Azure adapter
+replaces the default local publisher whether called before or after the builder.
+
+### Consumer: Azure Service Bus + inbox
+
+```csharp
+var names = IntegrationEventNameMap.FromAssemblies(
+    typeof(OrderPlacedIntegrationEvent).Assembly);
+
+builder.Services.AddSingleton(_ => new ServiceBusClient(serviceBusConnectionString));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(databaseConnectionString));
+
+builder.Services.AddTrellis(trellis => trellis
+    .UseIntegrationEvents(typeof(Program).Assembly)
+    .UseInbox<AppDbContext>(options => options.ConsumerId = "billing-service"));
+
+builder.Services.AddAzureServiceBusIntegrationEventConsumer(
+    names,
+    options => options.Subscribe("orders.order-placed.v1", "billing"));
+```
+
+Map `modelBuilder.AddTrellisInbox()` and apply the migration. The subscription name is
+broker topology; `InboxOptions.ConsumerId` is the stable dedup namespace. The assembly
+passed to `UseIntegrationEvents(...)` must contain the matching
+`IIntegrationEventHandler<TEvent>` implementations. A missing handler or missing inbox
+registration is discovered on delivery, not at startup: the message is redelivered and
+eventually dead-lettered under the broker policy. The adapter resolves
+`IInboxDispatcher` per message, completes both successful outcomes, abandons a handler
+failure for redelivery, and dead-letters unusable bytes with a reason. For another
+broker, preserve the same settlement and stable-id rules in the application adapter.
+
+When the consuming process also mutates aggregates and publishes onward, use one
+`TContext`: add the outbox interceptor, map both `AddTrellisInbox()` and
+`AddTrellisOutbox()`, and compose `UseDomainEvents(...)`, one
+`UseIntegrationEvents(...)`, `UseEntityFrameworkUnitOfWork<TContext>()`,
+`UseInbox<TContext>(...)`, and `UseOutbox<TContext>()`. The inbox handler still stages
+writes and returns; it does not dispatch a committing command.
+
+`Trellis.Messaging.AzureServiceBus` remains a direct registration because a builder slot
+would force every `Trellis.ServiceDefaults` consumer to reference the Azure SDK. See the
+[transport registration](trellis-api-messaging-azureservicebus.md#registration),
+[wire format](trellis-api-messaging-azureservicebus.md#wire-format), and
+[settlement rules](trellis-api-messaging-azureservicebus.md#settlement).
 
 ## AOT compatibility
 
@@ -124,16 +218,33 @@ public sealed class TrellisServiceBuilder
 | `public TrellisServiceBuilder UseTrackedAggregateDomainEvents<TEvent, THandler>() where TEvent : IDomainEvent where THandler : class, IDomainEventHandler<TEvent>` | `TrellisServiceBuilder` | **AOT-safe.** Registers `THandler` for `TEvent` and wires the tracked dispatch behavior. Implies `UseMediator()`. Mutually exclusive with `UseDomainEvents(...)`. |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseTrackedAggregateDomainEvents(params Assembly[] assemblies)` | `TrellisServiceBuilder` | Scans assemblies for `IDomainEventHandler<TEvent>` implementations (non-AOT). Implies `UseMediator()`. Mutually exclusive with `UseDomainEvents(...)`. |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseOutbox<TContext>(Action<OutboxOptions>? configure = null) where TContext : DbContext` | `TrellisServiceBuilder` | Registers the transactional-outbox relay via `AddTrellisOutbox<TContext>()`. Order-independent versus `UseEntityFrameworkUnitOfWork` (the relay is a hosted service, not a pipeline behavior). Throws `InvalidOperationException` if called more than once. The capture interceptor and table mapping are wired separately on the `DbContext`. Annotated non-AOT. See [Trellis.EntityFrameworkCore.Outbox](trellis-api-efcore-outbox.md#useoutbox-builder-slot). |
+| `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseOutboxReadiness<TContext>(OutboxReadinessOptions profile) where TContext : DbContext` | `TrellisServiceBuilder` | Explicitly selects the named `trellis-outbox` read-only health check via `AddTrellisOutboxReadiness<TContext>(profile)`, applied after selected relay registration. Local mode requires the matching relay; metadata-only requires no relay and explicitly supplies the worker retry limit. Durable capture age and consumer lag are disabled unless their profile selectors enable them; enabled lag requires a direct application-owned `IConsumerLagProvider` registration. Generic Host lifecycle startup validates configuration without constructing the context or provider. Throws on null/invalid profile, repeated builder selection, or conflicting direct/builder readiness context/profile; equal direct/builder profiles deduplicate. Metadata-only may coexist with a relay for another context. Adds no endpoint, liveness policy, or provider adapter. Annotated non-AOT. See [outbox readiness](trellis-api-efcore-outbox.md#outbox-readiness). |
 | `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseInbox<TContext>(Action<InboxOptions> configure) where TContext : DbContext` | `TrellisServiceBuilder` | Registers the transactional inbox via `AddTrellisInbox<TContext>()`: the `IInboxDispatcher`, the EF `IInboxStore`, and `InboxOptions` (whose `ConsumerId` is required, so `configure` is mandatory). Order-independent versus `UseEntityFrameworkUnitOfWork` (the dispatcher is an inbound seam, not a pipeline behavior). Throws `InvalidOperationException` if called more than once. The `TrellisInboxMessages` table mapping is wired separately with `modelBuilder.AddTrellisInbox()`. Annotated non-AOT. See [Trellis.EntityFrameworkCore.Inbox](trellis-api-efcore-inbox.md#useinbox-builder-slot). |
-| `public TrellisServiceBuilder UseIntegrationEvents()` | `TrellisServiceBuilder` | **AOT-safe.** Registers the default in-process `IIntegrationEventPublisher` and the scoped `IIntegrationEventCollector` (no scanning). Pair with `UseDomainEvents()` (for translators) and `UseOutbox<TContext>()` (for delivery). |
-| `public TrellisServiceBuilder UseIntegrationEvents<TEvent, THandler>() where TEvent : IIntegrationEvent where THandler : class, IIntegrationEventHandler<TEvent>` | `TrellisServiceBuilder` | **AOT-safe.** Registers `THandler` for `TEvent` and wires the default publisher and collector. |
-| `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseIntegrationEvents(params Assembly[] assemblies)` | `TrellisServiceBuilder` | Scans assemblies for `IIntegrationEventHandler<TEvent>` implementations (non-AOT) and registers the default publisher and collector. See [Outbox integration events](trellis-api-efcore-outbox.md#integration-events). |
+| `public TrellisServiceBuilder UseIntegrationEvents()` | `TrellisServiceBuilder` | **AOT-safe.** Registers the default best-effort in-process `IIntegrationEventPublisher` and scoped `IIntegrationEventCollector` when absent (no scanning). Pair with `UseDomainEvents()` (for translators) and `UseOutbox<TContext>()` (for publication). Swallowed consumer failures are not retried; this is not inbox routing. |
+| `public TrellisServiceBuilder UseIntegrationEvents<TEvent, THandler>() where TEvent : IIntegrationEvent where THandler : class, IIntegrationEventHandler<TEvent>` | `TrellisServiceBuilder` | **AOT-safe.** Registers `THandler` for `TEvent` and wires the default best-effort publisher and collector. The same handler binding is available to a non-swallowing inbox, but an adapter must invoke it through `IInboxDispatcher`. |
+| `[RequiresUnreferencedCode] [RequiresDynamicCode] public TrellisServiceBuilder UseIntegrationEvents(params Assembly[] assemblies)` | `TrellisServiceBuilder` | Scans assemblies for `IIntegrationEventHandler<TEvent>` implementations (non-AOT) and wires the default best-effort publisher and collector. Replace the publisher with a broker adapter that awaits acceptance and propagates failures for reliable handoff. See [Outbox integration events](trellis-api-efcore-outbox.md#integration-events). |
 
 ## Behavior
+
+Actor-provider selectors also register the optional `IActorIdentityProvider` capability.
+`UseCachingActorProvider<T>()` has the same one-call dual-registration semantics as
+`AddCachingActorProvider<T>()`: a custom `T` explicitly implements the identity interface,
+or an exact built-in type is adapted; both services then share one scoped caching wrapper
+and inner instance with independent lazy caches. Unsupported legacy subclasses keep
+full actor behavior and do not acquire identity service registration. `UseWorkerActor`
+advertises identity for supported known inner types/instances, or for factories whose
+result type cannot be checked without invoking them. Known unsupported providers do
+not register identity. When registered, identity returns the system ID outside HTTP
+without resolving the inner provider and delegates inside HTTP only when supported;
+an unsupported factory result fails explicitly. No new builder slot or Mediator stage is added.
+See [ASP identity registration](trellis-api-asp.md#identity-only-provider-registration)
+and [Recipe 41](trellis-api-cookbook.md#recipe-41--actor-aware-rate-limiting-without-loading-permissions).
 
 Domain-event dispatch uses `IUnitOfWorkScope.IsOwner` to distinguish a real outer commit from a deferred inner success. Both dispatch slots suppress inner publication/clearing; response-shape mode retains nested aggregate responses even when the outer response is DTO/Unit. Failure/throw discards the batch without clearing events, while outbox capture still runs on a successful `FailAfterCommit` save. Manually owned external unit-of-work scopes require explicit post-commit dispatch instead of the automatic behaviors.
 
 `UseOutbox<TContext>()` validates `IReportingDomainEventPublisher` during host startup before the relay starts. When integration services are registered, it also validates `IIntegrationEventPublisher`; domain-only hosts do not need one. `UseIntegrationEvents()` registers a translator-only collector: `Add` throws outside the relay's active `BeginTranslation()` lease.
+
+**Integration delivery has three separate boundaries.** Default local fan-out logs and swallows ordinary consumer failures; normal publication completion makes the relay process the row without incrementing `Attempts`. A broker publisher instead completes on broker acceptance and must propagate publication failures for outbox retry; acceptance does not establish downstream consumer success. An inbound adapter can route deliveries through the non-swallowing inbox, where the dedup row and handler writes through the same `TContext` commit atomically. `UseIntegrationEvents` and `UseInbox` register these seams, not the routing between them. See [publisher semantics](trellis-api-mediator.md#iintegrationeventpublisher) and [inbox processing](trellis-api-efcore-inbox.md#processing-semantics).
 
 `AddTrellis(...)` records selected modules first and then applies them in this order:
 
@@ -149,7 +260,8 @@ Domain-event dispatch uses `IUnitOfWorkScope.IsOwner` to distinguish a real oute
 10. Integration event dispatch (when `UseIntegrationEvents(...)` is selected).
 11. EF Core Unit of Work.
 12. Transactional outbox relay (when `UseOutbox<TContext>()` is selected).
-13. Transactional inbox dispatch registration (when `UseInbox<TContext>()` is selected).
+13. Outbox readiness (when `UseOutboxReadiness<TContext>(profile)` is explicitly selected).
+14. Transactional inbox dispatch registration (when `UseInbox<TContext>()` is selected).
 
 That order preserves the important pipeline invariant: `TransactionalCommandBehavior<,>` is the innermost behavior, closest to the handler, so commit failures remain visible to outer logging/tracing/exception behaviors. The lower-level registration helpers are also order-independent: if a transaction behavior is present before `AddTrellisBehaviors()` or domain-event dispatch runs, it is rehomed to the innermost slot.
 
@@ -240,7 +352,7 @@ services.AddTrellis(options => options
 
 Not every `services.AddXxx()` Trellis ships has a matching `UseXxx()` slot, and the omissions are deliberate.
 
-The complete, authoritative classification lives in `Trellis.ServiceDefaults/tests/RegistrationSurfaceTests.cs`, which reflects over every registration helper reachable from `Trellis.ServiceDefaults` and fails the build if one is unclassified, if a classified helper no longer exists, if a named slot is missing from `TrellisServiceBuilder`, or if a helper classified as slotted is never actually referenced by `Trellis.ServiceDefaults`. The table below is the narrative summary of the cases worth explaining; treat the test as the source of truth if the two ever disagree.
+The complete, authoritative classification lives in `Trellis.ServiceDefaults/tests/RegistrationSurfaceTests.cs`, which reflects over public `IServiceCollection` registration extensions in `Trellis.ServiceDefaults` and the Trellis assemblies it directly references. It fails the build if one is unclassified, if a classified helper no longer exists, if a named slot is missing from `TrellisServiceBuilder`, or if a helper classified as slotted is never actually referenced by `Trellis.ServiceDefaults`. The table below is the narrative summary of the cases worth explaining; treat the test as the source of truth if the two ever disagree.
 
 | Registration | Package | Why no slot |
 |---|---|---|
@@ -253,4 +365,35 @@ The complete, authoritative classification lives in `Trellis.ServiceDefaults/tes
 
 The vendor-SDK rule is the important one: `Trellis.ServiceDefaults` references no cloud SDK, and a builder slot is a compile-time reference. Adding one would make every consumer of the meta-package carry the Azure SDK in order to use features that have nothing to do with Azure. Call these registrations directly on `IServiceCollection` alongside `AddTrellis(...)`. That same absence from the reference graph is what keeps the vendor packages outside the test's scan, so their "no slot" status needs no allowlist entry.
 
+
 `AddAzureServiceBusIntegrationEventPublisher` in particular is order-independent by construction: it *replaces* any existing `IIntegrationEventPublisher` registration rather than appending to it, so it can be called before or after `AddTrellis(options => options.UseIntegrationEvents(...))` with the same result.
+
+## Health registration classification
+
+**Outbox readiness, opt-in durable capture age, and opt-in consumer lag are implemented:**
+`UseOutboxReadiness<TContext>(profile)`
+surfaces the `IServiceCollection` helper `AddTrellisOutboxReadiness<TContext>(profile)`
+and is classified in `RegistrationSurfaceTests.Expected`. Direct/builder registration
+deduplicates equal context/profile selections and leaves the transaction behavior
+innermost, before or after unit-of-work registration. Existing `UseOutbox` and `UseInbox`
+calls still do not enable health checks; endpoint selection and readiness/liveness policy
+remain host-owned. Capture age and consumer lag use the same existing builder slot and
+stay disabled until the immutable profile enables them. Consumer-lag implementations are
+application/transport `IConsumerLagProvider` registrations, not a second composition-root
+feature. Register providers directly; vendor adapters remain outside this package's
+reference graph.
+
+A later application-enabled health feature is a composition-root feature: its direct
+registration needs matching `TrellisServiceBuilder` coverage and an entry in
+`RegistrationSurfaceTests.Expected`. The implementing PR must use an `IServiceCollection`
+helper or extend the gate's discovery predicate for its chosen receiver, such as
+`IHealthChecksBuilder`; otherwise that classification is not mechanically enforced.
+Leaf metadata-query/observation stores and
+adapter-author extension points need no independent slot; record reachable leaves with
+a reason. Vendor SDK lag adapters remain outside this package's reference graph, with
+no new cloud SDK dependency or allowlist entry solely to record their unslotted status.
+
+Prove direct/builder idempotence and order-independence before and after
+`AddTrellisUnitOfWork<TContext>()`, without moving the innermost transaction behavior
+or adding probe work to the command/dispatch pipeline. The host explicitly selects the tuned health profile, optional lag evidence, and
+endpoint/readiness mapping.
