@@ -41,7 +41,7 @@ public sealed class MemberInvitedEventingTests : IAsyncDisposable
         {
             Content = JsonContent.Create(new { email = "dana@acme.example", role = "contributor" }),
         };
-        invite.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        invite.Headers.Add("Idempotency-Key", $"\"{Guid.NewGuid()}\"");
 
         var inviteResponse = await membersClient.SendAsync(invite, cancellationToken);
         inviteResponse.StatusCode.Should().Be(HttpStatusCode.Created);

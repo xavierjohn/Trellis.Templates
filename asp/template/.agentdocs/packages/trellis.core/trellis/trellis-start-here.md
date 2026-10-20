@@ -4,7 +4,7 @@ namespaces: [Trellis]
 types: [orientation, routing]
 related_docs: [trellis-api-cookbook.md, trellis-api-core.md, trellis-api-anti-patterns.md, trellis-api-analyzers.md]
 version: v3
-last_verified: 2026-10-07
+last_verified: 2026-10-14
 audience: [llm]
 agent_usage: required
 agent_description: "Routing head for every Trellis task: which reference to open, the recipe lookup and how to read the set. Read before writing or changing code that uses Trellis."
@@ -12,21 +12,16 @@ agent_description: "Routing head for every Trellis task: which reference to open
 
 # Trellis — start here
 
-You are looking at versioned Trellis API reference files, installed from the `Trellis.Core` package by the optional
-Trellis.AgentDocs local tool (`agentdocs`; approve `Trellis.Core` in `.agentdocs/policy.json`). This file is the **routing head**
-for the whole set: it tells you which reference to open for a task and which recipe to read. It is self-contained on
-purpose, so it is the only file you must read before writing Trellis code. The other files sit beside it, so every link
-below is relative.
+These versioned references ship with `Trellis.Core`. The optional Trellis.AgentDocs local tool
+(`agentdocs`) installs them after approving `Trellis.Core` in `.agentdocs/policy.json`. This self-contained
+**routing head** is the only always-required read before Trellis work; it selects the references
+and recipes for each task. Other files sit beside it, so links are relative.
 
 ## Read the references yourself — do not delegate them to a sub-agent
 
-A sub-agent hands back a summary, so the exact signatures never reach your context and you end up
-writing code against a paraphrase. That is how invented APIs and wrong overloads get produced, and
-it is the specific failure these references exist to prevent.
-
-Sub-agents are fine for work whose output is a *verdict* rather than knowledge you must write code
-against: running builds and tests, searching for a file, auditing something for accuracy. The rule
-is narrow — if the answer determines the code you are about to write, read it yourself.
+Read code-shaping references yourself: a sub-agent's summary omits exact signatures and invites
+invented APIs or wrong overloads. Delegate *verdicts*, not reference learning: builds, tests,
+file searches and accuracy audits are fine. If the answer determines your code, read it yourself.
 
 ## Do not guess
 
@@ -38,11 +33,10 @@ compile error to redeclare — the cookbook's Recipe 1 lists that inherited surf
 
 ## How to read these recipes
 
-**Hold this file resident; read recipe bodies on demand.** This file is the routing head for the whole set
-and routes every task. The 37 recipe bodies in `trellis-api-cookbook.md` are on demand, and a typical task needs
-one to three of them — so open a body when the [task lookup table](#task---recipe-lookup) sends you to one, rather than
-loading all of them up front. Every live recipe is reachable from that table (enforced by the repository's TRLDOC007 lint
-gate), so if a task is not listed there, no recipe covers it. Never write code from a recipe's title alone.
+**Hold this file resident; read recipe bodies on demand.** The 38 recipe bodies in `trellis-api-cookbook.md`
+cover the routed tasks; a typical task needs one to three. Open each body when the
+[task lookup table](#task---recipe-lookup) routes you there; never work from its title alone.
+TRLDOC007 enforces that every live recipe is reachable, so an unlisted task has no recipe.
 
 Every recipe follows the same shape:
 
@@ -73,13 +67,11 @@ documented trade-off fits the task, and state why:
 
 ## LLM preflight: load the smallest correct reference set
 
-Before writing Trellis code, choose the task in the lookup table below, then open the
-required package references at their **Patterns Index**. Read the complete selected
-API section, its constraints and linked behavioral/preflight sections; do not load an
-unrelated full catalog. Expand when the task uses another surface, inherited members,
-or cross-package ordering. Section-first reading does not remove any required package
-or safety contract. The cookbook supplies end-to-end composition; a direct API route
-is enough for a small guard or conversion task.
+Before coding, choose the task below and open required references at their **Patterns Index**.
+Read complete selected API sections, constraints and linked behavioral/preflight sections,
+not unrelated catalogs. Expand for other surfaces, inherited members or cross-package ordering;
+section-first reading waives no required package or safety contract. Recipes cover end-to-end
+composition; a direct API route suffices for a small guard or conversion.
 
 | If you are changing... | Load these references before coding | Why |
 |---|---|---|
@@ -149,17 +141,22 @@ Use this table before writing code. If a task matches a row, read that recipe fi
 | Add a state transition | [Recipe 9](trellis-api-cookbook.md#recipe-9--state-machine-canfire--fire-pattern-with-fireresult) |
 | Write handler/domain tests | [Recipe 10](trellis-api-cookbook.md#recipe-10--test-handler-test-using-trellistesting-shouldbe--unwraperror) |
 | Replay service `.http` examples in CI, generate fresh GUIDs, or diagnose unresolved placeholders | [`.http` replay helpers](trellis-api-testing-aspnetcore.md#http-file-replay-helpers), then [replay variables and failure handling](trellis-api-testing-aspnetcore.md#replay-variables-and-failure-handling) |
+| Diagnose bare Production 400 responses or missing field pointers from Minimal API value-object binding | [ASP semantic JSON validation](trellis-api-asp.md#minimal-api-semantic-json-validation), then [scalar path tracking](trellis-api-asp.md#scalarvaluepathtracking); compare structured fields, not producer prose |
 | Write integration tests for a `BackgroundService` worker | [Recipe 26](trellis-api-cookbook.md#recipe-26--test-a-backgroundservice-with-workerharnesstworker) |
 | Insert a row idempotently on a unique constraint (de-duplicated worker outbox, "save unless exists") | [Recipe 27](trellis-api-cookbook.md#recipe-27--idempotent-inserts-on-a-unique-constraint-with-tryinsertuniqueasync) |
 | Match duplicate-key, foreign-key, or retry abort/exhaustion conflicts without copying wire strings | [`FaultCodes` vocabulary](trellis-api-core.md#validationcodes--the-reason-code-vocabulary), then [EF save helpers](trellis-api-efcore.md#dbcontextextensions) or [Recipe 27](trellis-api-cookbook.md#recipe-27--idempotent-inserts-on-a-unique-constraint-with-tryinsertuniqueasync) |
-| Make POST / PATCH safe under client retries with an IETF `Idempotency-Key` header | [Recipe 29](trellis-api-cookbook.md#recipe-29--ietf-idempotency-key-middleware-on-post--patch-with-usetrellisidempotency) |
+| Make POST / PATCH safe under client retries with a quoted RFC 9651 `Idempotency-Key` String | [Recipe 29](trellis-api-cookbook.md#recipe-29--ietf-idempotency-key-middleware-on-post--patch-with-usetrellisidempotency) |
 | Render ASP.NET Core rate-limit rejections as Trellis 429 Problem Details with optional `Retry-After` | [`RateLimiterOptionsExtensions` in the ASP reference](trellis-api-asp.md#ratelimiteroptionsextensions) |
+| Partition ASP.NET rate limits by canonical identity without permission loads | [Recipe 41](trellis-api-cookbook.md#recipe-41--actor-aware-rate-limiting-without-loading-permissions) |
 | Define domain events | [Recipe 17](trellis-api-cookbook.md#recipe-17--defining-custom-domain-events-occurredat-is-the-only-timestamp) |
 | Make domain events survive a crash (transactional outbox) | [Recipe 35](trellis-api-cookbook.md#recipe-35--transactional-outbox-for-crash-safe-domain-events) |
-| Publish a stable external contract (integration events) translated from domain events | [Recipe 36](trellis-api-cookbook.md#recipe-36--translating-a-domain-event-into-an-integration-event) |
+| Publish stable integration contracts locally or through outbox/broker/Azure Service Bus | [Recipe 36](trellis-api-cookbook.md#recipe-36--translating-a-domain-event-into-an-integration-event), [messaging roles](trellis-api-servicedefaults.md#messaging-setup-by-deployment-role), and [Azure registration](trellis-api-messaging-azureservicebus.md#registration) |
 | Connect an inbound message, domain outbox row, translated integration event, and W3C trace | [Recipe 36](trellis-api-cookbook.md#recipe-36--translating-a-domain-event-into-an-integration-event), then [`IntegrationMessageContext`](trellis-api-mediator.md#integrationmessagecontext) and [outbox lineage](trellis-api-efcore-outbox.md#outboxmessage) |
+| Consume broker messages idempotently, or inspect/replay inbox evidence | [Inbox wiring](trellis-api-efcore-inbox.md#wiring-two-required-calls), [Azure settlement](trellis-api-messaging-azureservicebus.md#settlement), and [inbox operations](trellis-api-efcore-inbox.md#operational-requirements-and-transport-boundary) |
+| Enable outbox readiness, durable capture-age or application-provided consumer-lag evidence; monitor metadata in a split API/worker host; or tune its explicitly selected profile | [Outbox readiness](trellis-api-efcore-outbox.md#outbox-readiness), including [capture-age rollout](trellis-api-efcore-outbox.md#durable-capture-age-and-rollout), [consumer-lag provider](trellis-api-efcore-outbox.md#iconsumerlagprovider-and-consumerlagevidence), [split-host selection](trellis-api-efcore-outbox.md#split-apiworker-hosts), and [inbox evidence requirements](trellis-api-efcore-inbox.md#consumer-lag-health-requirements); each signal is opt-in and disabled is not observed healthy |
 | Show a validation failure in the user's language, or render your own message from a 422 instead of showing the server's English | [Recipe 39](trellis-api-cookbook.md#recipe-39--rendering-a-validation-failure-in-the-callers-language-code--args) |
 | Fix analyzer warnings | [Recipe 11](trellis-api-cookbook.md#recipe-11--anti-pattern--fix-gallery-the-analyzers-in-action) |
+| Keep fresh GUIDs out of error/violation reason codes while retaining valid incident/resource IDs | [TRLS067 WRONG/FIX](trellis-api-anti-patterns.md#trls067--fresh-guid-derived-reason-code), then [semantic scope](trellis-api-analyzers.md#perincidentreasoncodeanalyzer--trls067) |
 | Wire the composition root | [Recipe 12](trellis-api-cookbook.md#recipe-12--di-wiring-playbook-addtrellis-composition-builder) |
 | Rehydrate an entity from a database row (fail-loud vs Result-track) | [Recipe 30](trellis-api-cookbook.md#recipe-30--rehydrating-entities-from-persistence-fail-loud-vs-result-track) |
 | Reconstitute an aggregate in a non-EF repository without re-running its factory (no re-validation, no events) | [Recipe 37](trellis-api-cookbook.md#recipe-37--reconstituting-an-aggregate-without-its-factory-non-ef-repositories) |
@@ -179,9 +176,9 @@ These rows route recurring LLM lab mistakes to the most relevant reference befor
 | Overdue/date-filter queries over `Maybe<DateTime>` | [Recipe 8](trellis-api-cookbook.md#recipe-8--ef-core-maybepropertymapping-for-nullable-value-objects), then [trellis-api-efcore.md](trellis-api-efcore.md#patterns-index) | Keep a typed specification and use `MaybeQueryableExtensions` in EF queries. |
 | State transitions on an aggregate | [Recipe 9](trellis-api-cookbook.md#recipe-9--state-machine-canfire--fire-pattern-with-fireresult), then [trellis-api-statemachine.md](trellis-api-statemachine.md#patterns-index) | Keep transition methods consistent and put domain mutation after `FireResult` succeeds. |
 | Cross-aggregate mutation such as cancel/return releasing stock | [Recipe 1](trellis-api-cookbook.md#recipe-1--crud-aggregate-ddd-value-objects--entity--repository-contract), [Recipe 2](trellis-api-cookbook.md#recipe-2--command--handler--fluentvalidation--ef-persistence), and [trellis-api-core.md](trellis-api-core.md#domain-driven-design) | The application handler orchestrates multiple aggregates; an aggregate mutates only itself. |
-| Single-loop mutate-as-you-validate over a collection of related aggregates (reserve stock per line item, etc.) | [Recipe 25](trellis-api-cookbook.md#recipe-25--two-pass-validate-then-mutate-over-a-collection-of-related-aggregates) | A later element's validation failure leaves earlier elements partially mutated in memory. Validate every fallible domain check across every participating aggregate before the first state-changing call. |
+| Single-loop mutate-as-you-validate, or discarding results after a cross-aggregate preflight | [Recipe 25](trellis-api-cookbook.md#recipe-25--two-pass-validate-then-mutate-over-a-collection-of-related-aggregates) | Preflight every fallible domain check before mutation, then prove each guard stays valid until its matching call, including through earlier mutations. A shared clock is not a frozen instant; choose execution-time versus snapshot-time eligibility explicitly. Propagating a late failure or skipping a DB commit does not undo in-memory changes. |
 | Result-returning ASP endpoints | [Recipe 4](trellis-api-cookbook.md#recipe-4--minimal-api-endpoint-wiring-resultt--httpresponseoptionsbuilder--tohttpresponse), [Recipe 5](trellis-api-cookbook.md#recipe-5--mvc-controller-using-asactionresult), then [trellis-api-asp.md](trellis-api-asp.md#patterns-index) | `AddTrellisAsp()` is required for Result-to-HTTP mapping; exception middleware is not the mapper. |
-| Pagination endpoints with bound `string? cursor` / `int? limit` parameters | [`HttpRequestPaginationExtensions`](trellis-api-asp.md#httprequestpaginationextensions), then [Recipe 3](trellis-api-cookbook.md#recipe-3--query-handler-returning-paget-paginated-list-with-cursor) | MVC can normalize a present empty cursor to null, and host integer binding can return 400 before Trellis emits a coded 422. Parse `Request.Query` through `TryCreatePageRequest()`, declare query input origin for downstream cursor decoding, and declare OpenAPI parameters separately. |
+| Pagination endpoints with bound `string? cursor` / `int? limit` parameters | [`HttpRequestPaginationExtensions`](trellis-api-asp.md#httprequestpaginationextensions), then [Recipe 3](trellis-api-cookbook.md#recipe-3--query-handler-returning-paget-paginated-list-with-cursor) | MVC can normalize a present empty cursor to null, and host integer binding can return 400 before Trellis emits a coded 422. Parse `HttpRequest.Query` through `TryCreatePageRequest()`, declare query input origin for downstream cursor decoding, and declare OpenAPI parameters separately. |
 | Failure-code OpenAPI metadata or `.http` examples | [trellis-api-asp.md](trellis-api-asp.md#endpoint-checklist-for-generated-apis), [trellis-api-testing-aspnetcore.md](trellis-api-testing-aspnetcore.md#api-failure-path-test-checklist) | Generated APIs need failure paths, not happy-path-only docs/tests. |
 | Reading operands out of a failure's `detail` text — splitting `"Valid values: "`, parsing bounds out of a sentence | [Recipe 39](trellis-api-cookbook.md#recipe-39--rendering-a-validation-failure-in-the-callers-language-code--args) | Prose belongs to whichever producer noticed the failure, and one failure can have several producers wording it differently. `Code` is stable and `Args` carries the operands as typed values. |
 | Sorting by non-unique/computed values, reusing a cursor with different filters, or seeking after `Take` | [Recipe 3](trellis-api-cookbook.md#recipe-3--query-handler-returning-paget-paginated-list-with-cursor), [Recipe 40](trellis-api-cookbook.md#recipe-40--computed-pagination-with-validated-query-bound-continuation-state) | Ordering and seek must share a unique tie-breaker; validate query context and apply the boundary before limiting the candidates. |
@@ -194,7 +191,7 @@ These rows route recurring LLM lab mistakes to the most relevant reference befor
 | [`trellis-api-cookbook.md`](trellis-api-cookbook.md#recipe-1--crud-aggregate-ddd-value-objects--entity--repository-contract) | End-to-end recipes spanning packages. Open a recipe body when the lookup above sends you to one. |
 | [`trellis-api-core.md`](trellis-api-core.md#use-this-file-when) | `Result<T>`, `Maybe<T>`, `Error`, aggregates, entities, specifications, pagination. |
 | [`trellis-api-migration.md`](trellis-api-migration.md#use-this-file-when) | FunctionalDDD-to-Trellis package, namespace and API changes; open only when migrating a FunctionalDDD application. |
-| [`trellis-api-analyzers.md`](trellis-api-analyzers.md#use-this-file-when) | The analyzer and generator diagnostics, `TRLS001`-`TRLS066`, and `TrellisDiagnosticIds`. |
+| [`trellis-api-analyzers.md`](trellis-api-analyzers.md#use-this-file-when) | The analyzer and generator diagnostics, `TRLS001`-`TRLS067`, and `TrellisDiagnosticIds`. |
 | [`trellis-api-anti-patterns.md`](trellis-api-anti-patterns.md#trls001--result-return-value-not-handled) | Ready-to-apply WRONG/FIX shapes for the analyzer diagnostics (`TRLSxxx`). |
 | [`trellis-value-object-taxonomy.md`](trellis-value-object-taxonomy.md#patterns-index) | Choosing a value-object category: scalar, symbolic, structured, optional. |
 

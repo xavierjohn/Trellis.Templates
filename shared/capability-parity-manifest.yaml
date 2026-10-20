@@ -111,6 +111,8 @@ capabilities:
       - { kind: source-contains, glob: "**/src/**/*.cs", pattern: "AddTrellisIdempotency|\\.UseIdempotency\\(" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "UseTrellisIdempotency" }
       - { kind: source-contains, glob: "**/*.cs", pattern: "IdempotentAttribute|\\[Idempotent\\]" }
+      - { kind: source-contains, glob: "**/*.http", pattern: '(?m)^Idempotency-Key: "[^"\r\n]*"\r?$', desc: "examples use quoted RFC 9651 String keys" }
+      - { kind: source-not-contains, glob: "**/*.http", pattern: '(?m)^Idempotency-Key:[ \t]*(?!")[^ \t\r\n]', desc: "examples do not emit unquoted keys" }
       - { kind: package-referenced, package: "Trellis.Asp.Idempotency.Cosmos" }
       - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "AddCosmosIdempotencyStore" }
       - { kind: source-contains, glob: "**/src/IdempotencyRegistration.cs", pattern: "(?s)if \\(!environment.IsDevelopment\\(\\)\\)\\s+throw new InvalidOperationException", desc: "in-memory storage fails closed outside Development" }

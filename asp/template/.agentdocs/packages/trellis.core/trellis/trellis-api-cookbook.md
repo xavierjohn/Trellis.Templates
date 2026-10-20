@@ -4,7 +4,7 @@ namespaces: [Trellis, Trellis.Asp, Trellis.EntityFrameworkCore, Trellis.Mediator
 types: [recipes]
 related_docs: [trellis-start-here.md, trellis-api-core.md, trellis-api-asp.md, trellis-api-efcore.md, trellis-api-mediator.md]
 version: v3
-last_verified: 2026-10-07
+last_verified: 2026-10-14
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when the task lookup in trellis-start-here.md points to a recipe: compile-checked end-to-end patterns that cross Trellis packages."
@@ -28,7 +28,7 @@ agent_description: "Open when the task lookup in trellis-start-here.md points to
   - [trellis-api-statemachine.md](trellis-api-statemachine.md#use-this-file-when) — `FireResult`, `LazyStateMachine<,>`
   - [trellis-api-testing-reference.md](trellis-api-testing-reference.md#use-this-file-when) — `Should().Be(...)`, `UnwrapError()`
   - [trellis-api-testing-aspnetcore.md](trellis-api-testing-aspnetcore.md#use-this-file-when) — `WebApplicationFactoryExtensions`, `.http` replay helpers
-  - [trellis-api-analyzers.md](trellis-api-analyzers.md#use-this-file-when) — `TRLS001`-`TRLS066`, `TrellisDiagnosticIds`
+  - [trellis-api-analyzers.md](trellis-api-analyzers.md#use-this-file-when) — `TRLS001`-`TRLS067`, `TrellisDiagnosticIds`
 
 ## Where routing lives
 
@@ -920,6 +920,8 @@ The anti-pattern catalog moved to its own file so that AI sessions and human rea
 
 If you are looking up a specific analyzer by ID, the standalone file is faster than scanning this cookbook. The cookbook recipes still link to the relevant sections of that file where they apply.
 
+For a fresh GUID used as an error/violation reason code, follow [TRLS067's WRONG/FIX shape](trellis-api-anti-patterns.md#trls067--fresh-guid-derived-reason-code): retain a stable category and move the incident identifier to metadata. Other dynamic application codes remain legal.
+
 > **Enabling these analyzers.** Standalone analyzer rules are **opt-in**: they ship in a separate `Trellis.Analyzers` package that `Trellis.Core` does not pull in. Add `<PackageReference Include="Trellis.Analyzers" PrivateAssets="all" />` to every project that uses Trellis `Result`/`Maybe`/value objects to enable those analyzer-emitted diagnostics. The `TRLS###` prefix also includes source-generator diagnostics bundled with `Trellis.Core`, `Trellis.EntityFrameworkCore`, and `Trellis.Asp`; those do not require `Trellis.Analyzers`. See [trellis-api-analyzers.md](trellis-api-analyzers.md#installation--the-analyzers-are-opt-in) for the emitter table, install snippet, and `.editorconfig` severity control.
 
 ---
@@ -980,8 +982,13 @@ public static class CompositionRoot
 | `UseDomainEvents(...)` | `AddDomainEventDispatch(...)` | Implies `UseMediator()`. Response-shape dispatch uses strict snapshot validation; handlers must be side-effect-only. Mutually exclusive with tracked dispatch. |
 | `UseTrackedAggregateDomainEvents(...)` | `AddTrackedAggregateDomainEventDispatch(...)` | Implies `UseMediator()`. Dispatches committed aggregate snapshots for outcome-DTO commands and throws on same-aggregate or cross-aggregate cascade. Mutually exclusive with response-shape dispatch. |
 | `UseEntityFrameworkUnitOfWork<TContext>()` | `AddTrellisUnitOfWork<TContext>()` | Implies `UseMediator()` and is always applied last. |
+| `UseOutboxReadiness<TContext>(profile)` | `AddTrellisOutboxReadiness<TContext>(profile)` | Explicitly selected bounded metadata with optional local-relay monitoring, applied after selected outbox registration without changing Mediator order. Local mode requires a matching relay; metadata-only requires the worker retry limit. Endpoint authorization/selection remains separate. |
 
 **Still app-owned.** `AddTrellis(...)` does **not** call `AddDbContext`, `AddMediator`, or route-constraint registration. Those choices depend on provider, connection string, source-generator setup, migrations, route template names, and hosting style.
+
+Minimal API hosts add validation middleware and endpoint filters so collected scalar and
+composite JSON failures short-circuit before the handler. No `ThrowOnBadRequest` override is
+required. See [the ASP JSON preflight](trellis-api-asp.md#minimal-api-semantic-json-validation).
 
 For versioned pagination, install `Trellis.Asp.ApiVersioning`, register
 `Asp.Versioning` normally, and replace `.UseAsp()` with
@@ -1119,7 +1126,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
 - Null-only required-field guards create errors only for missing values. `EnsureNotNullOrWhiteSpace("name", "Name is required.")` reports `value.not-null` for null names and `value.not-empty` for empty/whitespace names, without creating violations on success or trimming valid text.
 - `[OwnedEntity]` + `partial` + `ValueObject` + private ctor is the contract. The three diagnostics (`TRLS036`/`037`/`038`) catch each violation at compile time.
-- `CompositeValueObjectJsonConverter<T>` makes JSON deserialization round-trip through `TryCreate`, so an API request body with an **invalid** `state` (one that fails the VO's rule) produces the same `Error.InvalidInput` shape the domain emits. A **missing** required inner field is caught earlier as a `TrellisJsonValidationException` ("required property missing") *before* `TryCreate` runs.
+- `CompositeValueObjectJsonConverter<T>` makes JSON deserialization round-trip through `TryCreate`, so an API request body with an **invalid** `state` (one that fails the VO's rule) produces the same `Error.InvalidInput` shape the domain emits. A **missing** required inner field produces a structured failure *before* `TryCreate` runs. ASP collects both kinds without throwing; standalone serialization rejects them with `TrellisJsonValidationException`.
 - `ApplyTrellisConventions` removes the boilerplate `OwnsOne` call. You only need `OwnsOne` when you want to **override** the convention (custom column names, table splitting, indexes on inner properties).
 
 **Storage shape.**
@@ -1135,7 +1142,7 @@ The `[JsonConverter(typeof(CompositeValueObjectJsonConverter<T>))]` attribute on
 
 | C# property | JSON request/response shape |
 |---|---|
-| `ShippingAddress ShippingAddress { get; private set; }` (required composite VO) | `"shippingAddress": { "street": "1 Main St", "city": "Redmond", "state": "WA", "postalCode": "98052", "country": "US" }` — every field present; an **invalid** inner field (fails `TryCreate`) → `Error.InvalidInput` with field path `/shippingAddress/<field>`; a **missing** inner field → a "required property missing" `TrellisJsonValidationException`. |
+| `ShippingAddress ShippingAddress { get; private set; }` (required composite VO) | `"shippingAddress": { "street": "1 Main St", "city": "Redmond", "state": "WA", "postalCode": "98052", "country": "US" }` — every field present; an **invalid** inner field (fails `TryCreate`) or a **missing** inner field produces structured `Error.InvalidInput` with field path `/shippingAddress/<field>`. ASP collects it; standalone serialization rejects it. |
 | `partial Maybe<ShippingAddress> BillingAddress { get; set; }` (optional composite VO on a domain model — **not** used directly on a request DTO; see Recipe 14) | Domain model only. On the wire, request DTOs use a **nullable transport** (`ShippingAddress?`) and the controller adapts via `Maybe.From(...)`. Response DTOs project to `ShippingAddress?` for the same reason. |
 | `Money Total { get; private set; }` (required composite VO with scalar inner properties — `decimal Amount`, `Currency Currency`) | `"total": { "amount": 49.99, "currency": "USD" }` — the inner field casing is camelCase (the `CompositeValueObjectJsonConverter` emits camelCase property names). Inner scalar VOs (e.g., `Currency : RequiredString<Currency>`) serialize as their underlying primitive (`"USD"`, not `{"value":"USD"}`). |
 | Scalar VO (`OrderId : RequiredGuid<OrderId>`, `EmailAddress : RequiredString<EmailAddress>`) | Always serializes as the underlying primitive (`"550e8400-..."`, `"a@b.com"`). Never wrapped in `{ "value": ... }`. This is automatic via the source-generated `IScalarValue<T,P>` JSON converter. |
@@ -1325,7 +1332,7 @@ The answer depends on whether the inner type is a **scalar** (single-primitive) 
 
 | Inner type | Pattern | Why |
 |---|---|---|
-| `Maybe<TScalar>` where `TScalar : IScalarValue<TScalar, TPrimitive>` (e.g., `Maybe<EmailAddress>`, `Maybe<PhoneNumber>`) | **Use `Maybe<T>` directly on the DTO.** | `AddScalarValueValidation()` (or the convenience `AddTrellisAspWithScalarValidation()`) registers `MaybeScalarValueJsonConverterFactory` (JSON) and `MaybeModelBinder<T,P>` (route/query/header); MVC child-validation suppression for `None` scalar-maybe values is handled internally by the Trellis MVC integration. Call it before MVC model binding is configured. `null`/missing → `None`; valid → `Maybe.From(validated)`; invalid → ProblemDetails with the same field path the domain emits. |
+| `Maybe<TScalar>` where `TScalar : class, IScalarValue<TScalar, TPrimitive>` (e.g., `Maybe<EmailAddress>`, `Maybe<PhoneNumber>`) | **Use `Maybe<T>` directly on the DTO.** | `AddScalarValueValidation()` (or the convenience `AddTrellisAspWithScalarValidation()`) registers `MaybeScalarValueJsonConverterFactory` (JSON) and `MaybeModelBinder<T,P>` (route/query/header); MVC child-validation suppression for `None` scalar-maybe values is handled internally by the Trellis MVC integration. Call it before MVC model binding is configured. `null`/missing → `None`; valid → `Maybe.From(validated)`; invalid → ProblemDetails with the same field path the domain emits. Custom struct scalar wrappers require an application-owned converter or a DTO adapter; Core's ability to hold them in `Maybe<T>` does not remove the transport converters' class constraint. |
 | `Maybe<TComposite>` where `TComposite : ValueObject` with multiple fields (e.g., `Maybe<ShippingAddress>`) | **Use a nullable transport (`TComposite?`) and adapt at the controller seam.** | No `MaybeCompositeValueObjectJsonConverterFactory` ships today — System.Text.Json would default-construct the inner type, bypassing `TryCreate`. Wrap with `Maybe.From(...)` inside the controller. |
 | `Maybe<TPrimitive>` (e.g., `Maybe<int>`, `Maybe<long>`, `Maybe<string>`, `Maybe<Guid>`, `Maybe<DateTime>`) | **Use `Maybe<T>` directly on the DTO.** | `AddScalarValueValidation()` (or the convenience `AddTrellisAspWithScalarValidation()`) registers `MaybePrimitiveJsonConverterFactory` (JSON) and `MaybePrimitiveModelBinder<T>` (route/query/header). Same closed-primitive allowed list as `CompositeValueObjectJsonConverter` (`string`, `decimal`, `int`, `long`, `short`, `byte`, `double`, `float`, `bool`, `Guid`, `DateTime`, `DateTimeOffset`). `null`/missing → `None`; valid primitive → `Maybe.From(value)`. If the primitive carries domain meaning, you may still prefer wrapping it in a scalar value object (e.g., `Age : RequiredInt<Age>`) for the wire-time validation `TryCreate` provides; both shapes are factory-handled. |
 | `Maybe<TUnsupportedPrimitive>` (e.g., `Maybe<DateOnly>`, `Maybe<TimeOnly>`, `Maybe<uint>`) | **Use `TUnsupportedPrimitive?` on the DTO and `.AsMaybe()` at the seam.** | These types are outside both the composite-VO converter allowed list and the `Maybe<TPrimitive>` factory allowed list. The wire-shape DTO + adapter at the controller seam is the same pattern as `Maybe<TComposite>`. |
@@ -1918,7 +1925,7 @@ public async ValueTask<Result<DraftOrderId>> HandleAccumulating(CreateDraftOrder
 
 The wrong answer: `if (!dict.TryGetValue(id, out var related)) continue;` and move on. The handler appears to succeed, the primary aggregate transitions, the unit of work commits, and the side effect is silently skipped for the missing element. The orchestration has broken its own post-condition ("stock is released for every line item") with no signal to the caller and no rollback.
 
-The right answer: fail-loud. Return `Error.NotFound` referencing the missing related aggregate so the unit of work rolls back the primary aggregate's mutation. The invariant — "every line item resolves to a Product, or the command fails atomically" — is now enforced and observable.
+The right answer: fail-loud before mutation. Return `Error.NotFound` referencing the missing related aggregate so the ordinary failed command is not automatically committed. Do not rely on the unit of work to restore a primary aggregate already mutated in memory. The presence invariant — "every line item resolves to a Product, or no mutation begins" — is now enforced and observable.
 
 Two operating principles drive the snippet below:
 
@@ -1983,9 +1990,9 @@ public sealed class ReturnOrderHandler(
         if (preflight.IsFailure)
             return Result.Fail<Order>(preflight.Error);
 
-        // Pass 1 succeeded for every aggregate — every Pass 2 mutation below has
-        // a matching Can* predicate that just returned Ok, so the mutation is
-        // provably non-failing. Discard() marks the Result as consciously dropped.
+        // Each Product is released once using the validated total. These time-independent
+        // guards remain valid: earlier releases affect neither other Products nor CanReturn.
+        // The clock below supplies only an event timestamp, not an eligibility input.
         foreach (var item in releasePlan)
             item.Product.ReleaseStock(item.Quantity).Discard();
 
@@ -1994,7 +2001,7 @@ public sealed class ReturnOrderHandler(
 }
 ```
 
-`CanReturn(reason)` is an application-defined pure predicate, also called by `Return`: it checks the reason, eligible order state, and positive line quantities before inventory changes. The sample's `CanReleaseStock(long)` / `ReleaseStock(long)` accept the grouped total; summing into `long` prevents an `int` overflow before validation. Both passes use the same materialized plan, once per product, with no intervening awaits or mutations that invalidate the predicates. Checking two separate quantities of 3 against 5 reserved is not equivalent to checking their total of 6. Add regression cases for duplicate product ids, invalid reasons, and an already-returned order, asserting unchanged inventory and no new domain events on failure.
+`CanReturn(reason)` is an application-defined pure predicate, also called by `Return`: it checks the reason, eligible order state, and positive line quantities before inventory changes. The sample's `CanReleaseStock(long)` / `ReleaseStock(long)` accept the grouped total; summing into `long` prevents an `int` overflow before validation. Both passes use the same materialized plan, once per product, with exclusive instance ownership and no mutations that invalidate later predicates. The sample's return eligibility is time-independent; `timeProvider.GetUtcNow()` supplies only the event timestamp. If a return window is added, follow [Recipe 25's time policy](#time-dependent-eligibility-execution-time-versus-snapshot-time) rather than assuming the same provider freezes time. Checking two separate quantities of 3 against 5 reserved is not equivalent to checking their total of 6. Add regression cases for duplicate product ids, invalid reasons, and an already-returned order, asserting unchanged inventory and no new domain events on failure.
 
 **The test-design principle: Partial-Failure Atomicity.**
 
@@ -2086,7 +2093,8 @@ var preflight = releasePlan
 if (preflight.IsFailure)
     return Result.Fail<Order>(preflight.Error);
 
-// Pass 2: every mutation has a matching Can* that just returned Ok — provably non-failing.
+// Pass 2: grouped Products and time-independent, noninterfering guards preserve the
+// preflight proof under exclusive instance ownership, not merely because Can* passed.
 foreach (var item in releasePlan)
     item.Product.ReleaseStock(item.Quantity).Discard();
 ```
@@ -2338,13 +2346,13 @@ foreach (var li in order.LineItems)
 return order.Submit();
 ```
 
-`TransactionalCommandBehavior` rolls the DB commit back on failure, but the in-memory aggregate state stays mutated for the rest of the request — visible to any subsequent code that reads the same aggregate within the request scope, and outright observable in unit tests that arrange the same `Product` instance and assert on its post-handler state.
+For an ordinary failed result, `TransactionalCommandBehavior` skips its automatic commit; it does not restore in-memory fields or domain events. `Result.FailAfterCommit` or another response with `IPersistOnFailure.PersistOnFailure` set to `true` still requests a commit, so partial staged changes can be persisted despite the failed response; see [persist-on-failure dispatch](trellis-api-mediator.md#domaineventdispatchbehavior). Those changes remain visible to subsequent code using the same aggregate instances, and to unit tests asserting post-handler state. Even an explicit database rollback is not in-memory compensation.
 
 **The invariant the recipe teaches.**
 
-> Every fallible domain check across every participating aggregate must succeed BEFORE the first state-changing call. A "fallible domain check" is any `Result<T>`-returning operation that can encode a domain rejection. After validation succeeds, every Pass 2 call has a matching `Can*` predicate from Pass 1, so the mutation is provably non-failing — no compensating-rollback machinery required.
+> Preflight every fallible domain check across every participating aggregate BEFORE the first state-changing call. Then prove that each matching guard remains satisfied until its mutator executes, including through earlier Pass 2 mutations and changes to external inputs. A matching `Can*` plus unchanged fields between passes is not sufficient.
 
-**Two design moves make this work.**
+**Two design moves in the stock example.**
 
 - **Pure `Can*` predicate alongside the mutator.** The aggregate exposes a side-effect-free `CanReserve(qty) → Result<Trellis.Unit>` that returns the same domain error the mutator would, and a `Reserve(qty)` that internally delegates to `CanReserve` before mutating. Same shape as Recipe 9's state-machine `CanFire`+`Fire`/`FireResult` pattern, lifted from "single transition on one aggregate" to "collection of operations across many aggregates."
 - **Mutation-plan grouping for duplicate keys.** If the input collection can name the same related aggregate twice (e.g., two line items with the same `ProductId`), aggregate the duplicates into a single `(Product, totalQuantity)` plan entry before validating. Validating each line independently against unchanged stock is **not** equivalent to mutating them sequentially: two `CanReserve(3)` calls against `Stock=5` both pass, but the second `Reserve(3)` then fails. Grouping eliminates the aliasing.
@@ -2374,9 +2382,8 @@ public sealed class Product : Aggregate<ProductId>
                 detail: $"Cannot reserve {quantity} from stock of {Stock}."));
 
     // Mutator — re-checks via CanReserve as defense in depth so it is safe to call
-    // outside the two-pass orchestration. When called after a matching Pass 1 CanReserve
-    // succeeded in a single-threaded handler with no intervening mutations, Reserve is
-    // provably non-failing.
+    // outside the two-pass orchestration. Success remains proved only while quantity and
+    // Stock stay unchanged from validation until this call. This guard has no clock input.
     public Result<Trellis.Unit> Reserve(int quantity) =>
         CanReserve(quantity).Tap(() => Stock -= quantity);
 }
@@ -2439,10 +2446,10 @@ public sealed class SubmitOrderHandler(
         if (validation.Error is { } err)
             return Result.Fail<Order>(err);
 
-        // PASS 2 — apply every mutation. Each call is provably non-failing because its
-        // matched Can* predicate already passed in Pass 1 AND nothing has mutated the
-        // in-memory aggregate state between passes (single-threaded handler). Discard() is
-        // the idiomatic acknowledged-discard that suppresses TRLS001.
+        // PASS 2 — each distinct Product is reserved once using the validated total.
+        // Earlier reservations affect neither other Products nor the time-independent
+        // CanSubmit guard. Exclusive ownership keeps inputs stable until each call.
+        // Discard() acknowledges proved domain success; it does not enforce the proof.
         foreach (var (product, quantity) in plan)
             product.Reserve(quantity).Discard();
 
@@ -2451,16 +2458,63 @@ public sealed class SubmitOrderHandler(
 }
 ```
 
-The complete compile-checked snippet (with duplicate-product-aware test stubs and the anti-pattern `WrongHandler` under `#if FALSE`) lives at `Examples/CookbookSnippets/Recipe25_TwoPassValidateThenMutate.cs` in the framework repository.
+The complete compile-checked snippet (including the time-policy examples below and the anti-pattern `WrongHandler` under `#if FALSE`) lives at `Examples/CookbookSnippets/Recipe25_TwoPassValidateThenMutate.cs` in the framework repository. `Examples/CookbookSnippets.Tests/TwoPassMutationTests.cs` exercises the stock example, clock boundary, and intra-pass guard invalidation.
 
 **The Pass-2-cannot-fail invariant — what makes it hold.**
 
-The recipe's correctness rests on two preconditions:
+The recipe's domain-success proof requires all of these conditions:
 
-1. **Every Pass 2 call has a matching `Can*` in Pass 1.** This is a static property of the handler shape — every mutator invoked after the validation `if (validation.Error is { } err) return ...` boundary must have appeared, by name and arguments, in the Pass 1 expression.
-2. **Nothing mutates the participating aggregates between passes.** Trivially satisfied for a single-threaded async handler operating on aggregates loaded into the request scope. **Not satisfied** if Pass 1 and Pass 2 are split across threads, if another handler runs concurrently against the same instances, or if a Pass-1 callback (e.g., a logger) is allowed to mutate state. Do not parallelize the mutation pass.
+1. **Matching guards and inputs.** Every mutator has a pure preflight guard that covers all its domain rejection conditions, using the same arguments and eligibility policy. Group repeated keys and enforce per-line invariants before grouping.
+2. **Stable guard dependencies until each call.** Aggregate state, aliased collections, clocks, permissions, and other external inputs cannot invalidate a guard after preflight but before its own mutator. Exclusive ownership matters; request scope, single-threaded execution, and absence of `await` do not freeze time or protect externally shared state. Reusing one `TimeProvider` object is not reusing one decision instant.
+3. **No intra-pass invalidation.** Earlier Pass 2 mutations must preserve every later guard. Grouping repeated product keys solves the stock example's aliasing problem, not every ordering problem: freezing inventory before releasing it invalidates a guard requiring unfrozen inventory, even when both guards passed and nothing changed between passes.
 
-When both preconditions hold, `Discard()` on each Pass 2 mutator call is correct: TRLS001 is suppressed and the result really cannot fail. If you cannot prove (1) or (2) in your context, you are no longer using the two-pass pattern — you are doing transactional compensation, which needs explicit rollback machinery and is out of scope for this recipe.
+The worked stock example meets these conditions under exclusive instance ownership: guards are time-independent, the materialized plan mutates each product once, and stock reservations do not change another product's stock or the order's line count. Its `Discard()` calls therefore acknowledge proved domain success; they do not validate or enforce the proof, and suppressing TRLS001 is not evidence of atomicity. This proof does not cover exceptions, external I/O failure, or concurrent database ownership changes.
+
+When a later operation can still reject, propagate its result through `Bind` or an explicit failure branch. **Propagation alone does not undo earlier mutations.** Reorder a potentially rejecting operation before the first side effect only if its success cannot invalidate later guards, or use an explicitly designed preparation/isolation/compensation strategy. Do not discard an unproved result or claim database rollback repairs the object graph.
+
+### Time-dependent eligibility: execution-time versus snapshot-time
+
+Consider a return accepted until an inclusive deadline. Preflight reads one tick before that deadline. The same clock object later returns one tick after it. Releasing stock first and then returning the order leaves released stock and its event behind when the return rejects; no thread or intervening `await` is needed.
+
+Choose the business policy explicitly. The following compile-checked examples use application-defined `ReturnWindowOrder` and `ReturnInventory` types from the snippet: the order's return method checks eligibility before changing its return timestamp or raising an event; inventory has a time-independent release guard. The order transition cannot invalidate that guard, and neither example freezes inventory.
+
+The two policy blocks below are manually mirrored from the compiled snippet. `TRLDOC006` checks recipe/snippet presence, not code equality; keep these blocks synchronized with the corresponding source methods.
+
+**Execution-time eligibility:** recheck the live clock at the transition attempt, and perform that potentially rejecting transition before inventory changes, after all other preflight checks. A request admitted by preflight can now be rejected with unchanged stock, return metadata, and events.
+
+```csharp
+public static Result<Trellis.Unit> AtExecutionTime(
+    ReturnWindowOrder order, ReturnInventory inventory, int quantity, TimeProvider timeProvider)
+{
+    var validation = inventory.CanReleaseStock(quantity)
+        .Bind(_ => order.CanReturn(timeProvider.GetUtcNow()));
+    if (validation.IsFailure)
+        return validation;
+
+    var executionAt = timeProvider.GetUtcNow();
+    return order.Return(executionAt)
+        .Bind(_ => inventory.ReleaseStock(quantity, executionAt));
+}
+```
+
+**Snapshot-time eligibility:** if the business policy accepts eligibility at one chosen decision instant, capture that instant once and pass it to both guard and transition. The same boundary request is consistently accepted even if the clock advances before mutation. This intentionally differs from execution-time rejection; it must not silently replace a requirement to check the live deadline.
+
+```csharp
+public static Result<Trellis.Unit> AtSnapshotTime(
+    ReturnWindowOrder order, ReturnInventory inventory, int quantity, TimeProvider timeProvider)
+{
+    var decisionAt = timeProvider.GetUtcNow();
+    var validation = inventory.CanReleaseStock(quantity)
+        .Bind(_ => order.CanReturn(decisionAt));
+    if (validation.IsFailure)
+        return validation;
+
+    return order.Return(decisionAt)
+        .Bind(_ => inventory.ReleaseStock(quantity, decisionAt));
+}
+```
+
+Both examples require exclusive ownership and stable stock-release inputs. Transition-first ordering is not a general atomicity guarantee if later mutations can still fail. Capturing time stabilizes only the time input, not permissions, inventory, or other mutable dependencies.
 
 **Choosing fail-fast vs accumulating for the validation pass.**
 
@@ -2487,8 +2541,8 @@ foreach (var li in order.LineItems)
 return order.Submit();
 
 // ✅ Two-pass validate-then-mutate — same shape as the worked example above. Pass 1
-// proves every Can* succeeds across every participating aggregate; Pass 2 then calls
-// the matching mutators with provably-non-failing semantics.
+// checks every guard; exclusive ownership, grouped products, and time-independent
+// noninterfering guards keep each matching mutation's domain success proved.
 var plan = order.LineItems
     .GroupBy(li => li.ProductId)
     .Select(g => (Product: byId[g.Key], Quantity: g.Sum(li => li.Quantity)))
@@ -2531,7 +2585,7 @@ public async Task Submit_with_one_unsatisfiable_line_does_not_reserve_any_stock(
 }
 ```
 
-Together with the duplicate-product case (two lines for the same product whose summed quantity exceeds available stock), these are the two failure-mode tests that catch every form of this bug.
+Also test duplicate products whose summed quantity exceeds available stock. These two cases cover the worked stock example, not every cross-aggregate operation. For time-dependent or interacting guards, add deterministic clock changes between preflight and transition, intra-pass invalidation, and each supported business policy's stock/metadata/event assertions. The executable regressions also pin the exact deadline and one tick on either side.
 
 ---
 
@@ -2839,7 +2893,9 @@ public sealed class PaymentsController : ControllerBase
 app.MapPost("/payments", CreatePaymentAsync).WithMetadata(new IdempotentAttribute());
 ```
 
-**What it shows.** The middleware reads the configured header (default `Idempotency-Key`), rejects raw header values above the parser's 4 KiB defensive cap, parses accepted values as the [RFC 8941](https://www.rfc-editor.org/rfc/rfc8941) `sf-string` subset, buffers the request body up to `MaxRequestBodyBytes`, computes a SHA-256 fingerprint over method, `PathBase + Path`, canonicalized query, `Content-Type`, `Content-Encoding`, configured `AdditionalFingerprintHeaders`, and body bytes, resolves a scope through `IIdempotencyScopeResolver`, and calls `IIdempotencyStore.TryReserveAsync(scope, key, fingerprint, ct)`.
+**What it shows.** The middleware reads the configured header (default `Idempotency-Key`), rejects raw header values above the parser's 4,096-character defensive cap, parses an RFC 9651 String-valued Item, buffers the request body up to `MaxRequestBodyBytes`, computes a SHA-256 fingerprint over method, `PathBase + Path`, canonicalized query, `Content-Type`, `Content-Encoding`, configured `AdditionalFingerprintHeaders`, and body bytes, resolves a scope through `IIdempotencyScopeResolver`, and calls `IIdempotencyStore.TryReserveAsync(scope, key, fingerprint, ct)`.
+
+**Key syntax.** Send an [RFC 9651 String-valued Item](https://www.rfc-editor.org/rfc/rfc9651#section-3.3.3), including the double quotes: `Idempotency-Key: "payment-1"`. Trellis retains the Idempotency-Key draft's String-valued key contract and uses the current Structured Fields standard; the header itself is not a finalized RFC. Bare values such as `payment-1` are invalid. Strings contain zero or more printable-ASCII characters (`0x20`-`0x7E`) with only quote/backslash escapes (`\"` and `\\`). An empty quoted String (`""`) is a real key: matching retries replay it, and a different request fingerprint in the same scope is rejected. Leading/trailing SP outside the Item and valid Item parameters are accepted, including Date and UTF-8 percent-encoded Display String values; parameters do not contribute to the parsed key. Dates and Display Strings are not valid as the primary key. Invalid syntax and duplicate headers return `400 Bad Request`; the middleware also returns `400` when the decoded String exceeds `MaxKeyLength`, which excludes quotes, escape overhead, SP outside the Item, and parameters. See [`IdempotencyKeyParser`](trellis-api-asp.md#idempotencykeyparser) for the exact surface.
 
 **Scope is not the route.** The default resolver uses the current actor's id via `IActorProvider`, falling back to the shared anonymous scope when no provider is registered or no actor resolves. A custom resolver can supply a different isolation boundary, such as tenant plus actor. All of an actor's opted-in endpoints sharing the store share one client key namespace. The fingerprint is compared against the entry at `(scope, key)`; it is not a third key component. While that reservation or unexpired snapshot exists, the same actor, key, and body sent to `POST /restaurants/A/import` and then `POST /restaurants/B/import` produce a path mismatch and `MismatchStatusCode` (default `422`), not a replay or a second independent operation. Use distinct keys for distinct operations and reuse a key for retries of the same request. See [request identity and fingerprint](trellis-api-asp.md#namespace-trellisaspidempotency).
 
@@ -3224,18 +3280,51 @@ Raise events exactly as before — `DomainEvents.Add(new OrderPlaced(Id, clock.G
 
 **Semantics to remember.**
 
-- The guarantee is at-least-once **delivery**, and delivery means *every handler completed*: a handler that throws leaves the message pending and the retry re-invokes only the failed handlers, up to `OutboxOptions.MaxAttempts`, after which the message is parked. Make handlers idempotent — a crash before the relay's bookkeeping save re-delivers to all of them. (In-pipeline dispatch still swallows handler exceptions: it runs post-commit and has no retry mechanism.)
+- **Domain rows** use reporting dispatch: every domain handler must complete before the row is processed. A handler that throws leaves it pending and retry re-invokes only failed handlers, up to `OutboxOptions.MaxAttempts`, after which it is parked. Make handlers idempotent — a crash can repeat successes whose progress was not saved. Default in-pipeline domain dispatch still swallows handler exceptions because its post-commit callers have no retry mechanism. Integration rows have a different publisher-handoff boundary; see Recipe 36.
 - `Maybe<T>` event members are supported — a present value serializes as the underlying value, an absent one as JSON `null`. Members that depend on a caller-registered (non-attribute) `JsonSerializerOptions` converter still need a nullable transport, since the outbox serializer only honors `[JsonConverter]`-attributed types.
 - This is an outbox, not an event store: rows are a transient delivery buffer and may be pruned once `ProcessedAt` is set.
 - Capture persists the current W3C trace context with each domain row; the alpha outbox schema includes nullable lineage and trace columns. See the outbox reference for the column names.
+- Every new domain row also receives its own UTC `CapturedAt` from the interceptor's
+  `TimeProvider`. Add the nullable column/index migration before deploying the writer;
+  legacy nulls remain unknown and `OccurredAt` is never a queue-age substitute.
 
 See [trellis-api-efcore-outbox.md](trellis-api-efcore-outbox.md#how-the-outbox-works) for the full contract, options, and operational guidance.
+
+**Optional readiness.** Existing outbox calls do not enable health checks. Explicitly
+select `OutboxReadinessOptions.CreateStagedOperationalProfile()` and add
+`.UseOutboxReadiness<AppDbContext>(profile)` alongside `.UseOutbox<AppDbContext>()`.
+The named `trellis-outbox` check reports bounded pending/parked rows, local relay
+responsiveness, and separately counted durable row completions. After the nullable
+`CapturedAt` migration and writer rollout, opt into the 2/10-minute reference age SLO
+with `profile with { CaptureAgeEnabled = true }`; legacy unknown pending rows degrade.
+Consumer/source lag also remains disabled until the profile selects
+`ConsumerLagMeasures.Age`, `Count`, or both and the application registers an
+`IConsumerLagProvider`; the provider owns conservative gap-aware source evidence.
+The host owns endpoint authorization and whether shared-store breaches gate traffic
+or only alert.
+See [outbox readiness](trellis-api-efcore-outbox.md#outbox-readiness).
+
+**Split API/worker hosts.** Keep the existing local-relay profile in the worker. The API
+can select `OutboxReadinessOptions.CreateMetadataOnlyProfile(workerMaxAttempts)` and
+`.UseOutboxReadiness<AppDbContext>(profile)` without `.UseOutbox<AppDbContext>()`.
+`WorkerMaxAttempts` must equal the worker's `OutboxOptions.MaxAttempts`; derive both
+from one configuration key or constant. Incidental local options are never resolved or
+compared, so a mismatch generates no warning.
+
+Metadata-only reports `relayMonitoring = "disabled"` and omits relay observations.
+With capture age disabled, worker inactivity alone raises no signal until pending depth
+reaches 1,000 or a row is parked. Enabling capture age can report an aging row but still
+does not prove the remote worker is dead; it may be alive and retrying. Probe faults and
+stale/invalid evidence still report failures independently.
+Generic Host lifecycle startup validates required local-relay configuration and, when
+the container supports registration probing, context registration without constructing
+the context. Bare providers do not run this startup validation.
 
 ## Recipe 36 — Translating a domain event into an integration event
 
 **Problem.** You want to publish that an order was placed to *other* services, but your `OrderPlaced` domain event carries internal value objects (`OrderId`, `CustomerEmail`, `Money`). Relaying it as-is couples external consumers to your domain model, and every refactor becomes a breaking wire change.
 
-**Fix.** Keep the domain event internal and publish a deliberately-shaped `IIntegrationEvent` translated from it. The translator is an ordinary domain-event handler that adds to `IIntegrationEventCollector`; the outbox relay captures and delivers the integration event.
+**Fix.** Keep the domain event internal and publish a deliberately-shaped `IIntegrationEvent` translated from it. The translator is an ordinary domain-event handler that adds to `IIntegrationEventCollector`; the outbox relay stages the integration event durably and later hands it to `IIntegrationEventPublisher`.
 
 ```csharp
 // 1. The external contract — primitive/nullable members, no internal value objects.
@@ -3253,13 +3342,13 @@ public sealed class OrderPlacedTranslator(IIntegrationEventCollector collector) 
     }
 }
 
-// 3. An in-process consumer (or replace IIntegrationEventPublisher with a broker adapter).
+// 3. A best-effort in-process consumer (or replace IIntegrationEventPublisher with a broker adapter).
 public sealed class NotifyShippingHandler : IIntegrationEventHandler<OrderPlacedIntegrationEvent>
 {
     public ValueTask HandleAsync(OrderPlacedIntegrationEvent e, CancellationToken ct) { /* ... */ return ValueTask.CompletedTask; }
 }
 
-// 4. Wire it — translators are domain-event handlers; the outbox delivers both kinds.
+// 4. Wire it — domain rows report handler outcomes; integration rows use one publisher handoff.
 services.AddTrellis(trellis => trellis
     .UseDomainEvents(typeof(Program).Assembly)
     .UseIntegrationEvents(typeof(Program).Assembly)
@@ -3270,8 +3359,13 @@ services.AddTrellis(trellis => trellis
 **Semantics to remember.**
 
 - The integration event is enrolled **only after** its source domain event is durably committed and dispatched by the relay — never for state that rolled back. The relay stages drained collector events as `OutboxMessageKind.Integration` rows atomically with the source row's saved handler progress (or overall completion), then publishes them on a later drain. There is no per-handler collector rollback: an event added by a translator that subsequently throws can still be enrolled, as can output from a successful translator whose sibling fails. The source row can remain pending while those integration rows are already eligible for publication; integration publication is not proof that the translator or every local handler completed.
-- The default `IIntegrationEventPublisher` fans out in-process to `IIntegrationEventHandler<T>` (great for a modular monolith and tests). Replace that one registration with a message-broker adapter to deliver to other services — the aggregate, translator, and outbox are unchanged.
-- Delivery is at-least-once. Routine retries skip translators whose success was recorded, so a failed sibling does not by itself re-enroll their integration events. A translator that added an event and then failed is retried and can produce a new row with a new message id; crashes before progress is saved can also repeat translation. Delivery retries can redeliver an existing integration row. Dedupe repeated delivery by message id, and use business identity when semantic duplicates can have distinct message ids.
+- Each translated integration row receives its own UTC `CapturedAt` when the relay stages
+  it. It does not inherit the source domain row's capture age; retries and replay preserve
+  each row's original evidence.
+- The default `IIntegrationEventPublisher` is **best-effort local notification**: it fans out to `IIntegrationEventHandler<T>`, logs and swallows ordinary consumer failures, and returns normally. The relay then processes the integration row without a failed attempt (`Attempts == 0` on a new row) or a consumer retry. This is suitable for modular monoliths and tests only when that tradeoff is acceptable.
+- A **broker publisher** must await publication acceptance and propagate publication failures so the relay can retry the pending row under the same message id. Acceptance does not mean downstream consumer success. The default domain publisher's post-commit/no-retry rationale does not apply here: the integration relay owns retries, but sees only exposed failures.
+- **Transactional inbox consumption** is separate. An inbound adapter must call `IInboxDispatcher` with the stable message id and expose failures for transport redelivery. Handler writes through the inbox's context and the dedup row commit together; external calls do not. A new message with no registered integration-event handler throws without writing its dedup row, so correct the registration or use an explicit no-op handler. The built-in EF dispatcher requires its matching EF store; a custom store needs a coordinated custom dispatcher. Enabling `UseInbox` does not reroute the default local publisher through it.
+- Publication can repeat after an exposed failure or a crash before bookkeeping. Routine domain retries skip translators whose success was recorded, so a failed sibling does not by itself re-enroll their integration events. A translator that added an event and then failed is retried and can produce a new row with a new message id; crashes before progress is saved can also repeat translation. Deduplicate repeated delivery by message id, and use business identity when semantic duplicates can have distinct message ids.
 - Integration events require the outbox. The collector accepts `Add` only inside an active outbox-relay translator invocation; calls from command handlers, direct translator calls, and ordinary in-process domain dispatch throw `InvalidOperationException`. Use the persistence/capture setup from Recipe 35 plus `UseOutbox<TContext>()`; the translator above is invoked by the relay, not by the command handler.
 - `CausationId` on a translated integration row is the source **domain row** id; the domain row's cause is the inbound envelope `MessageId` when present. Both rows share the persisted W3C trace and optional application-owned business `CorrelationId` (use `IntegrationMessageContext.BeginCorrelation("workflow-id")` to supply one explicitly). Do not derive business correlation from a trace or HTTP request id.
 
@@ -3564,7 +3658,7 @@ public static class ViolationReader
 
 `FieldViolationProblemDetail` and `ValidationArgValue` are declared in `Trellis.Asp` and `Trellis.Core`, which a Trellis-based caller already references — but nothing here depends on that. The contract is the JSON, so a client on another stack declares its own equivalent record and the recipe is unchanged; these are response-shape metadata, not a domain model to share.
 
-**What it shows.** A localized message is a function of `Code`, `Args`, and a resource table — never of `Detail`. Keying the `.resx` on the reason code makes the [`ValidationCodes`](trellis-api-core.md#validationcodes--the-reason-code-vocabulary) vocabulary the translation vocabulary, so a missing translation is a missing row rather than a parsing bug, and a translator sees the whole surface in one file. Because `ValidationArgValue` is a closed union of JSON's self-describing values, formatting is total and exhaustive: `Number` is a `decimal` written invariantly on the wire and formatted *culturally* for display, which is the one conversion a scraper cannot do correctly because it never recovers the type. `Location.Pointer` (RFC 6901) is what binds the message back to a form control.
+**What it shows.** A localized message is a function of `Code`, `Args`, and a resource table — never of `Detail`. Keying the `.resx` on the reason code makes the [`ValidationCodes`](trellis-api-core.md#validationcodes--the-reason-code-vocabulary) vocabulary the translation vocabulary, so a missing translation is a missing row rather than a parsing bug, and a translator sees the whole surface in one file. Because `ValidationArgValue` is a closed union of JSON's self-describing values, formatting is total and exhaustive: `Number` is a `decimal` written invariantly on the wire and formatted *culturally* for display, which is the one conversion a scraper cannot do correctly because it never recovers the type. `ViolationLocation.Pointer` (RFC 6901) is what binds the message back to a form control.
 
 The same renderer works server-side when an API must localize on behalf of thin clients — resolve the culture from `Accept-Language` and render before writing the response. Prefer the client doing it: the server cannot know the user's locale better than the client, and a localized `detail` is not cacheable across languages.
 
@@ -3799,6 +3893,248 @@ public static class DistancePagination
 **Anti-pattern → fix.** Raw JSON/base64 with unchecked distance → typed codecs plus validation; global nearest-N candidates before applying a boundary → seek before `Take`; timestamp/score alone → add a stable unique tie-breaker; replaying a token with another origin/filter → validate canonical context; treating cursor signing, spatial indexing, or ellipsoidal distance as built in → explicitly supply the appropriate infrastructure.
 
 **References.** [Primitives geographic bounds](trellis-api-primitives.md#geobounds), [EF geographic expressions](trellis-api-efcore.md#geocoordinateexpressions), [Core pagination](trellis-api-core.md#pagination), [EF seek definitions](trellis-api-efcore.md#seekdefinition), [Recipe 3](#recipe-3--query-handler-returning-paget-paginated-list-with-cursor). `Result` failures propagate through `Bind` / `Map` (TRLS001); `Maybe` is read through guarded `TryGetValue` (TRLS003). No throwing parser is used for expected client-input failures.
+
+## Recipe 41 — Actor-aware rate limiting without loading permissions
+
+**Problem.** Partition ASP.NET Core rate limits by the provider's canonical actor identity
+without loading database-backed permissions before any limit applies, or duplicating
+subject extraction/provider normalization in the synchronous partitioner.
+
+**Choose the path.** A custom claims-only provider and limiter call **one shared
+application-owned synchronous normalizer**: no async prefetch is needed. Share the whole
+canonical function, including authenticated-identity selection, subject fallback,
+provider/issuer label and `ActorId` normalization, not just the label helper.
+For an identity provider that genuinely needs asynchronous work, resolve
+`IActorIdentityProvider` before the limiter and retain a private request-local snapshot.
+Never use `.Result`, `.Wait()`, or blocking async calls in the partitioner.
+
+The following application-owned sample is compiled in
+`Examples/CookbookSnippets/Recipe41_ActorRateLimiting.cs`; its tests execute both paths,
+network fallback, authorization ordering and idempotent replay. The small two-per-minute
+budget is illustrative, not a Trellis default. Configure and validate the host's real
+authentication scheme first. This sample assumes one trusted issuer and uses `"sample"`
+as its application-owned provider label; multi-issuer hosts must use their provider's
+canonical issuer mapping rather than arbitrary caller-supplied labels.
+
+```csharp
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
+using Trellis;
+using Trellis.Asp;
+using Trellis.Asp.Authorization;
+using Trellis.Asp.Idempotency;
+using Trellis.Authorization;
+using Trellis.ServiceDefaults;
+
+public sealed class SharedClaimsActorProvider(IHttpContextAccessor accessor)
+    : IActorProvider, IActorIdentityProvider
+{
+    public static Maybe<ActorId> CanonicalActorId(ClaimsPrincipal principal)
+    {
+        var identity = principal.Identities.FirstOrDefault(i => i.IsAuthenticated);
+        var subject = identity?.FindFirst("sub")?.Value
+            ?? identity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return string.IsNullOrWhiteSpace(subject)
+            ? Maybe<ActorId>.None
+            : Maybe.From(ActorId.Create($"sample:{subject.Trim()}"));
+    }
+
+    public ValueTask<Maybe<ActorId>> GetCurrentActorIdAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(CanonicalActorId(CurrentPrincipal()));
+    }
+
+    public Task<Maybe<Actor>> GetCurrentActorAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var principal = CurrentPrincipal();
+        return Task.FromResult(CanonicalActorId(principal).Map(id => Actor.Create(id,
+            principal.Identities.First(i => i.IsAuthenticated).FindAll("permissions")
+                .Select(c => c.Value).ToHashSet(StringComparer.Ordinal))));
+    }
+
+    private ClaimsPrincipal CurrentPrincipal() => accessor.HttpContext?.User
+        ?? throw new InvalidOperationException("Actor resolution requires an HTTP request.");
+}
+
+public sealed record ActorIdentityRateLimitMetadata;
+
+public static class ActorRateLimitingSample
+{
+    private const string Policy = "actor";
+    private static readonly object s_identitySnapshotKey = new();
+    private sealed record IdentitySnapshot(Maybe<ActorId> Id);
+
+    public static void ConfigureServices(IServiceCollection services, bool usePrefetch)
+    {
+        services.AddAuthentication();
+        services.AddAuthorization();
+        services.AddTrellis(t => t.UseAsp().UseProblemDetails().UseIdempotency());
+        services.AddInMemoryIdempotencyStore();
+        services.AddCachingActorProvider<SharedClaimsActorProvider>();
+        services.AddRateLimiter(options =>
+        {
+            options.AddPolicy(Policy, context => RateLimitPartition.GetFixedWindowLimiter(
+                usePrefetch ? PrefetchedPartitionKey(context) : ClaimsPartitionKey(context),
+                static _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 2,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }));
+            options.UseTrellisRejectionHandler();
+        });
+    }
+
+    public static void ConfigurePipeline(WebApplication app, bool usePrefetch, bool authorizationFirst = false)
+    {
+        app.UseRouting();
+        app.UseAuthentication();
+        if (authorizationFirst)
+            app.UseAuthorization();
+        if (usePrefetch)
+            UseIdentityPrefetch(app);
+        app.UseRateLimiter();
+        if (!authorizationFirst)
+            app.UseAuthorization();
+        app.UseTrellisIdempotency();
+
+        app.MapGet("/limited", static () => Results.Ok())
+            .WithMetadata(new ActorIdentityRateLimitMetadata()).RequireRateLimiting(Policy);
+        app.MapPost("/payments", static () => Results.Ok(new { ReceiptId = Guid.NewGuid() }))
+            .WithMetadata(new ActorIdentityRateLimitMetadata(), new IdempotentAttribute())
+            .RequireRateLimiting(Policy).RequireAuthorization();
+        app.MapGet("/ready", static () => Results.Ok()).AllowAnonymous().DisableRateLimiting();
+    }
+
+    public static void UseIdentityPrefetch(IApplicationBuilder app) =>
+        app.Use(async (HttpContext context, RequestDelegate next) =>
+        {
+            if (context.GetEndpoint()?.Metadata.GetMetadata<ActorIdentityRateLimitMetadata>() is not null)
+            {
+                var provider = context.RequestServices.GetRequiredService<IActorIdentityProvider>();
+                var id = await provider.GetCurrentActorIdAsync(context.RequestAborted).ConfigureAwait(false);
+                context.Items[s_identitySnapshotKey] = new IdentitySnapshot(id);
+            }
+
+            await next(context).ConfigureAwait(false);
+        });
+
+    public static string ClaimsPartitionKey(HttpContext context) =>
+        PartitionKey(context, SharedClaimsActorProvider.CanonicalActorId(context.User));
+
+    public static string PrefetchedPartitionKey(HttpContext context)
+    {
+        if (!context.Items.TryGetValue(s_identitySnapshotKey, out var value) || value is not IdentitySnapshot snapshot)
+            throw new InvalidOperationException(
+                "Actor identity prefetch did not run. Add the endpoint metadata and mount " +
+                "UseIdentityPrefetch after routing/authentication and before UseRateLimiter.");
+
+        return PartitionKey(context, snapshot.Id);
+    }
+
+    private static string PartitionKey(HttpContext context, Maybe<ActorId> identity) =>
+        identity.Match(id => $"actor:{id.Value}", () => NetworkPartitionKey(context.Connection.RemoteIpAddress));
+
+    private static string NetworkPartitionKey(IPAddress? address)
+    {
+        if (address is null)
+            return "network:unknown";
+        if (address.IsIPv4MappedToIPv6)
+            address = address.MapToIPv4();
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+            return $"network:v4:{address}";
+
+        var bytes = address.GetAddressBytes();
+        Array.Clear(bytes, 8, 8);
+        return $"network:v6:{new IPAddress(bytes)}/64";
+    }
+}
+```
+
+Use the same `usePrefetch` value in service and pipeline configuration. For the
+claims-only provider above, use `false`. Set it to `true` when replacing the provider
+with one whose identity-only path can await; the partitioner then reads the completed
+snapshot rather than resolving a provider synchronously. `UseIdentityPrefetch`,
+`IdentitySnapshot`, route metadata, `CanonicalActorId` and partition helpers are
+**application code, not shipped Trellis middleware/APIs**. Routes needing async identity
+carry the metadata; unrelated, network-only and health routes do not. A missing snapshot
+is a configuration fault, distinct from a successfully resolved `None` snapshot.
+
+### Middleware order and cost
+
+| Order after routing/authentication | Consequence |
+|---|---|
+| Optional identity prefetch → limiter → authorization → idempotency → endpoint | Requests reaching the applicable limiter consume permits even if later challenged/forbidden; exhaustion can produce 429 before a later 401/403. |
+| Authorization → optional identity prefetch → limiter → idempotency → endpoint | Valid when deliberately retained: ASP.NET authorization challenges/forbids short-circuit before the limiter and consume no permits. The limiter does **not** protect authorization work. |
+
+The client-style `UseAuthorization()` → `UseRateLimiter()` → `UseTrellisIdempotency()`
+order therefore remains valid. Permission loading inside a later Mediator handler is
+different from ASP.NET authorization: those later requests have already reached the
+limiter. In either order, putting the limiter before idempotency charges replay requests.
+`DefaultIdempotencyScopeResolver` and `ActorIdempotencyScopeResolver` still resolve
+full `IActorProvider`; registering identity-only resolution does not change them.
+
+Identity-only forbids permission/attribute loads, **not all I/O**. An expensive identity
+lookup or authentication/authorization stage before this limiter needs a separate
+upstream/network guard at a location that actually runs before that work. A second policy
+in the same later `UseRateLimiter()` cannot protect earlier prefetch. Do not claim an
+actor limiter protects a preceding database lookup.
+
+### Identity, network and operational boundaries
+
+Treat `ActorId` as opaque: do not split provider labels or replace it with raw `sub`,
+email, or a separately parsed development header. The provider and limiter share one
+canonical mapping. Built-in providers resolve through DI adapters; custom subclasses
+opt in explicitly. `AddCachingActorProvider<T>()` is the one registration for both
+supported interfaces, not two registrations that can drift.
+
+Anonymous fallback has a **separate network namespace**, normalizes IPv4-mapped IPv6,
+and groups IPv6 by an illustrative `/64`. Missing address uses one bounded shared
+`network:unknown` bucket, never an unlimited bypass. NAT sharing and IPv6 grouping/budgets
+are application policy; network fallback is not actor identity.
+
+Use `RemoteIpAddress` only after the host's trusted-proxy configuration has established
+the transport boundary. Do not read arbitrary `X-Forwarded-For` yourself. Keep raw
+partition keys out of responses, logs and metric labels. Limiters shown here are
+**per instance**, not cross-replica/distributed quota guarantees; choose edge/distributed
+infrastructure when global enforcement is required.
+
+In provider tests, assert agreement in one line using the DI-resolved interfaces:
+
+```csharp
+await actorProvider.ShouldHaveConsistentActorIdentityAsync(identityProvider, cancellationToken);
+```
+
+The helper lives in `Trellis.Testing`; import that namespace in tests. It resolves the
+two paths sequentially and checks full-actor IDs without treating identity presence
+as authorization.
+
+**Retry-After.** The existing Trellis rejection adapter emits only lease-provided advice.
+On .NET 10, sliding-window and concurrency limiters still do not provide an estimate;
+the retry-advice documentation/characterization change does not synthesize one.
+Fixed-window/token-bucket advice can also be absent. Clients handle 429 without a header
+using bounded backoff and jitter, subject to the operation's retry safety.
+
+**Anti-pattern → fix.** Duplicated subject extraction → one full canonical normalizer;
+permission-loading full actor prefetch → identity-only provider; blocking partitioner →
+await before the limiter and read a private snapshot; missing snapshot treated as
+anonymous → explicit configuration error. Use `Maybe.Match` / guarded `TryGetValue`
+instead of unsafe `.Value` access (TRLS003); no new authorization or limiter engine exists.
+
+**References.** [Identity contract](trellis-api-authorization.md#iactoridentityprovider),
+[ASP identity registration](trellis-api-asp.md#identity-only-provider-registration),
+[testing assertion](trellis-api-testing-reference.md#actoridentityassertionsextensions),
+[429/retry contract](trellis-api-asp.md#ratelimiteroptionsextensions),
+[idempotency](trellis-api-asp.md#namespace-trellisaspidempotency).
 
 ## Cross-references
 

@@ -3,7 +3,7 @@ package: Trellis.Messaging.AzureServiceBus
 namespaces: [Trellis.Messaging.AzureServiceBus]
 types: [ServiceBusIntegrationEventPublisher, ServiceBusInboxConsumer, AzureServiceBusPublisherOptions, AzureServiceBusConsumerOptions, ServiceBusSubscription, ServiceBusMessageFormat, AzureServiceBusServiceCollectionExtensions]
 version: v1
-last_verified: 2026-10-04
+last_verified: 2026-10-14
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when publishing integration events to Azure Service Bus or consuming them into a Trellis inbox, including wire format and message settlement."
@@ -124,7 +124,23 @@ The duplicate check spans calls. Configuration accumulates onto one options inst
 
 `TopicNameResolver` and both `JsonSerializerOptions` properties reject `null` on assignment rather than failing with a `NullReferenceException` on the first message.
 
+## `ServiceBusSubscription`
+
+```csharp
+public sealed record ServiceBusSubscription(string TopicName, string SubscriptionName);
+```
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `TopicName` | `string` | Topic to consume; the event's wire name in the default topic-per-contract layout. |
+| `SubscriptionName` | `string` | This service's subscription on that topic. Distinct from the inbox's `ConsumerId`. |
+
+Construction rejects blank names with `ArgumentException`. Both properties are
+init-only, and record equality compares the pair by value.
+
 ## Registration
+
+### `AzureServiceBusServiceCollectionExtensions`
 
 ```csharp
 public static IServiceCollection AddAzureServiceBusIntegrationEventPublisher(
@@ -138,11 +154,20 @@ public static IServiceCollection AddAzureServiceBusIntegrationEventConsumer(
     Action<AzureServiceBusConsumerOptions> configure);
 ```
 
-Both require a `ServiceBusClient` in the container; neither owns its lifetime.
+Register one shared singleton `ServiceBusClient` in the container for both adapters.
+Register it with a factory
+(`services.AddSingleton(_ => new ServiceBusClient(connectionString))`) so the container
+owns and disposes it. The helpers consume that registration and do not create or own a
+separate client. An externally created instance remains application-owned and must be
+disposed by the application.
 
 `AddAzureServiceBusIntegrationEventPublisher` **replaces** any existing `IIntegrationEventPublisher` registration rather than adding to it. In-process fan-out and broker publication are alternatives, not layers: registering both would deliver each event locally *and* over the wire, so a service subscribed to its own topic would handle everything twice. Replacing also makes the registration order-independent.
 
-`AddAzureServiceBusIntegrationEventConsumer` requires an `IInboxDispatcher` (`AddTrellisInbox<TContext>()`); consuming without one runs handlers with no deduplication, which is the failure the inbox exists to prevent. The dispatcher is resolved per message from a fresh scope, so it need not be registered before this call.
+`AddAzureServiceBusIntegrationEventConsumer` requires an `IInboxDispatcher`
+(`AddTrellisInbox<TContext>()`). The dispatcher is resolved per message from a fresh
+scope, so it need not be registered before this call. Omitting it is not a startup
+error: each delivery fails resolution, is abandoned, and eventually reaches the broker's
+dead-letter policy.
 
 **Each helper keeps the map it was handed.** The `nameMap` argument is captured by the component being registered rather than published as a shared container service, so a service that publishes one set of contracts and consumes another can pass a different map to each call without the first silently winning. Calling the consumer helper more than once still runs a single consumer, configured with every caller's subscriptions.
 
@@ -170,6 +195,14 @@ Dead-letter reasons:
 | `servicebus_malformed_metadata` | Only a non-null, non-string `trellis-message-source` or a present `trellis-causation-id` that is not a non-empty GUID string. Missing/blank correlation and source, non-string trace properties, and malformed W3C trace **strings** do not produce this reason: they map to `null` or pass through to the inbox. |
 
 The dead-letter description carries the specific diagnosis (the offending wire name, the JSON error, and so on).
+
+Delivery-attempt and dead-letter evidence belongs to Service Bus, not the inbox table.
+Redriving a usable message preserves its original identity and contract; a retained
+committed inbox pair is skipped even if the earlier acknowledgement failed. Controlled
+replay of consumed events instead uses an application-owned archive and isolated
+rebuild, not deletion of live dedup rows or fresh message ids. See the
+[inbox operational requirements](trellis-api-efcore-inbox.md#operational-requirements-and-transport-boundary).
+Neither this adapter nor the inbox ships an archive/redrive/rebuild coordinator.
 
 ## Publishing an unmapped event
 

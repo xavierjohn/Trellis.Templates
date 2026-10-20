@@ -1,9 +1,9 @@
 ﻿---
 package: Trellis.Testing
 namespaces: [Trellis.Testing]
-types: ["FakeRepository<TAggregate, TId>", "FakeSharedResourceLoader<TResource, TId>", TestActorProvider, TestActorScope, "ResultAssertions<TValue>", ResultAssertionsExtensions, ResultAssertionsAsyncExtensions, IResultAssertions, IResultAssertionsExtensions, "MaybeAssertions<T>", MaybeAssertionsExtensions, ErrorAssertions, ErrorAssertionsExtensions, ValidationErrorAssertions, ValidationErrorAssertionsExtensions, UnwrapExtensions, UnwrapFailedException, AggregateTestMutator]
+types: ["FakeRepository<TAggregate, TId>", "FakeSharedResourceLoader<TResource, TId>", TestActorProvider, TestActorScope, ActorIdentityAssertionsExtensions, "ResultAssertions<TValue>", ResultAssertionsExtensions, ResultAssertionsAsyncExtensions, IResultAssertions, IResultAssertionsExtensions, "MaybeAssertions<T>", MaybeAssertionsExtensions, ErrorAssertions, ErrorAssertionsExtensions, ValidationErrorAssertions, ValidationErrorAssertionsExtensions, UnwrapExtensions, UnwrapFailedException, AggregateTestMutator]
 version: v3
-last_verified: 2026-10-06
+last_verified: 2026-10-13
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when writing unit or handler tests for Result, Maybe, errors or mediator handlers: FluentAssertions extensions, unwrap helpers and fakes (Trellis.Testing)."
@@ -35,6 +35,7 @@ See also: [trellis-api-cookbook.md](trellis-api-cookbook.md#recipe-10--test-hand
 | Extract success value in tests only | `result.Unwrap()` | [Usage notes](#usage-notes) |
 | Extract error in tests only | `result.UnwrapError()` | [Usage notes](#usage-notes) |
 | Provide an actor in Mediator-dispatch handler tests | Register `TestActorProvider` as `IActorProvider` with the normal pipeline and fake dependencies | [`TestActorProvider`](#testactorprovider) |
+| Assert full actor and identity-only providers agree | `await actorProvider.ShouldHaveConsistentActorIdentityAsync(identityProvider, token)` | [`ActorIdentityAssertionsExtensions`](#actoridentityassertionsextensions) |
 | Stub repository behavior | `FakeRepository<TAggregate,TId>` | [`FakeRepository<TAggregate,TId>`](#fakerepositorytaggregate-tid) |
 
 ## Common traps
@@ -269,6 +270,31 @@ When a value assertion is evaluated inside a FluentAssertions `AssertionScope`, 
 receiver records the normal "Expected Maybe to have a value..." assertion failure and
 does not dereference `Maybe<T>.Value`.
 
+#### `ActorIdentityAssertionsExtensions`
+
+```csharp
+public static class ActorIdentityAssertionsExtensions
+{
+    public static Task ShouldHaveConsistentActorIdentityAsync(
+        this IActorProvider actorProvider,
+        IActorIdentityProvider identityProvider,
+        CancellationToken cancellationToken = default);
+}
+```
+
+Resolves identity first and full actor second **sequentially**, so scoped repositories
+are not used concurrently. When an actor resolves, asserts that identity is present and
+equals `Actor.Id`. Both absent, or identity present with actor absent, are valid.
+Failures name both provider types and both outcomes, including explicit `None`; a
+FluentAssertions `AssertionScope` collects the failure without unwrapping absence.
+Null arguments throw `ArgumentNullException`; provider failures and cancellation
+propagate unchanged. Use interfaces resolved from the same scope to test registration too.
+
+`TestActorProvider` also implements `IActorIdentityProvider`: its
+`GetCurrentActorIdAsync` reads the active `WithActor` scope's canonical ID (or the default
+actor's ID) without invoking full actor resolution, and honors cancellation. Scope
+restoration and parallel-test isolation apply to both contracts.
+
 #### `ErrorAssertionsExtensions`
 ```csharp
 public static class ErrorAssertionsExtensions
@@ -310,7 +336,7 @@ public class ErrorAssertions : ReferenceTypeAssertions<Error, ErrorAssertions>
 }
 ```
 
-> **Note:** The `HaveInstance(...)` assertion was removed. `Error.Instance` is no longer part of the closed-ADT base — the ASP wire layer populates `ProblemDetails.Instance` from the server-relative request path+query, and typed payloads expose `ResourceRef` (e.g. `Error.NotFound.Resource`) directly for assertion via `BeOfType<Error.NotFound>().Which.Resource`.
+> **Note:** The `HaveInstance(...)` assertion was removed. `Error.Instance` <!-- doc-member-ok: Error.Instance; historical removed member, not current API --> is no longer part of the closed-ADT base — the ASP wire layer populates `ProblemDetails.Instance` from the server-relative request path+query, and typed payloads expose `ResourceRef` (e.g. `Error.NotFound.Resource`) directly for assertion via `BeOfType<Error.NotFound>().Which.Resource`.
 
 #### `ValidationErrorAssertionsExtensions`
 ```csharp
@@ -453,7 +479,7 @@ public class FakeRepository<TAggregate, TId>
 }
 ```
 
-> **Cancellation token observability.** All `*Async` methods on `FakeRepository<TAggregate, TId>` accept a `CancellationToken` parameter for source-compat with `RepositoryBase<TAggregate, TId>` but **do not observe it** — the fake completes synchronously. Tests that rely on cancellation behavior need a different test double; this fake intentionally trades cancellation-observability for the simpler synchronous semantics that DDD aggregate tests typically need.
+> **Cancellation token observability.** Repository-shaped `*Async` methods on `FakeRepository<TAggregate, TId>` accept a `CancellationToken` parameter for source-compat with `RepositoryBase<TAggregate, TId>` but **do not observe it** — the fake completes synchronously. The local `FindAsync` helper and both `WhereAsync` overloads have no token parameter. Tests that rely on cancellation behavior need a different test double; this fake intentionally trades cancellation-observability for the simpler synchronous semantics that DDD aggregate tests typically need.
 
 > **Null guards.** `Add`, `Remove`, `SaveAsync`, `WithUniqueConstraint`, `QueryAsync`, `ExistsAsync(Specification<TAggregate>)`, `CountAsync`, `FindAsync`, and `WhereAsync` all `ArgumentNullException.ThrowIfNull(...)` their reference-type parameters. `GetByIdAsync`, `FindByIdAsync`, `RemoveByIdAsync`, `DeleteAsync`, and `ExistsAsync(TId)` rely on the `TId : notnull` constraint at compile time.
 
@@ -471,12 +497,13 @@ public class FakeSharedResourceLoader<TResource, TId> : SharedResourceLoaderById
 
 #### `TestActorProvider`
 ```csharp
-public sealed class TestActorProvider : IActorProvider
+public sealed class TestActorProvider : IActorProvider, IActorIdentityProvider
 {
     public TestActorProvider(Actor actor);
     public TestActorProvider(string userId, params string[] permissions);
 
     public Task<Maybe<Actor>> GetCurrentActorAsync(CancellationToken cancellationToken = default);
+    public ValueTask<Maybe<ActorId>> GetCurrentActorIdAsync(CancellationToken cancellationToken = default);
 
     public TestActorScope WithActor(Actor actor);
     public TestActorScope WithActor(string userId, params string[] permissions);
@@ -563,13 +590,6 @@ using FluentAssertions;
 using Trellis;
 using Trellis.Testing;
 
-public sealed record OrderId(Guid Value);
-
-public sealed class Order : Aggregate<OrderId>
-{
-    public Order(OrderId id) : base(id) { }
-}
-
 var repo = new FakeRepository<Order, OrderId>()
     .WithUniqueConstraint(order => order.Id);
 
@@ -579,4 +599,11 @@ await repo.SaveAsync(order).BeSuccessAsync();
 (await repo.GetByIdAsync(order.Id)).Should().BeSuccess().Which.Should().BeSameAs(order);
 repo.Exists(order.Id).Should().BeTrue();
 repo.Count.Should().Be(1);
+
+public sealed record OrderId(Guid Value);
+
+public sealed class Order : Aggregate<OrderId>
+{
+    public Order(OrderId id) : base(id) { }
+}
 ```

@@ -53,7 +53,7 @@ public class ProblemDetailsTests
         var client = _factory.CreateClient();
         var body = new StringContent("not json", Encoding.UTF8, "text/plain");
         var request = new HttpRequestMessage(HttpMethod.Post, "api/Todos?api-version=2026-03-26") { Content = body };
-        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        request.Headers.Add("Idempotency-Key", $"\"{Guid.NewGuid()}\"");
 
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -63,6 +63,25 @@ public class ProblemDetailsTests
         Assert.NotNull(problem);
         problem.Status.Should().Be(StatusCodes.Status415UnsupportedMediaType);
         problem.TraceId.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Unquoted_idempotency_key_returns_400_problem_details()
+    {
+        var client = _factory.CreateClient();
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/Todos?api-version=2026-03-26")
+        {
+            Content = JsonContent.Create(new { title = "Unquoted key", dueDate = "2099-01-01T00:00:00Z" }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+        Assert.NotNull(problem);
+        problem.Status.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     // The /fault demo endpoint returns new Error.Unexpected("todos_fault", "TODOS-FAULT-001").ToHttpResponse(),

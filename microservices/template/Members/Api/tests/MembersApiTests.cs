@@ -60,7 +60,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
         {
             Content = JsonContent.Create(new { email = "newhire@acme.example", role = "contributor" }),
         };
-        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        request.Headers.Add("Idempotency-Key", $"\"{Guid.NewGuid()}\"");
 
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -82,6 +82,22 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
     }
 
     [Fact]
+    public async Task Invite_member_with_an_unquoted_idempotency_key_is_400()
+    {
+        var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/members{VersionQuery}")
+        {
+            Content = JsonContent.Create(new { email = "unquoted@acme.example", role = "contributor" }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+    }
+
+    [Fact]
     public async Task Invite_member_with_a_malformed_email_is_422()
     {
         var client = factory.CreateClientWithActor(Actor("alice", "acme", Permissions.MembersInvite));
@@ -89,7 +105,7 @@ public class MembersApiTests(MembersApiFactory factory) : IClassFixture<MembersA
         {
             Content = JsonContent.Create(new { email = "not-an-email", role = "contributor" }),
         };
-        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        request.Headers.Add("Idempotency-Key", $"\"{Guid.NewGuid()}\"");
 
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 

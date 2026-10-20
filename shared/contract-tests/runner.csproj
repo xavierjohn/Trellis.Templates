@@ -8,6 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
-    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.13" />
   </ItemGroup>
 </Project>

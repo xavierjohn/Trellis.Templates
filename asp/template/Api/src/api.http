@@ -1,11 +1,11 @@
 ### Create a todo (admin)
 # Idempotency-Key opts this POST into the IETF idempotency middleware;
-# {{$guid}} generates a fresh key per call so retries are not replayed.
+# Keys must be quoted RFC 9651 Strings; {{$guid}} generates a fresh key per call.
 # dueDate is computed at request time so the example never goes stale.
 # @name createTodo
 POST {{host}}/api/Todos?api-version={{apiVersion}}
 Content-Type: application/json
-Idempotency-Key: {{$guid}}
+Idempotency-Key: "{{$guid}}"
 X-Test-Actor: {{adminActor}}
 
 {
@@ -17,7 +17,7 @@ X-Test-Actor: {{adminActor}}
 ### Create a todo without tag
 POST {{host}}/api/Todos?api-version={{apiVersion}}
 Content-Type: application/json
-Idempotency-Key: {{$guid}}
+Idempotency-Key: "{{$guid}}"
 X-Test-Actor: {{adminActor}}
 
 {
@@ -88,7 +88,7 @@ X-Test-Actor: {{userActor}}
 ### Bad Request — empty title (→ 422 from Title value-object validation)
 POST {{host}}/api/Todos?api-version={{apiVersion}}
 Content-Type: application/json
-Idempotency-Key: {{$guid}}
+Idempotency-Key: "{{$guid}}"
 X-Test-Actor: {{adminActor}}
 
 {
@@ -99,7 +99,7 @@ X-Test-Actor: {{adminActor}}
 ### Bad Request — invalid tag (→ 422 from Tag value-object validation)
 POST {{host}}/api/Todos?api-version={{apiVersion}}
 Content-Type: application/json
-Idempotency-Key: {{$guid}}
+Idempotency-Key: "{{$guid}}"
 X-Test-Actor: {{adminActor}}
 
 {

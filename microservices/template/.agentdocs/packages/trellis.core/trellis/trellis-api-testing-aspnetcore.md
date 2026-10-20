@@ -3,7 +3,7 @@ package: Trellis.Testing.AspNetCore
 namespaces: [Trellis.Testing.AspNetCore, Trellis.Testing.AspNetCore.Http]
 types: [WebApplicationFactoryExtensions, WebApplicationFactoryTimeExtensions, ServiceCollectionExtensions, ServiceCollectionDbProviderExtensions, MsalTestTokenProvider, MsalTestOptions, TestUserCredentials, HttpFileParser, HttpFileRunner, HttpFileAssertions, HttpFileTheoryData, HttpFileRequest, HttpFileResult, ExpectedOutcome, HttpFileAssertionException, ScenarioContext]
 version: v3
-last_verified: 2026-10-06
+last_verified: 2026-10-11
 audience: [llm]
 agent_usage: onDemand
 agent_description: "Open when writing ASP.NET Core integration tests with WebApplicationFactory: replacing services, actors or time, and replaying .http files."
@@ -175,6 +175,7 @@ Reusing the same parsed request list generates new GUIDs on every replay without
 the templates. Multiple occurrences in one request are independent, including an alias such
 as `@key = {{$guid}}`. Use a supplied/file-level **literal** value when several requests must
 share one idempotency key, and captured response tokens when later requests need a created ID.
+Serialize idempotency keys as quoted RFC 9651 Strings, for example `Idempotency-Key: "{{key}}"`.
 Header names must be literal; placeholders in names are rejected rather than expanded.
 
 Both runner entry points throw `HttpFileAssertionException` before sending an offending
